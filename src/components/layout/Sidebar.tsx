@@ -1,16 +1,14 @@
-import { LayoutDashboard, TrendingUp, DollarSign, Users, Clock, Settings, Plus } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, DollarSign, Package, ShoppingCart, Settings, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Revenue', href: '/revenue', icon: DollarSign },
-  { name: 'Growth', href: '/growth', icon: TrendingUp },
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Runway', href: '/runway', icon: Clock },
+  { name: 'Sales', href: '/sales', icon: ShoppingCart },
+  { name: 'Products', href: '/products', icon: Package },
 ];
 
 interface SidebarProps {
-  onAddMetric: () => void;
+  onAddMetric?: () => void;
 }
 
 export function Sidebar({ onAddMetric }: SidebarProps) {
@@ -24,7 +22,7 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <TrendingUp className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-sidebar-foreground">DeckMetrics</span>
+          <span className="text-lg font-semibold text-sidebar-foreground">RetailTrack</span>
         </div>
 
         {/* Navigation */}
@@ -44,13 +42,15 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
           })}
         </nav>
 
-        {/* Add Metric Button */}
-        <div className="border-t border-sidebar-border p-4">
-          <button onClick={onAddMetric} className="btn-primary w-full">
-            <Plus className="h-4 w-4" />
-            Add Metric
-          </button>
-        </div>
+        {/* Add Metric Button - only show if handler provided */}
+        {onAddMetric && (
+          <div className="border-t border-sidebar-border p-4">
+            <button onClick={onAddMetric} className="btn-primary w-full">
+              <Plus className="h-4 w-4" />
+              Add Metric
+            </button>
+          </div>
+        )}
 
         {/* Settings */}
         <div className="border-t border-sidebar-border p-3">
