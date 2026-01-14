@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Sale } from '@/types/sales';
+import { Sale } from '@/data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface TopProductsChartProps {

@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, DollarSign, ShoppingCart, TrendingUp } from 'lucide-react';
-import { useSales } from '@/hooks/useSales';
-import { useProducts } from '@/hooks/useProducts';
+import { useSales, useProducts, SaleFormData } from '@/data';
 import { AddSaleModal } from '@/components/sales/AddSaleModal';
 import { SalesTable } from '@/components/sales/SalesTable';
-import { SaleFormData } from '@/types/sales';
+
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);

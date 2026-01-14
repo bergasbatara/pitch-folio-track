@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, Minus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { Metric, MetricTrend, categoryLabels, categoryColors } from '@/types/metrics';
+import { Metric, MetricTrend, categoryLabels, categoryColors } from '@/data';
 import {
   DropdownMenu,
   DropdownMenuContent,

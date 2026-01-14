@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Sale } from '@/types/sales';
+import { Sale } from '@/data';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 

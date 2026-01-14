@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Product, SaleFormData } from '@/types/sales';
+import { Product, SaleFormData } from '@/data';
 
 interface AddSaleModalProps {
   isOpen: boolean;

@@ -1,7 +1,6 @@
 import { DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useSales } from '@/hooks/useSales';
-import { useProducts } from '@/hooks/useProducts';
+import { useSales, useProducts } from '@/data';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SalesChart } from '@/components/charts/SalesChart';

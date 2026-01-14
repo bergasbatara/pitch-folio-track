@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, Package, AlertTriangle } from 'lucide-react';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, Product, ProductFormData } from '@/data';
 import { AddProductModal } from '@/components/products/AddProductModal';
 import { ProductsTable } from '@/components/products/ProductsTable';
-import { Product, ProductFormData } from '@/types/sales';
+
 
 export default function Products() {
   const [isModalOpen, setIsModalOpen] = useState(false);

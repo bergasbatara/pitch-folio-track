@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Metric, MetricFormData } from '@/types/metrics';
+import { Metric, MetricFormData } from '@/data/types/metrics';
 
 const defaultMetrics: Metric[] = [
   {
