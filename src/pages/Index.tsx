@@ -4,10 +4,12 @@ import { useSales } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { SalesChart } from '@/components/charts/SalesChart';
+import { TopProductsChart } from '@/components/charts/TopProductsChart';
 
 function QuickStat({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card/50 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card/50 px-4 py-3 animate-fade-in">
       <div
         className="flex h-10 w-10 items-center justify-center rounded-lg"
         style={{ backgroundColor: `${color}20` }}
@@ -83,6 +85,12 @@ export default function Index() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2 mb-8">
+        <SalesChart sales={sales} days={7} />
+        <TopProductsChart sales={sales} limit={5} />
       </div>
 
       {/* Recent Activity */}
