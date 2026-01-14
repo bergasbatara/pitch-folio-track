@@ -1,10 +1,9 @@
-import { useState } from 'react';
-import { TrendingUp, DollarSign, Users, Clock, Target } from 'lucide-react';
+import { DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { MetricCard } from '@/components/metrics/MetricCard';
-import { AddMetricModal } from '@/components/metrics/AddMetricModal';
-import { useMetrics } from '@/hooks/useMetrics';
-import { Metric, MetricFormData, categoryColors } from '@/types/metrics';
+import { useSales } from '@/hooks/useSales';
+import { useProducts } from '@/hooks/useProducts';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 function QuickStat({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
   return (
@@ -24,43 +23,19 @@ function QuickStat({ icon: Icon, label, value, color }: { icon: any; label: stri
 }
 
 export default function Index() {
-  const { metrics, addMetric, updateMetric, deleteMetric } = useMetrics();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
+  const { sales, totalRevenue, totalUnitsSold, todaysRevenue, todaysSales } = useSales();
+  const { products } = useProducts();
 
-  const handleAddMetric = () => {
-    setEditingMetric(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (metric: Metric) => {
-    setEditingMetric(metric);
-    setIsModalOpen(true);
-  };
-
-  const handleSubmit = (data: MetricFormData) => {
-    if (editingMetric) {
-      updateMetric(editingMetric.id, data);
-    } else {
-      addMetric(data);
-    }
-  };
-
-  // Calculate summary stats
-  const totalRevenue = metrics
-    .filter((m) => m.category === 'revenue')
-    .reduce((sum, m) => sum + m.value, 0);
-
-  const totalCustomers = metrics.find((m) => m.name.toLowerCase().includes('total customers'))?.value || 0;
-  const runway = metrics.find((m) => m.category === 'runway')?.value || 0;
-  const growthRate = metrics.find((m) => m.name.toLowerCase().includes('growth rate'))?.value || 0;
+  const totalProducts = products.length;
+  const lowStockCount = products.filter(p => p.stock < 10).length;
+  const avgSaleValue = sales.length > 0 ? totalRevenue / sales.length : 0;
 
   return (
-    <MainLayout onAddMetric={handleAddMetric}>
+    <MainLayout>
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <p className="page-description">Track your pitch deck metrics at a glance</p>
+        <p className="page-description">Track your retail business metrics at a glance</p>
       </div>
 
       {/* Quick Stats */}
@@ -68,68 +43,100 @@ export default function Index() {
         <QuickStat
           icon={DollarSign}
           label="Total Revenue"
-          value={`$${(totalRevenue / 1000000).toFixed(1)}M`}
-          color={categoryColors.revenue}
+          value={`$${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          color="hsl(160 84% 39%)"
         />
         <QuickStat
-          icon={Users}
-          label="Total Customers"
-          value={totalCustomers.toLocaleString()}
-          color={categoryColors.customers}
+          icon={TrendingUp}
+          label="Today's Revenue"
+          value={`$${todaysRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+          color="hsl(142 76% 36%)"
         />
         <QuickStat
-          icon={Clock}
-          label="Runway"
-          value={`${runway} months`}
-          color={categoryColors.runway}
+          icon={ShoppingCart}
+          label="Units Sold"
+          value={totalUnitsSold.toLocaleString()}
+          color="hsl(200 80% 50%)"
         />
         <QuickStat
-          icon={Target}
-          label="Growth Rate"
-          value={`${growthRate}%`}
-          color={categoryColors.growth}
+          icon={Package}
+          label="Products"
+          value={`${totalProducts} (${lowStockCount} low stock)`}
+          color="hsl(270 70% 60%)"
         />
       </div>
 
-      {/* Metrics Grid */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-medium text-foreground">All Metrics</h2>
-        <span className="text-sm text-muted-foreground">{metrics.length} metrics</span>
-      </div>
-
-      <div className="grid-metrics">
-        {metrics.map((metric, index) => (
-          <MetricCard
-            key={metric.id}
-            metric={metric}
-            onEdit={handleEdit}
-            onDelete={deleteMetric}
-            index={index}
-          />
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {metrics.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 py-16">
-          <TrendingUp className="mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="mb-2 text-lg font-medium text-foreground">No metrics yet</h3>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Start tracking your pitch deck numbers
-          </p>
-          <button onClick={handleAddMetric} className="btn-primary">
-            Add Your First Metric
-          </button>
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <h2 className="text-lg font-medium text-foreground mb-4">Quick Actions</h2>
+        <div className="flex gap-4">
+          <Link to="/sales">
+            <Button className="gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Record a Sale
+            </Button>
+          </Link>
+          <Link to="/products">
+            <Button variant="outline" className="gap-2">
+              <Package className="h-4 w-4" />
+              Manage Products
+            </Button>
+          </Link>
         </div>
-      )}
+      </div>
 
-      {/* Modal */}
-      <AddMetricModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleSubmit}
-        editingMetric={editingMetric}
-      />
+      {/* Recent Activity */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Today's Summary */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Today's Summary</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-2 border-b border-border">
+              <span className="text-muted-foreground">Sales Count</span>
+              <span className="font-semibold">{todaysSales.length}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-border">
+              <span className="text-muted-foreground">Revenue</span>
+              <span className="font-semibold text-primary">
+                ${todaysRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-muted-foreground">Avg Sale Value</span>
+              <span className="font-semibold">
+                ${avgSaleValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Sales */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Recent Sales</h2>
+          {sales.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No sales recorded yet</p>
+          ) : (
+            <div className="space-y-3">
+              {sales.slice(0, 5).map((sale) => (
+                <div key={sale.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                  <div>
+                    <p className="font-medium">{sale.productName}</p>
+                    <p className="text-sm text-muted-foreground">Qty: {sale.quantity}</p>
+                  </div>
+                  <span className="font-semibold text-primary">
+                    ${sale.totalPrice.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {sales.length > 5 && (
+            <Link to="/sales" className="block mt-4 text-center text-sm text-primary hover:underline">
+              View all sales →
+            </Link>
+          )}
+        </div>
+      </div>
     </MainLayout>
   );
 }

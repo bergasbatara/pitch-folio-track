@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 
 interface MainLayoutProps {
   children: ReactNode;
-  onAddMetric: () => void;
+  onAddMetric?: () => void;
 }
 
 export function MainLayout({ children, onAddMetric }: MainLayoutProps) {
