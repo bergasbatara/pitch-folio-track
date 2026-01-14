@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Product, ProductFormData } from '@/types/sales';
+import { Product, ProductFormData } from '@/data/types/sales';
 import { useLocalStorage } from './useLocalStorage';
 
 const defaultProducts: Product[] = [

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { Metric, MetricFormData, MetricCategory, categoryLabels } from '@/types/metrics';
+import { Metric, MetricFormData, MetricCategory, categoryLabels } from '@/data';
 import {
   Dialog,
   DialogContent,

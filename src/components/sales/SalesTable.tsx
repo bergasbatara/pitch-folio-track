@@ -1,4 +1,4 @@
-import { Sale } from '@/types/sales';
+import { Sale } from '@/data';
 import {
   Table,
   TableBody,

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Sale, SaleFormData } from '@/types/sales';
+import { Sale, SaleFormData } from '@/data/types/sales';
 import { useLocalStorage } from './useLocalStorage';
 
 export function useSales() {

@@ -1,4 +1,4 @@
-import { Product } from '@/types/sales';
+import { Product } from '@/data';
 import {
   Table,
   TableBody,
