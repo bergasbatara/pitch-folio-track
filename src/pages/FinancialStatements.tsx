@@ -10,6 +10,7 @@ import { id } from 'date-fns/locale';
 import { useSales } from '@/data/hooks/useSales';
 import { usePurchases, usePurchaseCategories } from '@/data/hooks/usePurchases';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
 
 const formatCurrency = (value: number) => {
   return `Rp ${value.toLocaleString('id-ID')}`;
@@ -71,6 +72,159 @@ export default function FinancialStatements() {
   const totalUtang = purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
   const totalEkuitas = totalAsetPenjualan - totalUtang;
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+    const lineHeight = 7;
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+
+    // Helper functions
+    const addTitle = (text: string) => {
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(text, pageWidth / 2, yPos, { align: 'center' });
+      yPos += lineHeight * 1.5;
+    };
+
+    const addSectionTitle = (text: string) => {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(text, margin, yPos);
+      yPos += lineHeight;
+    };
+
+    const addLine = (label: string, value: string, bold = false) => {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.text(label, margin + 5, yPos);
+      doc.text(value, pageWidth - margin, yPos, { align: 'right' });
+      yPos += lineHeight;
+    };
+
+    const addSeparator = () => {
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+    };
+
+    const checkPageBreak = () => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+    };
+
+    // Title
+    addTitle('LAPORAN KEUANGAN HARIAN');
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tanggal: ${format(date, 'dd MMMM yyyy', { locale: id })}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += lineHeight * 2;
+
+    // Pendapatan Harian
+    addSectionTitle('PENDAPATAN HARIAN');
+    addSeparator();
+    if (Object.keys(salesByProduct).length > 0) {
+      Object.entries(salesByProduct).forEach(([productName, amount]) => {
+        addLine(productName, formatCurrency(amount));
+      });
+    } else {
+      addLine('Tidak ada penjualan', formatCurrency(0));
+    }
+    yPos += 2;
+    addLine('Total Pendapatan', formatCurrency(totalPendapatan), true);
+    yPos += lineHeight;
+    checkPageBreak();
+
+    // Beban Harian
+    addSectionTitle('BEBAN HARIAN');
+    addSeparator();
+    if (Object.keys(purchasesByCategory).length > 0) {
+      Object.entries(purchasesByCategory).forEach(([categoryName, amount]) => {
+        addLine(categoryName, formatCurrency(amount));
+      });
+    } else {
+      addLine('Tidak ada pembelian', formatCurrency(0));
+    }
+    yPos += 2;
+    addLine('Total Beban', formatCurrency(totalBeban), true);
+    yPos += lineHeight;
+    checkPageBreak();
+
+    // Laba Rugi Harian
+    addSectionTitle('LABA RUGI HARIAN');
+    addSeparator();
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    const labaRugiText = labaRugi >= 0 ? 'LABA' : 'RUGI';
+    doc.text(`${labaRugiText}: ${formatCurrency(Math.abs(labaRugi))}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += lineHeight * 2;
+    checkPageBreak();
+
+    // Arus Kas Harian
+    addSectionTitle('ARUS KAS HARIAN');
+    addSeparator();
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Arus Masuk Kas', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFont('helvetica', 'normal');
+    if (Object.keys(salesByProduct).length > 0) {
+      Object.entries(salesByProduct).forEach(([productName, amount]) => {
+        addLine(`  ${productName}`, formatCurrency(amount));
+      });
+    } else {
+      addLine('  -', formatCurrency(0));
+    }
+    addLine('Total Arus Masuk', formatCurrency(totalPendapatan), true);
+    yPos += 3;
+    checkPageBreak();
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Arus Keluar Kas', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFont('helvetica', 'normal');
+    if (Object.keys(purchasesByCategory).length > 0) {
+      Object.entries(purchasesByCategory).forEach(([categoryName, amount]) => {
+        addLine(`  ${categoryName}`, formatCurrency(amount));
+      });
+    } else {
+      addLine('  -', formatCurrency(0));
+    }
+    addLine('Total Arus Keluar', formatCurrency(totalBeban), true);
+    yPos += 3;
+    addLine('Total Arus Kas', formatCurrency(labaRugi), true);
+    yPos += lineHeight;
+    checkPageBreak();
+
+    // Saldo Kas Harian
+    addSectionTitle('SALDO KAS HARIAN');
+    addSeparator();
+    addLine('Saldo Kas', formatCurrency(labaRugi), true);
+    yPos += lineHeight;
+    checkPageBreak();
+
+    // Aktiva dan Kewajiban
+    addSectionTitle('AKTIVA DAN KEWAJIBAN (TOTAL)');
+    addSeparator();
+    addLine('Total Aset (Pendapatan)', formatCurrency(totalAsetPenjualan));
+    addLine('Total Kewajiban (Pengeluaran)', formatCurrency(totalUtang));
+    yPos += 2;
+    addLine('Total Ekuitas', formatCurrency(totalEkuitas), true);
+
+    // Footer
+    yPos += lineHeight * 2;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Dicetak pada: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: id })}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += lineHeight;
+    doc.text('Asia Global Financial', pageWidth / 2, yPos, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`Laporan_Keuangan_${format(date, 'yyyy-MM-dd')}.pdf`);
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -103,6 +257,10 @@ export default function FinancialStatements() {
                 />
               </PopoverContent>
             </Popover>
+            <Button onClick={exportToPDF} className="gap-2">
+              <Download className="h-4 w-4" />
+              Ekspor PDF
+            </Button>
           </div>
         </div>
 
