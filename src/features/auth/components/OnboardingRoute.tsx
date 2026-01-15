@@ -2,11 +2,11 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnboarding } from '@/features/onboarding';
 
-interface ProtectedRouteProps {
+interface OnboardingRouteProps {
   children: React.ReactNode;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function OnboardingRoute({ children }: OnboardingRouteProps) {
   const { user, isLoading } = useAuth();
   const { completed } = useOnboarding();
 
@@ -22,9 +22,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to onboarding if not completed
-  if (!completed) {
-    return <Navigate to="/onboarding/welcome" replace />;
+  // If onboarding is already complete, redirect to dashboard
+  if (completed) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
