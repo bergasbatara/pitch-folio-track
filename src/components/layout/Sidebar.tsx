@@ -1,5 +1,6 @@
-import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Dasbor', href: '/', icon: LayoutDashboard },
@@ -15,6 +16,7 @@ interface SidebarProps {
 
 export function Sidebar({ onAddMetric }: SidebarProps) {
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar">
@@ -50,6 +52,23 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
             <button onClick={onAddMetric} className="btn-primary w-full">
               <Plus className="h-4 w-4" />
               Tambah Metrik
+            </button>
+          </div>
+        )}
+
+        {/* User info and logout */}
+        {user && (
+          <div className="border-t border-sidebar-border p-3 space-y-2">
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground">
+              <User className="h-4 w-4" />
+              <span className="truncate">{user.name}</span>
+            </div>
+            <button 
+              onClick={logout}
+              className="sidebar-link w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-5 w-5" />
+              Keluar
             </button>
           </div>
         )}
