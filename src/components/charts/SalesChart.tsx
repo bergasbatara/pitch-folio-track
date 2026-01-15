@@ -49,10 +49,10 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-primary">
-            ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            Rp{totalRevenue.toLocaleString('id-ID')}
           </p>
           <p className="text-sm text-muted-foreground">
-            Avg: ${avgDailyRevenue.toFixed(2)}/day
+            Avg: Rp{Math.round(avgDailyRevenue).toLocaleString('id-ID')}/day
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `Rp${value.toLocaleString('id-ID')}`}
             />
             <Tooltip 
               contentStyle={{ 
@@ -88,7 +88,7 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
                 borderRadius: '8px',
                 color: 'hsl(210 40% 98%)'
               }}
-              formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+              formatter={(value: number) => [`Rp${value.toLocaleString('id-ID')}`, 'Revenue']}
             />
             <Area 
               type="monotone" 

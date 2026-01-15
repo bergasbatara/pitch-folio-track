@@ -52,7 +52,7 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell className="text-right">
-                  ${product.price.toFixed(2)}
+                  Rp{product.price.toLocaleString('id-ID')}
                 </TableCell>
                 <TableCell className="text-right">{product.stock}</TableCell>
                 <TableCell>

@@ -17,12 +17,14 @@ interface MetricCardProps {
 function formatValue(value: number, unit: Metric['unit']): string {
   switch (unit) {
     case 'currency':
-      if (value >= 1000000) {
-        return `$${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000000000) {
+        return `Rp${(value / 1000000000).toFixed(1)}B`;
+      } else if (value >= 1000000) {
+        return `Rp${(value / 1000000).toFixed(1)}M`;
       } else if (value >= 1000) {
-        return `$${(value / 1000).toFixed(0)}K`;
+        return `Rp${(value / 1000).toFixed(0)}K`;
       }
-      return `$${value.toLocaleString()}`;
+      return `Rp${value.toLocaleString('id-ID')}`;
     case 'percentage':
       return `${value.toFixed(1)}%`;
     case 'months':
@@ -34,7 +36,7 @@ function formatValue(value: number, unit: Metric['unit']): string {
       } else if (value >= 1000) {
         return `${(value / 1000).toFixed(0)}K`;
       }
-      return value.toLocaleString();
+      return value.toLocaleString('id-ID');
   }
 }
 

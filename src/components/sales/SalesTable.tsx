@@ -48,10 +48,10 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
               <TableCell className="font-medium">{sale.productName}</TableCell>
               <TableCell className="text-right">{sale.quantity}</TableCell>
               <TableCell className="text-right">
-                ${sale.pricePerUnit.toFixed(2)}
+                Rp{sale.pricePerUnit.toLocaleString('id-ID')}
               </TableCell>
               <TableCell className="text-right font-semibold text-primary">
-                ${sale.totalPrice.toFixed(2)}
+                Rp{sale.totalPrice.toLocaleString('id-ID')}
               </TableCell>
               <TableCell>
                 <Button

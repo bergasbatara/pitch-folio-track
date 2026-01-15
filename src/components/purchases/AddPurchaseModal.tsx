@@ -191,7 +191,7 @@ export function AddPurchaseModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unitCost">Unit Cost ($)</Label>
+              <Label htmlFor="unitCost">Unit Cost (Rp)</Label>
               <Input
                 id="unitCost"
                 type="number"
@@ -206,7 +206,7 @@ export function AddPurchaseModal({
             <div className="space-y-2">
               <Label>Total</Label>
               <div className="flex h-10 items-center rounded-lg border border-border bg-muted px-3 text-sm font-medium">
-                ${totalCost}
+                Rp{parseInt(totalCost).toLocaleString('id-ID')}
               </div>
             </div>
           </div>
