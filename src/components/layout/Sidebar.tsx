@@ -1,9 +1,10 @@
-import { LayoutDashboard, TrendingUp, DollarSign, Package, ShoppingCart, Settings, Plus } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, Settings, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Sales', href: '/sales', icon: ShoppingCart },
+  { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
   { name: 'Products', href: '/products', icon: Package },
 ];
 
