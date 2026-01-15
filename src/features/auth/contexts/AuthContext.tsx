@@ -20,6 +20,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_KEY = 'auth_user';
 const USERS_KEY = 'registered_users';
 
+// Hardcoded test credentials
+const TEST_EMAIL = 'admin@test.com';
+const TEST_PASSWORD = 'password123';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    // Check hardcoded test credentials first
+    if (email === TEST_EMAIL && password === TEST_PASSWORD) {
+      const testUser: User = {
+        id: 'test-admin-001',
+        email: TEST_EMAIL,
+        name: 'Admin Test',
+      };
+      setUser(testUser);
+      localStorage.setItem(AUTH_KEY, JSON.stringify(testUser));
+      return true;
+    }
+    
+    // Fallback to registered users
     const usersRaw = localStorage.getItem(USERS_KEY);
     const users: Record<string, { password: string; name: string }> = usersRaw ? JSON.parse(usersRaw) : {};
     
