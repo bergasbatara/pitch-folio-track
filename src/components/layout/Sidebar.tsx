@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, Settings, Plus } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const navigation = [
@@ -6,6 +6,7 @@ const navigation = [
   { name: 'Sales', href: '/sales', icon: ShoppingCart },
   { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
   { name: 'Products', href: '/products', icon: Package },
+  { name: 'Laporan Keuangan', href: '/laporan-keuangan', icon: FileText },
 ];
 
 interface SidebarProps {
