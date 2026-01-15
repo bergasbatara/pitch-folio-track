@@ -21,16 +21,16 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
   if (products.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>No products added yet.</p>
-        <p className="text-sm mt-1">Click "Add Product" to add your first product.</p>
+        <p>Belum ada produk ditambahkan.</p>
+        <p className="text-sm mt-1">Klik "Tambah Produk" untuk menambah produk pertama.</p>
       </div>
     );
   }
 
   const getStockStatus = (stock: number) => {
-    if (stock === 0) return { label: 'Out of Stock', variant: 'destructive' as const };
-    if (stock < 10) return { label: 'Low Stock', variant: 'secondary' as const };
-    return { label: 'In Stock', variant: 'default' as const };
+    if (stock === 0) return { label: 'Stok Habis', variant: 'destructive' as const };
+    if (stock < 10) return { label: 'Stok Rendah', variant: 'secondary' as const };
+    return { label: 'Tersedia', variant: 'default' as const };
   };
 
   return (
@@ -38,9 +38,9 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead>Product Name</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
+            <TableHead>Nama Produk</TableHead>
+            <TableHead className="text-right">Harga</TableHead>
+            <TableHead className="text-right">Stok</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]"></TableHead>
           </TableRow>

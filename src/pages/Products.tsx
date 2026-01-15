@@ -37,19 +37,19 @@ export default function Products() {
 
   const stats = [
     {
-      label: 'Total Products',
+      label: 'Total Produk',
       value: totalProducts,
       icon: Package,
       color: 'text-primary',
     },
     {
-      label: 'Low Stock',
+      label: 'Stok Rendah',
       value: lowStockProducts,
       icon: AlertTriangle,
       color: 'text-yellow-400',
     },
     {
-      label: 'Out of Stock',
+      label: 'Stok Habis',
       value: outOfStockProducts,
       icon: AlertTriangle,
       color: 'text-destructive',
@@ -61,12 +61,12 @@ export default function Products() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Products</h1>
-            <p className="text-muted-foreground">Manage your product inventory</p>
+            <h1 className="text-2xl font-bold text-foreground">Produk</h1>
+            <p className="text-muted-foreground">Kelola inventaris produk Anda</p>
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Add Product
+            Tambah Produk
           </Button>
         </div>
 
@@ -92,7 +92,7 @@ export default function Products() {
 
         {/* Products Table */}
         <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold mb-4">All Products</h2>
+          <h2 className="text-lg font-semibold mb-4">Semua Produk</h2>
           <ProductsTable
             products={products}
             onEdit={handleEdit}

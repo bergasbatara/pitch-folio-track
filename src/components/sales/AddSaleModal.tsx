@@ -44,7 +44,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
     if (!selectedProduct) return;
     
     if (formData.quantity > selectedProduct.stock) {
-      alert(`Not enough stock! Only ${selectedProduct.stock} units available.`);
+      alert(`Stok tidak cukup! Hanya tersedia ${selectedProduct.stock} unit.`);
       return;
     }
     
@@ -59,22 +59,22 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Record New Sale</DialogTitle>
+          <DialogTitle className="text-foreground">Catat Penjualan Baru</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="product">Product</Label>
+            <Label htmlFor="product">Produk</Label>
             <Select
               value={formData.productId}
               onValueChange={(value) => setFormData({ ...formData, productId: value })}
             >
               <SelectTrigger className="bg-background border-border">
-                <SelectValue placeholder="Select a product" />
+                <SelectValue placeholder="Pilih produk" />
               </SelectTrigger>
               <SelectContent>
                 {products.map((product) => (
                   <SelectItem key={product.id} value={product.id}>
-                    {product.name} (Stock: {product.stock})
+                    {product.name} (Stok: {product.stock})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -82,7 +82,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity Sold</Label>
+            <Label htmlFor="quantity">Jumlah Terjual</Label>
             <Input
               id="quantity"
               type="number"
@@ -94,13 +94,13 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
             />
             {selectedProduct && (
               <p className="text-xs text-muted-foreground">
-                Available stock: {selectedProduct.stock} units
+                Stok tersedia: {selectedProduct.stock} unit
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Price Per Unit</Label>
+            <Label htmlFor="price">Harga Satuan</Label>
             <Input
               id="price"
               type="number"
@@ -114,7 +114,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
 
           <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Sale</span>
+              <span className="text-sm text-muted-foreground">Total Penjualan</span>
               <span className="text-lg font-bold text-primary">
                 Rp{totalPrice.toLocaleString('id-ID')}
               </span>
@@ -123,10 +123,10 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              Batal
             </Button>
             <Button type="submit" disabled={!formData.productId || formData.quantity < 1}>
-              Record Sale
+              Catat Penjualan
             </Button>
           </div>
         </form>

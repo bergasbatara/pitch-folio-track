@@ -39,12 +39,12 @@ export default function Purchases() {
         {/* Header */}
         <div className="page-header flex items-center justify-between">
           <div>
-            <h1 className="page-title">Purchases</h1>
-            <p className="page-description">Track your business expenses and supplies</p>
+            <h1 className="page-title">Pembelian</h1>
+            <p className="page-description">Lacak pengeluaran dan persediaan bisnis Anda</p>
           </div>
           <button onClick={() => setIsModalOpen(true)} className="btn-primary">
             <Plus className="h-4 w-4" />
-            Add Purchase
+            Tambah Pembelian
           </button>
         </div>
 
@@ -57,7 +57,7 @@ export default function Purchases() {
                 <TrendingDown className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="stat-label">Total Spend</p>
+                <p className="stat-label">Total Pengeluaran</p>
                 <p className="stat-value">{formatCurrency(getTotalSpend())}</p>
               </div>
             </div>
@@ -65,14 +65,14 @@ export default function Purchases() {
           <div className="metric-card">
             <div className="metric-card-glow" />
             <div>
-              <p className="stat-label">Total Purchases</p>
+              <p className="stat-label">Total Pembelian</p>
               <p className="stat-value">{purchases.length}</p>
             </div>
           </div>
           <div className="metric-card">
             <div className="metric-card-glow" />
             <div>
-              <p className="stat-label">Categories</p>
+              <p className="stat-label">Kategori</p>
               <p className="stat-value">{categories.length}</p>
             </div>
           </div>

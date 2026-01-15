@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface SalesTableProps {
   sales: Sale[];
@@ -20,8 +21,8 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
   if (sales.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>No sales recorded yet.</p>
-        <p className="text-sm mt-1">Click "Record Sale" to add your first sale.</p>
+        <p>Belum ada penjualan tercatat.</p>
+        <p className="text-sm mt-1">Klik "Catat Penjualan" untuk menambah penjualan pertama.</p>
       </div>
     );
   }
@@ -31,10 +32,10 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Product</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead className="text-right">Unit Price</TableHead>
+            <TableHead>Tanggal & Waktu</TableHead>
+            <TableHead>Produk</TableHead>
+            <TableHead className="text-right">Jml</TableHead>
+            <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
@@ -43,7 +44,7 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
           {sales.map((sale) => (
             <TableRow key={sale.id}>
               <TableCell className="text-muted-foreground">
-                {format(new Date(sale.soldAt), 'MMM d, yyyy h:mm a')}
+                {format(new Date(sale.soldAt), 'd MMM yyyy HH:mm', { locale: id })}
               </TableCell>
               <TableCell className="font-medium">{sale.productName}</TableCell>
               <TableCell className="text-right">{sale.quantity}</TableCell>

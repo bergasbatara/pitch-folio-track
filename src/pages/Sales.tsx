@@ -19,19 +19,19 @@ export default function Sales() {
 
   const stats = [
     {
-      label: 'Total Revenue',
+      label: 'Total Pendapatan',
       value: `Rp${totalRevenue.toLocaleString('id-ID')}`,
       icon: DollarSign,
       color: 'text-primary',
     },
     {
-      label: "Today's Revenue",
+      label: 'Pendapatan Hari Ini',
       value: `Rp${todaysRevenue.toLocaleString('id-ID')}`,
       icon: TrendingUp,
       color: 'text-emerald-400',
     },
     {
-      label: 'Units Sold',
+      label: 'Unit Terjual',
       value: totalUnitsSold.toLocaleString('id-ID'),
       icon: ShoppingCart,
       color: 'text-blue-400',
@@ -43,12 +43,12 @@ export default function Sales() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Sales</h1>
-            <p className="text-muted-foreground">Track and manage your product sales</p>
+            <h1 className="text-2xl font-bold text-foreground">Penjualan</h1>
+            <p className="text-muted-foreground">Lacak dan kelola penjualan produk Anda</p>
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Record Sale
+            Catat Penjualan
           </Button>
         </div>
 
@@ -74,7 +74,7 @@ export default function Sales() {
 
         {/* Sales Table */}
         <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Sales</h2>
+          <h2 className="text-lg font-semibold mb-4">Penjualan Terbaru</h2>
           <SalesTable sales={sales} onDelete={deleteSale} />
         </div>
       </div>

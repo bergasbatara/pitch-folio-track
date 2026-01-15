@@ -101,12 +101,12 @@ export function AddPurchaseModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editingPurchase ? 'Edit Purchase' : 'Add Purchase'}</DialogTitle>
+          <DialogTitle>{editingPurchase ? 'Edit Pembelian' : 'Tambah Pembelian'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="date">Tanggal</Label>
               <Input
                 id="date"
                 type="date"
@@ -116,23 +116,23 @@ export function AddPurchaseModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">Kategori</Label>
               {showNewCategory ? (
                 <div className="flex gap-2">
                   <Input
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Category name"
+                    placeholder="Nama kategori"
                   />
                   <Button type="button" size="sm" onClick={handleAddCategory}>
-                    Add
+                    Tambah
                   </Button>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <Select value={categoryId} onValueChange={setCategoryId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Pilih kategori" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (
@@ -156,29 +156,29 @@ export function AddPurchaseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="itemName">Item Name</Label>
+            <Label htmlFor="itemName">Nama Barang</Label>
             <Input
               id="itemName"
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
-              placeholder="e.g., Flour, Packaging boxes"
+              placeholder="cth., Tepung, Kardus kemasan"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier (optional)</Label>
+            <Label htmlFor="supplier">Pemasok (opsional)</Label>
             <Input
               id="supplier"
               value={supplier}
               onChange={(e) => setSupplier(e.target.value)}
-              placeholder="e.g., ABC Supplies Inc."
+              placeholder="cth., PT Supplier ABC"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
+              <Label htmlFor="quantity">Jumlah</Label>
               <Input
                 id="quantity"
                 type="number"
@@ -191,7 +191,7 @@ export function AddPurchaseModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unitCost">Unit Cost (Rp)</Label>
+              <Label htmlFor="unitCost">Harga Satuan (Rp)</Label>
               <Input
                 id="unitCost"
                 type="number"
@@ -199,7 +199,7 @@ export function AddPurchaseModal({
                 step="0.01"
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
-                placeholder="0.00"
+                placeholder="0"
                 required
               />
             </div>
@@ -212,22 +212,22 @@ export function AddPurchaseModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes">Catatan (opsional)</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional details..."
+              placeholder="Detail tambahan..."
               rows={2}
             />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              Batal
             </Button>
             <Button type="submit">
-              {editingPurchase ? 'Save Changes' : 'Add Purchase'}
+              {editingPurchase ? 'Simpan Perubahan' : 'Tambah Pembelian'}
             </Button>
           </div>
         </form>

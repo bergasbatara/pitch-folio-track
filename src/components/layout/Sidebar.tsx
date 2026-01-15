@@ -2,10 +2,10 @@ import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, FileTe
 import { Link, useLocation } from 'react-router-dom';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Sales', href: '/sales', icon: ShoppingCart },
-  { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
-  { name: 'Products', href: '/products', icon: Package },
+  { name: 'Dasbor', href: '/', icon: LayoutDashboard },
+  { name: 'Penjualan', href: '/sales', icon: ShoppingCart },
+  { name: 'Pembelian', href: '/purchases', icon: ShoppingBag },
+  { name: 'Produk', href: '/products', icon: Package },
   { name: 'Laporan Keuangan', href: '/laporan-keuangan', icon: FileText },
 ];
 
@@ -49,7 +49,7 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
           <div className="border-t border-sidebar-border p-4">
             <button onClick={onAddMetric} className="btn-primary w-full">
               <Plus className="h-4 w-4" />
-              Add Metric
+              Tambah Metrik
             </button>
           </div>
         )}
@@ -58,7 +58,7 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
         <div className="border-t border-sidebar-border p-3">
           <Link to="/settings" className="sidebar-link">
             <Settings className="h-5 w-5" />
-            Settings
+            Pengaturan
           </Link>
         </div>
       </div>

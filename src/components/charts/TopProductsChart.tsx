@@ -33,8 +33,8 @@ export function TopProductsChart({ sales, limit = 5 }: TopProductsChartProps) {
   if (chartData.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-lg font-medium text-foreground mb-4">Top Products</h2>
-        <p className="text-muted-foreground text-center py-8">No sales data yet</p>
+        <h2 className="text-lg font-medium text-foreground mb-4">Produk Teratas</h2>
+        <p className="text-muted-foreground text-center py-8">Belum ada data penjualan</p>
       </div>
     );
   }
@@ -42,8 +42,8 @@ export function TopProductsChart({ sales, limit = 5 }: TopProductsChartProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-foreground">Top Products</h2>
-        <p className="text-sm text-muted-foreground">By revenue</p>
+        <h2 className="text-lg font-medium text-foreground">Produk Teratas</h2>
+        <p className="text-sm text-muted-foreground">Berdasarkan pendapatan</p>
       </div>
       
       <div className="h-[250px]">
@@ -76,7 +76,7 @@ export function TopProductsChart({ sales, limit = 5 }: TopProductsChartProps) {
               }}
               formatter={(value: number, name: string) => [
                 name === 'revenue' ? `Rp${value.toLocaleString('id-ID')}` : value,
-                name === 'revenue' ? 'Revenue' : 'Units'
+                name === 'revenue' ? 'Pendapatan' : 'Unit'
               ]}
             />
             <Bar 
