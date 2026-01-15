@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (email: string, password: string, name: string) => Promise<boolean>;
+  updateProfile: (data: { name?: string; avatar?: string }) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,8 +90,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(AUTH_KEY);
   };
 
+  const updateProfile = async (data: { name?: string; avatar?: string }): Promise<boolean> => {
+    if (!user) return false;
+    
+    const updatedUser: User = {
+      ...user,
+      name: data.name || user.name,
+      avatar: data.avatar || user.avatar,
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(updatedUser));
+    
+    // Also update in registered users if exists
+    const usersRaw = localStorage.getItem(USERS_KEY);
+    if (usersRaw) {
+      const users: Record<string, { password: string; name: string }> = JSON.parse(usersRaw);
+      if (users[user.email]) {
+        users[user.email].name = data.name || user.name;
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+    }
+    
+    return true;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
