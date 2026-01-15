@@ -56,7 +56,7 @@ export function TopProductsChart({ sales, limit = 5 }: TopProductsChartProps) {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `Rp${value.toLocaleString('id-ID')}`}
             />
             <YAxis 
               type="category"
@@ -75,7 +75,7 @@ export function TopProductsChart({ sales, limit = 5 }: TopProductsChartProps) {
                 color: 'hsl(210 40% 98%)'
               }}
               formatter={(value: number, name: string) => [
-                name === 'revenue' ? `$${value.toFixed(2)}` : value,
+                name === 'revenue' ? `Rp${value.toLocaleString('id-ID')}` : value,
                 name === 'revenue' ? 'Revenue' : 'Units'
               ]}
             />
