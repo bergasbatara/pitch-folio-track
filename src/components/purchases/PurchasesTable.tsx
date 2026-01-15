@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Purchase, PurchaseCategory } from '@/data/types/purchases';
 import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface PurchasesTableProps {
   purchases: Purchase[];
@@ -27,7 +28,7 @@ interface PurchasesTableProps {
 
 export function PurchasesTable({ purchases, categories, onEdit, onDelete }: PurchasesTableProps) {
   const getCategoryName = (categoryId: string) => {
-    return categories.find(c => c.id === categoryId)?.name || 'Unknown';
+    return categories.find(c => c.id === categoryId)?.name || 'Tidak diketahui';
   };
 
   const formatCurrency = (value: number) => {
@@ -41,8 +42,8 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
   if (purchases.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12">
-        <p className="text-muted-foreground">No purchases recorded yet</p>
-        <p className="text-sm text-muted-foreground/70">Add your first purchase to start tracking expenses</p>
+        <p className="text-muted-foreground">Belum ada pembelian tercatat</p>
+        <p className="text-sm text-muted-foreground/70">Tambahkan pembelian pertama untuk mulai melacak pengeluaran</p>
       </div>
     );
   }
@@ -52,12 +53,12 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Supplier</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead className="text-right">Unit Cost</TableHead>
+            <TableHead>Tanggal</TableHead>
+            <TableHead>Barang</TableHead>
+            <TableHead>Kategori</TableHead>
+            <TableHead>Pemasok</TableHead>
+            <TableHead className="text-right">Jml</TableHead>
+            <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
@@ -66,7 +67,7 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
           {purchases.map((purchase) => (
             <TableRow key={purchase.id}>
               <TableCell className="text-muted-foreground">
-                {format(new Date(purchase.date), 'MMM d, yyyy')}
+                {format(new Date(purchase.date), 'd MMM yyyy', { locale: id })}
               </TableCell>
               <TableCell className="font-medium">{purchase.itemName}</TableCell>
               <TableCell>
@@ -101,7 +102,7 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
+                      Hapus
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

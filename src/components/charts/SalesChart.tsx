@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Sale } from '@/data';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface SalesChartProps {
   sales: Sale[];
@@ -29,7 +30,7 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
       const units = daySales.reduce((sum, sale) => sum + sale.quantity, 0);
       
       return {
-        date: format(date, 'MMM d'),
+        date: format(date, 'd MMM', { locale: id }),
         revenue,
         units,
         salesCount: daySales.length,
@@ -44,15 +45,15 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-medium text-foreground">Revenue Trend</h2>
-          <p className="text-sm text-muted-foreground">Last {days} days</p>
+          <h2 className="text-lg font-medium text-foreground">Tren Pendapatan</h2>
+          <p className="text-sm text-muted-foreground">{days} hari terakhir</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-primary">
             Rp{totalRevenue.toLocaleString('id-ID')}
           </p>
           <p className="text-sm text-muted-foreground">
-            Avg: Rp{Math.round(avgDailyRevenue).toLocaleString('id-ID')}/day
+            Rata-rata: Rp{Math.round(avgDailyRevenue).toLocaleString('id-ID')}/hari
           </p>
         </div>
       </div>
@@ -88,7 +89,7 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
                 borderRadius: '8px',
                 color: 'hsl(210 40% 98%)'
               }}
-              formatter={(value: number) => [`Rp${value.toLocaleString('id-ID')}`, 'Revenue']}
+              formatter={(value: number) => [`Rp${value.toLocaleString('id-ID')}`, 'Pendapatan']}
             />
             <Area 
               type="monotone" 

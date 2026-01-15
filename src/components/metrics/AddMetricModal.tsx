@@ -61,7 +61,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
       <DialogContent className="border-border bg-card sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground">
-            {editingMetric ? 'Edit Metric' : 'Add New Metric'}
+            {editingMetric ? 'Edit Metrik' : 'Tambah Metrik Baru'}
           </DialogTitle>
         </DialogHeader>
 
@@ -69,13 +69,13 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
           {/* Name */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Metric Name
+              Nama Metrik
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Monthly Recurring Revenue"
+              placeholder="cth., Pendapatan Bulanan"
               className="input-field"
               required
             />
@@ -85,7 +85,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Category
+                Kategori
               </label>
               <Select
                 value={formData.category}
@@ -108,7 +108,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Unit
+                Satuan
               </label>
               <Select
                 value={formData.unit}
@@ -120,10 +120,10 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="border-border bg-card">
-                  <SelectItem value="currency">Currency ($)</SelectItem>
-                  <SelectItem value="percentage">Percentage (%)</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="months">Months</SelectItem>
+                  <SelectItem value="currency">Mata Uang (Rp)</SelectItem>
+                  <SelectItem value="percentage">Persentase (%)</SelectItem>
+                  <SelectItem value="number">Angka</SelectItem>
+                  <SelectItem value="months">Bulan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -133,7 +133,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Current Value
+                Nilai Saat Ini
               </label>
               <input
                 type="number"
@@ -148,7 +148,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Previous Value
+                Nilai Sebelumnya
               </label>
               <input
                 type="number"
@@ -159,7 +159,7 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
                     previousValue: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                placeholder="Optional"
+                placeholder="Opsional"
                 className="input-field"
               />
             </div>
@@ -168,12 +168,12 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
           {/* Description */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Description
+              Deskripsi
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Optional notes about this metric"
+              placeholder="Catatan opsional tentang metrik ini"
               className="input-field min-h-[80px] resize-none"
               rows={3}
             />
@@ -182,10 +182,10 @@ export function AddMetricModal({ isOpen, onClose, onSubmit, editingMetric }: Add
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">
-              Cancel
+              Batal
             </button>
             <button type="submit" className="btn-primary flex-1">
-              {editingMetric ? 'Save Changes' : 'Add Metric'}
+              {editingMetric ? 'Simpan Perubahan' : 'Tambah Metrik'}
             </button>
           </div>
         </form>

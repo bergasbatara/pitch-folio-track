@@ -18,23 +18,23 @@ function formatValue(value: number, unit: Metric['unit']): string {
   switch (unit) {
     case 'currency':
       if (value >= 1000000000) {
-        return `Rp${(value / 1000000000).toFixed(1)}B`;
+        return `Rp${(value / 1000000000).toFixed(1)}M`;
       } else if (value >= 1000000) {
-        return `Rp${(value / 1000000).toFixed(1)}M`;
+        return `Rp${(value / 1000000).toFixed(1)}Jt`;
       } else if (value >= 1000) {
-        return `Rp${(value / 1000).toFixed(0)}K`;
+        return `Rp${(value / 1000).toFixed(0)}Rb`;
       }
       return `Rp${value.toLocaleString('id-ID')}`;
     case 'percentage':
       return `${value.toFixed(1)}%`;
     case 'months':
-      return `${value} mo`;
+      return `${value} bln`;
     case 'number':
     default:
       if (value >= 1000000) {
-        return `${(value / 1000000).toFixed(1)}M`;
+        return `${(value / 1000000).toFixed(1)}Jt`;
       } else if (value >= 1000) {
-        return `${(value / 1000).toFixed(0)}K`;
+        return `${(value / 1000).toFixed(0)}Rb`;
       }
       return value.toLocaleString('id-ID');
   }
@@ -91,7 +91,7 @@ export function MetricCard({ metric, onEdit, onDelete, index = 0 }: MetricCardPr
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              Hapus
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -124,7 +124,7 @@ export function MetricCard({ metric, onEdit, onDelete, index = 0 }: MetricCardPr
               0%
             </span>
           )}
-          <span className="text-xs text-muted-foreground">vs last period</span>
+          <span className="text-xs text-muted-foreground">vs periode lalu</span>
         </div>
       )}
 

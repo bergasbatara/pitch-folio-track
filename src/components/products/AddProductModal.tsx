@@ -50,24 +50,24 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
       <DialogContent className="sm:max-w-[425px] bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">
-            {editingProduct ? 'Edit Product' : 'Add New Product'}
+            {editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Product Name</Label>
+            <Label htmlFor="name">Nama Produk</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter product name"
+              placeholder="Masukkan nama produk"
               className="bg-background border-border"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Price ($)</Label>
+            <Label htmlFor="price">Harga (Rp)</Label>
             <Input
               id="price"
               type="number"
@@ -81,7 +81,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stock">Initial Stock</Label>
+            <Label htmlFor="stock">Stok Awal</Label>
             <Input
               id="stock"
               type="number"
@@ -95,10 +95,10 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              Batal
             </Button>
             <Button type="submit" disabled={!formData.name}>
-              {editingProduct ? 'Update Product' : 'Add Product'}
+              {editingProduct ? 'Simpan Perubahan' : 'Tambah Produk'}
             </Button>
           </div>
         </form>
