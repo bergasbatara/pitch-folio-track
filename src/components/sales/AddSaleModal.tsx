@@ -116,7 +116,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Total Sale</span>
               <span className="text-lg font-bold text-primary">
-                ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                Rp{totalPrice.toLocaleString('id-ID')}
               </span>
             </div>
           </div>

@@ -20,19 +20,19 @@ export default function Sales() {
   const stats = [
     {
       label: 'Total Revenue',
-      value: `$${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `Rp${totalRevenue.toLocaleString('id-ID')}`,
       icon: DollarSign,
       color: 'text-primary',
     },
     {
       label: "Today's Revenue",
-      value: `$${todaysRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      value: `Rp${todaysRevenue.toLocaleString('id-ID')}`,
       icon: TrendingUp,
       color: 'text-emerald-400',
     },
     {
       label: 'Units Sold',
-      value: totalUnitsSold.toLocaleString(),
+      value: totalUnitsSold.toLocaleString('id-ID'),
       icon: ShoppingCart,
       color: 'text-blue-400',
     },
