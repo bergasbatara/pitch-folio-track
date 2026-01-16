@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+# Asia Global Financial
 
-## Project info
+A comprehensive retail business management application for tracking sales, purchases, products, and generating financial reports.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Authentication**: User login and registration system with protected routes
+- **Onboarding Flow**: Welcome page and company profile setup for new users
+- **Dashboard**: Overview of key business metrics (revenue, units sold, low stock alerts)
+- **Sales Management**: Record and track sales transactions with charts and analytics
+- **Purchase Management**: Manage supplier purchases and inventory restocking
+- **Product Management**: Inventory tracking with stock levels and pricing
+- **Financial Statements**: Daily revenue, expenses, profit/loss summaries with PDF export
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State Management**: TanStack React Query
+- **Routing**: React Router v6
+- **Charts**: Recharts
+- **PDF Export**: jsPDF
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Local Development
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ 
+- npm or bun
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd <project-folder>
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Install dependencies
+npm install
+# or
+bun install
 ```
 
-**Edit a file directly in GitHub**
+### Running the Development Server
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run dev
+# or
+bun dev
+```
 
-**Use GitHub Codespaces**
+The app will be available at `http://localhost:8080`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Test Credentials
 
-## What technologies are used for this project?
+- **Email**: `admin@test.com`
+- **Password**: `password123`
 
-This project is built with:
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── components/          # Shared UI components
+│   ├── layout/          # Layout components (MainLayout, Sidebar)
+│   └── ui/              # shadcn/ui components
+├── features/            # Feature-based modules
+│   ├── auth/            # Authentication (login, register, profile)
+│   ├── dashboard/       # Main dashboard
+│   ├── financial-statements/  # Financial reports
+│   ├── onboarding/      # Welcome & company setup flow
+│   ├── products/        # Product/inventory management
+│   ├── purchases/       # Purchase management
+│   └── sales/           # Sales management
+├── pages/               # Top-level pages
+└── shared/              # Shared hooks and utilities
+```
 
-## How can I deploy this project?
+## Application Flow
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+1. **Login/Register** → User authentication
+2. **Onboarding** → Welcome page → Company profile setup (first-time users)
+3. **Dashboard** → Main app with access to all features
+4. **Protected Routes** → All business features require authentication
 
-## Can I connect a custom domain to my Lovable project?
+## Building for Production
 
-Yes, you can!
+```bash
+npm run build
+# or
+bun run build
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The production build will be output to the `dist/` folder.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## License
+
+Private - All rights reserved.
