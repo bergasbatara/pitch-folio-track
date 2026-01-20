@@ -1,12 +1,13 @@
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useSales } from '@/features/sales';
 import { usePurchases, usePurchaseCategories } from '@/features/purchases/hooks/usePurchases';
-import { useReceivables } from '@/features/receivables';
+import { useReceivables, usePayables } from '@/features/receivables';
 import { 
   CashFlowChart, 
   ReceivablesChart, 
   AccountsTable, 
   BusinessReceivablesChart,
+  BusinessPayablesChart,
   OperationalCostsChart,
   ProfitLossChart,
   CashChart,
@@ -21,6 +22,7 @@ export default function Index() {
   const { purchases } = usePurchases();
   const { categories } = usePurchaseCategories();
   const { receivables } = useReceivables();
+  const { payables } = usePayables();
 
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);
@@ -44,6 +46,12 @@ export default function Index() {
     date: r.dueDate,
     amount: r.amount,
     status: r.status,
+  }));
+
+  const payablesData = payables.map(p => ({
+    date: p.dueDate,
+    amount: p.amount,
+    status: p.status,
   }));
 
   return (
@@ -84,10 +92,11 @@ export default function Index() {
             <ReceivablesChart receivables={receivablesData} />
           </div>
 
-          {/* Row 2: Accounts Table + Business Receivables */}
-          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+          {/* Row 2: Accounts Table + Business Receivables + Payables */}
+          <div className="grid gap-6 lg:grid-cols-3 mb-6">
             <AccountsTable sales={salesData} purchases={purchasesData} receivables={receivablesData} />
             <BusinessReceivablesChart receivables={receivablesData} />
+            <BusinessPayablesChart payables={payablesData} />
           </div>
 
           {/* Row 3: Operational Costs + Profit/Loss */}

@@ -2,6 +2,7 @@ export { CashFlowChart } from './CashFlowChart';
 export { ReceivablesChart } from './ReceivablesChart';
 export { AccountsTable } from './AccountsTable';
 export { BusinessReceivablesChart } from './BusinessReceivablesChart';
+export { BusinessPayablesChart } from './BusinessPayablesChart';
 export { OperationalCostsChart } from './OperationalCostsChart';
 export { ProfitLossChart } from './ProfitLossChart';
 export { CashChart } from './CashChart';
