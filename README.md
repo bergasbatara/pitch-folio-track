@@ -1,45 +1,45 @@
 # Asia Global Financial
 
-Aplikasi manajemen keuangan bisnis yang komprehensif untuk UMKM Indonesia. Mencatat penjualan, pembelian, mengelola piutang/hutang, dan menghasilkan laporan keuangan lengkap.
+A comprehensive business financial management application for Indonesian SMEs. Track sales, purchases, manage receivables/payables, and generate complete financial reports.
 
-## Fitur Utama
+## Key Features
 
 ### 📊 Dashboard
-- **Arus Kas** - Grafik combo untuk memantau kas masuk, kas keluar, dan perpindahan kas bersih
-- **Penjualan Terhutang** - Visualisasi piutang dari penjualan kredit
-- **Piutang Usaha** - Tren piutang bulanan
-- **Hutang Usaha** - Tren hutang ke supplier
-- **Biaya Operasional** - Distribusi pengeluaran berdasarkan kategori
-- **Laba Rugi** - Perbandingan pendapatan vs pengeluaran
-- **Kas** - Grafik saldo kas
-- **Produk Terlaris** - Daftar produk paling laku
+- **Cash Flow** - Combo chart monitoring cash in, cash out, and net cash movement
+- **Outstanding Sales** - Visualization of credit sales receivables
+- **Business Receivables** - Monthly receivables trends
+- **Business Payables** - Payables to suppliers trends
+- **Operational Costs** - Expense distribution by category
+- **Profit & Loss** - Revenue vs expenses comparison
+- **Cash Balance** - Cash balance chart
+- **Top Selling Products** - Best performing products list
 
-### 💰 Manajemen Transaksi
-- **Penjualan** - Catat transaksi penjualan dengan detail produk dan harga
-- **Pembelian** - Kelola pembelian supplier dengan kategori biaya
-- **Produk** - Inventaris produk dengan stok dan harga
+### 💰 Transaction Management
+- **Sales** - Record sales transactions with product details and pricing
+- **Purchases** - Manage supplier purchases with expense categories
+- **Products** - Product inventory with stock and pricing
 
-### 📈 Piutang & Hutang
-- **Piutang (Receivables)** - Kelola tagihan ke pelanggan
-- **Hutang (Payables)** - Kelola kewajiban ke supplier
+### 📈 Receivables & Payables
+- **Receivables (Piutang)** - Manage customer invoices and collections
+- **Payables (Hutang)** - Manage supplier obligations
 
-### 📑 Laporan Keuangan
-- **Laba Rugi** - Laporan pendapatan dan beban
-- **Neraca** - Laporan posisi keuangan
-- **Arus Kas** - Laporan pergerakan kas
-- **Ekuitas** - Laporan perubahan modal
-- **HPP** - Harga Pokok Penjualan
-- **Catatan Keuangan** - Catatan atas laporan keuangan
-- **Export PDF** - Ekspor laporan ke format PDF
+### 📑 Financial Reports
+- **Profit & Loss** - Income and expense statement
+- **Balance Sheet** - Financial position statement
+- **Cash Flow** - Cash movement statement
+- **Equity Statement** - Changes in equity report
+- **COGS** - Cost of Goods Sold
+- **Notes to Financial Statements** - Supplementary notes
+- **PDF Export** - Export reports to PDF format
 
-### 🔐 Autentikasi & Onboarding
-- Sistem login/registrasi pengguna
-- Alur onboarding untuk pengguna baru
-- Pengaturan profil perusahaan
+### 🔐 Authentication & Onboarding
+- User login/registration system
+- Onboarding flow for new users
+- Company profile setup
 
-### 💎 Langganan
-- Paket Business, Professional, dan Premium
-- Fitur berbeda per tier langganan
+### 💎 Subscription Plans
+- Business, Professional, and Premium tiers
+- Different features per subscription tier
 
 ## Tech Stack
 
@@ -50,16 +50,16 @@ Aplikasi manajemen keuangan bisnis yang komprehensif untuk UMKM Indonesia. Menca
 - **Routing**: React Router v6
 - **Charts**: Recharts
 - **PDF Export**: jsPDF
-- **Data Persistence**: LocalStorage (untuk prototyping)
+- **Data Persistence**: LocalStorage (for prototyping)
 
-## Pengembangan Lokal
+## Local Development
 
-### Prasyarat
+### Prerequisites
 
 - Node.js 18+
-- npm atau bun
+- npm or bun
 
-### Instalasi
+### Installation
 
 ```bash
 # Clone repository
@@ -68,75 +68,75 @@ cd <project-folder>
 
 # Install dependencies
 npm install
-# atau
+# or
 bun install
 ```
 
-### Menjalankan Development Server
+### Running Development Server
 
 ```bash
 npm run dev
-# atau
+# or
 bun dev
 ```
 
-Aplikasi akan tersedia di `http://localhost:8080`
+The app will be available at `http://localhost:8080`
 
-### Kredensial Test
+### Test Credentials
 
 - **Email**: `admin@test.com`
 - **Password**: `password123`
 
-## Struktur Proyek
+## Project Structure
 
 ```
 src/
-├── components/                    # Komponen UI bersama
+├── components/                    # Shared UI components
 │   ├── layout/                    # Layout (MainLayout, Sidebar)
-│   └── ui/                        # Komponen shadcn/ui
-├── features/                      # Modul berbasis fitur
-│   ├── auth/                      # Autentikasi
-│   ├── dashboard/                 # Dashboard & widget
+│   └── ui/                        # shadcn/ui components
+├── features/                      # Feature-based modules
+│   ├── auth/                      # Authentication
+│   ├── dashboard/                 # Dashboard & widgets
 │   │   └── components/            # Chart components
-│   ├── financial-statements/      # Laporan keuangan
-│   ├── onboarding/                # Alur onboarding
-│   ├── products/                  # Manajemen produk
-│   ├── purchases/                 # Manajemen pembelian
-│   ├── receivables/               # Piutang & hutang
-│   ├── sales/                     # Manajemen penjualan
-│   └── subscription/              # Paket langganan
-├── pages/                         # Halaman top-level
-└── shared/                        # Hook & utilitas bersama
+│   ├── financial-statements/      # Financial reports
+│   ├── onboarding/                # Onboarding flow
+│   ├── products/                  # Product management
+│   ├── purchases/                 # Purchase management
+│   ├── receivables/               # Receivables & payables
+│   ├── sales/                     # Sales management
+│   └── subscription/              # Subscription plans
+├── pages/                         # Top-level pages
+└── shared/                        # Shared hooks & utilities
     ├── data/                      # Demo data generator
     └── hooks/                     # Custom hooks
 ```
 
-## Alur Aplikasi
+## Application Flow
 
-1. **Login/Register** → Autentikasi pengguna
-2. **Onboarding** → Selamat datang → Pengaturan profil perusahaan
-3. **Dashboard** → Ringkasan bisnis dengan semua widget
-4. **Fitur** → Akses ke semua modul (penjualan, pembelian, laporan, dll.)
+1. **Login/Register** → User authentication
+2. **Onboarding** → Welcome → Company profile setup
+3. **Dashboard** → Business summary with all widgets
+4. **Features** → Access to all modules (sales, purchases, reports, etc.)
 
-## Data Demo
+## Demo Data
 
-Aplikasi sudah dilengkapi dengan data demo untuk menampilkan contoh realistis:
-- 180 transaksi penjualan
-- 80 transaksi pembelian
-- 25 piutang dari berbagai pelanggan
-- 20 hutang ke berbagai supplier
-- 8 produk makanan/minuman Indonesia
+The application comes preloaded with demo data to display realistic examples:
+- 180 sales transactions
+- 80 purchase transactions
+- 25 receivables from various customers
+- 20 payables to various suppliers
+- 8 Indonesian food/beverage products
 
-## Build untuk Produksi
+## Building for Production
 
 ```bash
 npm run build
-# atau
+# or
 bun run build
 ```
 
-Output build akan ada di folder `dist/`.
+Build output will be in the `dist/` folder.
 
-## Lisensi
+## License
 
-Private - Hak cipta dilindungi.
+Private - All rights reserved.
