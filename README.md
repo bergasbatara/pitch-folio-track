@@ -1,98 +1,142 @@
 # Asia Global Financial
 
-A comprehensive retail business management application for tracking sales, purchases, products, and generating financial reports.
+Aplikasi manajemen keuangan bisnis yang komprehensif untuk UMKM Indonesia. Mencatat penjualan, pembelian, mengelola piutang/hutang, dan menghasilkan laporan keuangan lengkap.
 
-## Features
+## Fitur Utama
 
-- **Authentication**: User login and registration system with protected routes
-- **Onboarding Flow**: Welcome page and company profile setup for new users
-- **Dashboard**: Overview of key business metrics (revenue, units sold, low stock alerts)
-- **Sales Management**: Record and track sales transactions with charts and analytics
-- **Purchase Management**: Manage supplier purchases and inventory restocking
-- **Product Management**: Inventory tracking with stock levels and pricing
-- **Financial Statements**: Daily revenue, expenses, profit/loss summaries with PDF export
+### 📊 Dashboard
+- **Arus Kas** - Grafik combo untuk memantau kas masuk, kas keluar, dan perpindahan kas bersih
+- **Penjualan Terhutang** - Visualisasi piutang dari penjualan kredit
+- **Piutang Usaha** - Tren piutang bulanan
+- **Hutang Usaha** - Tren hutang ke supplier
+- **Biaya Operasional** - Distribusi pengeluaran berdasarkan kategori
+- **Laba Rugi** - Perbandingan pendapatan vs pengeluaran
+- **Kas** - Grafik saldo kas
+- **Produk Terlaris** - Daftar produk paling laku
+
+### 💰 Manajemen Transaksi
+- **Penjualan** - Catat transaksi penjualan dengan detail produk dan harga
+- **Pembelian** - Kelola pembelian supplier dengan kategori biaya
+- **Produk** - Inventaris produk dengan stok dan harga
+
+### 📈 Piutang & Hutang
+- **Piutang (Receivables)** - Kelola tagihan ke pelanggan
+- **Hutang (Payables)** - Kelola kewajiban ke supplier
+
+### 📑 Laporan Keuangan
+- **Laba Rugi** - Laporan pendapatan dan beban
+- **Neraca** - Laporan posisi keuangan
+- **Arus Kas** - Laporan pergerakan kas
+- **Ekuitas** - Laporan perubahan modal
+- **HPP** - Harga Pokok Penjualan
+- **Catatan Keuangan** - Catatan atas laporan keuangan
+- **Export PDF** - Ekspor laporan ke format PDF
+
+### 🔐 Autentikasi & Onboarding
+- Sistem login/registrasi pengguna
+- Alur onboarding untuk pengguna baru
+- Pengaturan profil perusahaan
+
+### 💎 Langganan
+- Paket Business, Professional, dan Premium
+- Fitur berbeda per tier langganan
 
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite
-- **Styling**: Tailwind CSS + shadcn/ui components
+- **Styling**: Tailwind CSS + shadcn/ui
 - **State Management**: TanStack React Query
 - **Routing**: React Router v6
 - **Charts**: Recharts
 - **PDF Export**: jsPDF
+- **Data Persistence**: LocalStorage (untuk prototyping)
 
-## Local Development
+## Pengembangan Lokal
 
-### Prerequisites
+### Prasyarat
 
-- Node.js 18+ 
-- npm or bun
+- Node.js 18+
+- npm atau bun
 
-### Installation
+### Instalasi
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone <your-repo-url>
 cd <project-folder>
 
 # Install dependencies
 npm install
-# or
+# atau
 bun install
 ```
 
-### Running the Development Server
+### Menjalankan Development Server
 
 ```bash
 npm run dev
-# or
+# atau
 bun dev
 ```
 
-The app will be available at `http://localhost:8080`
+Aplikasi akan tersedia di `http://localhost:8080`
 
-### Test Credentials
+### Kredensial Test
 
 - **Email**: `admin@test.com`
 - **Password**: `password123`
 
-## Project Structure
+## Struktur Proyek
 
 ```
 src/
-├── components/          # Shared UI components
-│   ├── layout/          # Layout components (MainLayout, Sidebar)
-│   └── ui/              # shadcn/ui components
-├── features/            # Feature-based modules
-│   ├── auth/            # Authentication (login, register, profile)
-│   ├── dashboard/       # Main dashboard
-│   ├── financial-statements/  # Financial reports
-│   ├── onboarding/      # Welcome & company setup flow
-│   ├── products/        # Product/inventory management
-│   ├── purchases/       # Purchase management
-│   └── sales/           # Sales management
-├── pages/               # Top-level pages
-└── shared/              # Shared hooks and utilities
+├── components/                    # Komponen UI bersama
+│   ├── layout/                    # Layout (MainLayout, Sidebar)
+│   └── ui/                        # Komponen shadcn/ui
+├── features/                      # Modul berbasis fitur
+│   ├── auth/                      # Autentikasi
+│   ├── dashboard/                 # Dashboard & widget
+│   │   └── components/            # Chart components
+│   ├── financial-statements/      # Laporan keuangan
+│   ├── onboarding/                # Alur onboarding
+│   ├── products/                  # Manajemen produk
+│   ├── purchases/                 # Manajemen pembelian
+│   ├── receivables/               # Piutang & hutang
+│   ├── sales/                     # Manajemen penjualan
+│   └── subscription/              # Paket langganan
+├── pages/                         # Halaman top-level
+└── shared/                        # Hook & utilitas bersama
+    ├── data/                      # Demo data generator
+    └── hooks/                     # Custom hooks
 ```
 
-## Application Flow
+## Alur Aplikasi
 
-1. **Login/Register** → User authentication
-2. **Onboarding** → Welcome page → Company profile setup (first-time users)
-3. **Dashboard** → Main app with access to all features
-4. **Protected Routes** → All business features require authentication
+1. **Login/Register** → Autentikasi pengguna
+2. **Onboarding** → Selamat datang → Pengaturan profil perusahaan
+3. **Dashboard** → Ringkasan bisnis dengan semua widget
+4. **Fitur** → Akses ke semua modul (penjualan, pembelian, laporan, dll.)
 
-## Building for Production
+## Data Demo
+
+Aplikasi sudah dilengkapi dengan data demo untuk menampilkan contoh realistis:
+- 180 transaksi penjualan
+- 80 transaksi pembelian
+- 25 piutang dari berbagai pelanggan
+- 20 hutang ke berbagai supplier
+- 8 produk makanan/minuman Indonesia
+
+## Build untuk Produksi
 
 ```bash
 npm run build
-# or
+# atau
 bun run build
 ```
 
-The production build will be output to the `dist/` folder.
+Output build akan ada di folder `dist/`.
 
-## License
+## Lisensi
 
-Private - All rights reserved.
+Private - Hak cipta dilindungi.
