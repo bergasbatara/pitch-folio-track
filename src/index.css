@@ -6,62 +6,110 @@
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
+    /* Pitch deck inspired color scheme - Deep navy blue with light blue accents */
+    --background: 0 0% 100%;
+    --foreground: 220 40% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 40% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 40% 13%;
+
+    --primary: 220 70% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 220 40% 13%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 200 70% 90%;
+    --accent-foreground: 220 40% 13%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 40% 13%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 94%;
+    --ring: 220 70% 25%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Deep navy blue like pitch deck */
+    --sidebar-background: 220 55% 18%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 200 70% 55%;
+    --sidebar-primary-foreground: 220 55% 18%;
+    --sidebar-accent: 220 50% 25%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 50% 22%;
+    --sidebar-ring: 200 70% 55%;
+
+    /* Custom tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(220 70% 25%) 0%, hsl(220 55% 18%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
+    --shadow-card: 0 4px 24px -4px hsl(220 40% 13% / 0.08);
+    --shadow-card-hover: 0 8px 32px -4px hsl(220 40% 13% / 0.12);
+    --shadow-glow: 0 0 40px -8px hsl(200 70% 55% / 0.3);
+  }
+
+  .dark {
+    --background: 220 55% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 9%;
+    --card: 220 55% 14%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 9%;
+    --popover: 220 55% 14%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 200 70% 55%;
+    --primary-foreground: 220 55% 10%;
 
-    --secondary: 222 30% 14%;
+    --secondary: 220 50% 20%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 222 30% 14%;
+    --muted: 220 50% 20%;
     --muted-foreground: 215 20% 55%;
 
-    --accent: 222 30% 18%;
+    --accent: 220 50% 25%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
     --success: 160 84% 39%;
-    --success-foreground: 222 47% 6%;
+    --success-foreground: 220 55% 10%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 220 55% 10%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 14%;
-    --ring: 160 84% 39%;
+    --border: 220 50% 22%;
+    --input: 220 50% 18%;
+    --ring: 200 70% 55%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 222 47% 8%;
+    --sidebar-background: 220 55% 12%;
     --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 14%;
+    --sidebar-primary: 200 70% 55%;
+    --sidebar-primary-foreground: 220 55% 10%;
+    --sidebar-accent: 220 50% 18%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 30% 15%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-border: 220 50% 18%;
+    --sidebar-ring: 200 70% 55%;
 
-    /* Custom tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(160 70% 30%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 8%) 100%);
-    --shadow-card: 0 4px 24px -4px hsl(222 47% 4% / 0.5);
-    --shadow-card-hover: 0 8px 32px -4px hsl(222 47% 4% / 0.7);
-    --shadow-glow: 0 0 40px -8px hsl(160 84% 39% / 0.3);
-  }
-
-  .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    --gradient-primary: linear-gradient(135deg, hsl(200 70% 55%) 0%, hsl(200 60% 45%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(220 55% 16%) 0%, hsl(220 55% 12%) 100%);
+    --shadow-card: 0 4px 24px -4px hsl(220 55% 5% / 0.5);
+    --shadow-card-hover: 0 8px 32px -4px hsl(220 55% 5% / 0.7);
+    --shadow-glow: 0 0 40px -8px hsl(200 70% 55% / 0.3);
   }
 }
 
@@ -139,11 +187,11 @@
 
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90;
-    box-shadow: 0 2px 8px -2px hsl(160 84% 39% / 0.4);
+    box-shadow: 0 2px 8px -2px hsl(220 70% 25% / 0.3);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 4px 12px -2px hsl(160 84% 39% / 0.5);
+    box-shadow: 0 4px 12px -2px hsl(220 70% 25% / 0.4);
   }
 
   .btn-secondary {
