@@ -1,15 +1,11 @@
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { Purchase, PurchaseCategory } from '../types';
+import { DEMO_CATEGORIES, generateDemoPurchases } from '@/shared/data/demoData';
 
-const DEFAULT_CATEGORIES: PurchaseCategory[] = [
-  { id: '1', name: 'Ingredients', createdAt: new Date().toISOString() },
-  { id: '2', name: 'Supplies', createdAt: new Date().toISOString() },
-  { id: '3', name: 'Packaging', createdAt: new Date().toISOString() },
-  { id: '4', name: 'Equipment', createdAt: new Date().toISOString() },
-];
+const DEMO_PURCHASES = generateDemoPurchases();
 
 export function usePurchaseCategories() {
-  const [categories, setCategories] = useLocalStorage<PurchaseCategory[]>('purchase-categories', DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useLocalStorage<PurchaseCategory[]>('purchase-categories', DEMO_CATEGORIES);
 
   const addCategory = (name: string) => {
     const newCategory: PurchaseCategory = {
@@ -40,7 +36,7 @@ export function usePurchaseCategories() {
 }
 
 export function usePurchases() {
-  const [purchases, setPurchases] = useLocalStorage<Purchase[]>('purchases', []);
+  const [purchases, setPurchases] = useLocalStorage<Purchase[]>('purchases', DEMO_PURCHASES);
 
   const addPurchase = (purchase: Omit<Purchase, 'id' | 'createdAt' | 'totalCost'>) => {
     const newPurchase: Purchase = {
