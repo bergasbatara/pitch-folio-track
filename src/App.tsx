@@ -7,8 +7,10 @@ import { AuthProvider, ProtectedRoute, OnboardingRoute, LoginPage, RegisterPage,
 import { ProductsPage } from "@/features/products";
 import { SalesPage } from "@/features/sales";
 import { PurchasesPage } from "@/features/purchases";
-import { FinancialStatementsPage } from "@/features/financial-statements";
+import { FinancialStatementsPage, BalanceSheetPage, CashFlowPage, EquityStatementPage, COGSPage, NotesFSPage } from "@/features/financial-statements";
 import { WelcomePage, CompanySetupPage } from "@/features/onboarding";
+import { SubscriptionPage } from "@/features/subscription";
+import { ReceivablesPage, PayablesPage } from "@/features/receivables";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +39,14 @@ const App = () => (
             <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
             <Route path="/laporan-keuangan" element={<ProtectedRoute><FinancialStatementsPage /></ProtectedRoute>} />
+            <Route path="/neraca" element={<ProtectedRoute><BalanceSheetPage /></ProtectedRoute>} />
+            <Route path="/arus-kas" element={<ProtectedRoute><CashFlowPage /></ProtectedRoute>} />
+            <Route path="/ekuitas" element={<ProtectedRoute><EquityStatementPage /></ProtectedRoute>} />
+            <Route path="/hpp" element={<ProtectedRoute><COGSPage /></ProtectedRoute>} />
+            <Route path="/catatan-keuangan" element={<ProtectedRoute><NotesFSPage /></ProtectedRoute>} />
+            <Route path="/piutang" element={<ProtectedRoute><ReceivablesPage /></ProtectedRoute>} />
+            <Route path="/hutang" element={<ProtectedRoute><PayablesPage /></ProtectedRoute>} />
+            <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

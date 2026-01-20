@@ -7,7 +7,12 @@ const navigation = [
   { name: 'Penjualan', href: '/sales', icon: ShoppingCart },
   { name: 'Pembelian', href: '/purchases', icon: ShoppingBag },
   { name: 'Produk', href: '/products', icon: Package },
+  { name: 'Piutang', href: '/piutang', icon: TrendingUp },
+  { name: 'Hutang', href: '/hutang', icon: ShoppingBag },
   { name: 'Laporan Keuangan', href: '/laporan-keuangan', icon: FileText },
+  { name: 'Neraca', href: '/neraca', icon: FileText },
+  { name: 'Arus Kas', href: '/arus-kas', icon: FileText },
+  { name: 'HPP', href: '/hpp', icon: FileText },
 ];
 
 interface SidebarProps {
