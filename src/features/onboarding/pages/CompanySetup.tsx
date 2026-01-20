@@ -12,10 +12,10 @@ import { useOnboarding } from '../hooks/useOnboarding';
 import { Building2, ArrowLeft, Check } from 'lucide-react';
 
 const currencies = [
-  { value: 'IDR', label: 'Indonesian Rupiah (IDR)' },
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'SGD', label: 'Singapore Dollar (SGD)' },
-  { value: 'MYR', label: 'Malaysian Ringgit (MYR)' },
+  { value: 'IDR', label: 'Rupiah Indonesia (IDR)' },
+  { value: 'USD', label: 'Dolar AS (USD)' },
+  { value: 'SGD', label: 'Dolar Singapura (SGD)' },
+  { value: 'MYR', label: 'Ringgit Malaysia (MYR)' },
 ];
 
 export function CompanySetupPage() {
@@ -44,8 +44,8 @@ export function CompanySetupPage() {
     
     if (!formData.name || !formData.address || !formData.phone || !formData.email) {
       toast({
-        title: 'Missing Information',
-        description: 'Please fill in all required fields.',
+        title: 'Informasi Tidak Lengkap',
+        description: 'Mohon lengkapi semua kolom yang wajib diisi.',
         variant: 'destructive',
       });
       return;
@@ -59,15 +59,15 @@ export function CompanySetupPage() {
       completeOnboarding();
 
       toast({
-        title: 'Company Profile Saved',
-        description: 'Your company profile has been set up successfully!',
+        title: 'Profil Perusahaan Tersimpan',
+        description: 'Profil perusahaan Anda telah berhasil diatur!',
       });
 
       navigate('/');
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to save company profile. Please try again.',
+        title: 'Kesalahan',
+        description: 'Gagal menyimpan profil perusahaan. Silakan coba lagi.',
         variant: 'destructive',
       });
     } finally {
@@ -84,7 +84,7 @@ export function CompanySetupPage() {
           className="mb-4 gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Welcome
+          Kembali ke Selamat Datang
         </Button>
 
         <Card>
@@ -92,19 +92,19 @@ export function CompanySetupPage() {
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mx-auto mb-2">
               <Building2 className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Company Profile Setup</CardTitle>
+            <CardTitle className="text-2xl">Pengaturan Profil Perusahaan</CardTitle>
             <CardDescription>
-              Enter your business information to get started
+              Masukkan informasi bisnis Anda untuk memulai
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="name">Company Name *</Label>
+                  <Label htmlFor="name">Nama Perusahaan *</Label>
                   <Input
                     id="name"
-                    placeholder="e.g., Asia Global Trading"
+                    placeholder="contoh, Asia Global Trading"
                     value={formData.name}
                     onChange={(e) => handleChange('name', e.target.value)}
                     required
@@ -112,10 +112,10 @@ export function CompanySetupPage() {
                 </div>
 
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="address">Business Address *</Label>
+                  <Label htmlFor="address">Alamat Bisnis *</Label>
                   <Textarea
                     id="address"
-                    placeholder="Enter your full business address"
+                    placeholder="Masukkan alamat bisnis lengkap Anda"
                     value={formData.address}
                     onChange={(e) => handleChange('address', e.target.value)}
                     rows={3}
@@ -124,11 +124,11 @@ export function CompanySetupPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Label htmlFor="phone">Nomor Telepon *</Label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="e.g., +62 21 1234567"
+                    placeholder="contoh, +62 21 1234567"
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     required
@@ -136,11 +136,11 @@ export function CompanySetupPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Business Email *</Label>
+                  <Label htmlFor="email">Email Bisnis *</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="e.g., contact@company.com"
+                    placeholder="contoh, kontak@perusahaan.com"
                     value={formData.email}
                     onChange={(e) => handleChange('email', e.target.value)}
                     required
@@ -148,23 +148,23 @@ export function CompanySetupPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID / NPWP (Optional)</Label>
+                  <Label htmlFor="taxId">NPWP (Opsional)</Label>
                   <Input
                     id="taxId"
-                    placeholder="e.g., 12.345.678.9-012.345"
+                    placeholder="contoh, 12.345.678.9-012.345"
                     value={formData.taxId}
                     onChange={(e) => handleChange('taxId', e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="currency">Default Currency *</Label>
+                  <Label htmlFor="currency">Mata Uang Default *</Label>
                   <Select
                     value={formData.currency}
                     onValueChange={(value) => handleChange('currency', value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select currency" />
+                      <SelectValue placeholder="Pilih mata uang" />
                     </SelectTrigger>
                     <SelectContent>
                       {currencies.map((currency) => (
@@ -180,10 +180,10 @@ export function CompanySetupPage() {
               <div className="flex justify-end pt-4">
                 <Button type="submit" size="lg" disabled={isSubmitting} className="gap-2">
                   {isSubmitting ? (
-                    'Saving...'
+                    'Menyimpan...'
                   ) : (
                     <>
-                      Complete Setup
+                      Selesaikan Pengaturan
                       <Check className="w-4 h-4" />
                     </>
                   )}

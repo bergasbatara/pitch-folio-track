@@ -6,23 +6,23 @@ import { Building2, Package, ShoppingCart, TrendingUp, ArrowRight } from 'lucide
 const features = [
   {
     icon: Building2,
-    title: 'Company Profile',
-    description: 'Set up your business details and preferences',
+    title: 'Profil Perusahaan',
+    description: 'Atur detail dan preferensi bisnis Anda',
   },
   {
     icon: Package,
-    title: 'Product Management',
-    description: 'Add and manage your inventory and products',
+    title: 'Manajemen Produk',
+    description: 'Tambah dan kelola inventaris serta produk Anda',
   },
   {
     icon: ShoppingCart,
-    title: 'Sales & Purchases',
-    description: 'Track all your transactions in one place',
+    title: 'Penjualan & Pembelian',
+    description: 'Lacak semua transaksi Anda di satu tempat',
   },
   {
     icon: TrendingUp,
-    title: 'Financial Reports',
-    description: 'Generate comprehensive business reports',
+    title: 'Laporan Keuangan',
+    description: 'Buat laporan bisnis yang komprehensif',
   },
 ];
 
@@ -37,10 +37,10 @@ export function WelcomePage() {
             <Building2 className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-4xl font-bold text-foreground mb-2">
-            Welcome to Asia Global Financial
+            Selamat Datang di Asia Global Financial
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Your complete solution for managing retail business operations, inventory, and financial reporting.
+            Solusi lengkap Anda untuk mengelola operasi bisnis ritel, inventaris, dan pelaporan keuangan.
           </p>
         </div>
 
@@ -64,9 +64,9 @@ export function WelcomePage() {
 
         <Card className="border-primary/20 bg-card">
           <CardHeader className="text-center">
-            <CardTitle>Let's Get Started</CardTitle>
+            <CardTitle>Mari Mulai</CardTitle>
             <CardDescription>
-              Set up your company profile to begin using Asia Global Financial
+              Atur profil perusahaan Anda untuk mulai menggunakan Asia Global Financial
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -75,7 +75,7 @@ export function WelcomePage() {
               onClick={() => navigate('/onboarding/company-setup')}
               className="gap-2"
             >
-              Set Up Company Profile
+              Atur Profil Perusahaan
               <ArrowRight className="w-4 h-4" />
             </Button>
           </CardContent>
