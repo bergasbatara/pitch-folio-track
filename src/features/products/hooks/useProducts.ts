@@ -1,36 +1,10 @@
 import { useCallback } from 'react';
 import { Product, ProductFormData } from '../types';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
-
-const defaultProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Basic T-Shirt',
-    price: 25.00,
-    stock: 150,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Premium Hoodie',
-    price: 65.00,
-    stock: 75,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    name: 'Canvas Sneakers',
-    price: 89.00,
-    stock: 45,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
+import { DEMO_PRODUCTS } from '@/shared/data/demoData';
 
 export function useProducts() {
-  const [products, setProducts] = useLocalStorage<Product[]>('retail-products', defaultProducts);
+  const [products, setProducts] = useLocalStorage<Product[]>('retail-products', DEMO_PRODUCTS);
 
   const addProduct = useCallback((data: ProductFormData) => {
     const newProduct: Product = {

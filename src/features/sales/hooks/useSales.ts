@@ -1,9 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { Sale, SaleFormData } from '../types';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
+import { generateDemoSales } from '@/shared/data/demoData';
+
+const DEMO_SALES = generateDemoSales();
 
 export function useSales() {
-  const [sales, setSales] = useLocalStorage<Sale[]>('retail-sales', []);
+  const [sales, setSales] = useLocalStorage<Sale[]>('retail-sales', DEMO_SALES);
 
   const addSale = useCallback((data: SaleFormData, productName: string) => {
     const newSale: Sale = {
