@@ -1,58 +1,117 @@
-import { DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useSales, SalesChart, TopProductsChart } from '@/features/sales';
-import { useProducts } from '@/features/products';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-
-function QuickStat({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card/50 px-4 py-3 animate-fade-in">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${color}20` }}>
-        <Icon className="h-5 w-5" style={{ color }} />
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold text-foreground">{value}</p>
-      </div>
-    </div>
-  );
-}
+import { useSales } from '@/features/sales';
+import { usePurchases, usePurchaseCategories } from '@/features/purchases/hooks/usePurchases';
+import { useReceivables } from '@/features/receivables';
+import { 
+  CashFlowChart, 
+  ReceivablesChart, 
+  AccountsTable, 
+  BusinessReceivablesChart,
+  OperationalCostsChart,
+  ProfitLossChart,
+  CashChart,
+  TopSellingProducts
+} from '@/features/dashboard/components';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw } from 'lucide-react';
 
 export default function Index() {
-  const { sales, totalRevenue, totalUnitsSold, todaysRevenue, todaysSales } = useSales();
-  const { products } = useProducts();
+  const { sales } = useSales();
+  const { purchases } = usePurchases();
+  const { categories } = usePurchaseCategories();
+  const { receivables } = useReceivables();
 
-  const totalProducts = products.length;
-  const lowStockCount = products.filter(p => p.stock < 10).length;
-  const avgSaleValue = sales.length > 0 ? totalRevenue / sales.length : 0;
+  const getCategoryName = (categoryId: string) => {
+    const cat = categories.find(c => c.id === categoryId);
+    return cat?.name || 'Lainnya';
+  };
+
+  const salesData = sales.map(s => ({
+    date: s.soldAt instanceof Date ? s.soldAt.toISOString() : new Date(s.soldAt).toISOString(),
+    total: s.totalPrice,
+    productName: s.productName,
+    quantity: s.quantity,
+  }));
+
+  const purchasesData = purchases.map(p => ({
+    date: p.date,
+    total: p.totalCost,
+    category: getCategoryName(p.categoryId),
+  }));
+
+  const receivablesData = receivables.map(r => ({
+    date: r.dueDate,
+    amount: r.amount,
+    status: r.status,
+  }));
 
   return (
     <MainLayout>
       <div className="page-header">
-        <h1 className="page-title">Dasbor</h1>
-        <p className="page-description">Pantau metrik bisnis retail Anda secara ringkas</p>
+        <h1 className="page-title">Ringkasan Bisnis</h1>
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickStat icon={DollarSign} label="Total Pendapatan" value={`Rp${totalRevenue.toLocaleString('id-ID')}`} color="hsl(160 84% 39%)" />
-        <QuickStat icon={TrendingUp} label="Pendapatan Hari Ini" value={`Rp${todaysRevenue.toLocaleString('id-ID')}`} color="hsl(142 76% 36%)" />
-        <QuickStat icon={ShoppingCart} label="Unit Terjual" value={totalUnitsSold.toLocaleString('id-ID')} color="hsl(200 80% 50%)" />
-        <QuickStat icon={Package} label="Produk" value={`${totalProducts} (${lowStockCount} stok rendah)`} color="hsl(270 70% 60%)" />
-      </div>
+      <Tabs defaultValue="ringkasan" className="mb-6">
+        <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start gap-4 h-auto p-0">
+          <TabsTrigger 
+            value="ringkasan" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3"
+          >
+            Ringkasan
+          </TabsTrigger>
+          <TabsTrigger 
+            value="insight" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 flex items-center gap-2"
+          >
+            Insight
+            <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0">Baru</Badge>
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-foreground mb-4">Aksi Cepat</h2>
-        <div className="flex gap-4">
-          <Link to="/sales"><Button className="gap-2"><ShoppingCart className="h-4 w-4" />Catat Penjualan</Button></Link>
-          <Link to="/products"><Button variant="outline" className="gap-2"><Package className="h-4 w-4" />Kelola Produk</Button></Link>
-        </div>
-      </div>
+        <TabsContent value="ringkasan" className="mt-6">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+            <span>Baru saja diperbarui.</span>
+            <button className="text-primary hover:underline flex items-center gap-1">
+              <RefreshCw className="h-3 w-3" />
+              Perbarui ringkasan
+            </button>
+          </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 mb-8">
-        <SalesChart sales={sales} days={7} />
-        <TopProductsChart sales={sales} limit={5} />
-      </div>
+          {/* Row 1: Cash Flow + Receivables Sales */}
+          <div className="grid gap-6 lg:grid-cols-3 mb-6">
+            <CashFlowChart sales={salesData} purchases={purchasesData} />
+            <ReceivablesChart receivables={receivablesData} />
+          </div>
+
+          {/* Row 2: Accounts Table + Business Receivables */}
+          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+            <AccountsTable sales={salesData} purchases={purchasesData} receivables={receivablesData} />
+            <BusinessReceivablesChart receivables={receivablesData} />
+          </div>
+
+          {/* Row 3: Operational Costs + Profit/Loss */}
+          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+            <OperationalCostsChart purchases={purchasesData} />
+            <ProfitLossChart sales={salesData} purchases={purchasesData} />
+          </div>
+
+          {/* Row 4: Cash + Top Products */}
+          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+            <CashChart sales={salesData} purchases={purchasesData} />
+            <TopSellingProducts sales={salesData} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="insight" className="mt-6">
+          <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+            <div className="text-center">
+              <p className="text-lg font-medium mb-2">Fitur Insight Segera Hadir</p>
+              <p className="text-sm">Analisis bisnis cerdas untuk membantu keputusan Anda</p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </MainLayout>
   );
 }
