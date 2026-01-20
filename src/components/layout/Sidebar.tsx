@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User, Scale, ArrowRight, Calculator, CreditCard, BookOpen, Crown } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
 
@@ -8,11 +8,14 @@ const navigation = [
   { name: 'Pembelian', href: '/purchases', icon: ShoppingBag },
   { name: 'Produk', href: '/products', icon: Package },
   { name: 'Piutang', href: '/piutang', icon: TrendingUp },
-  { name: 'Hutang', href: '/hutang', icon: ShoppingBag },
-  { name: 'Laporan Keuangan', href: '/laporan-keuangan', icon: FileText },
-  { name: 'Neraca', href: '/neraca', icon: FileText },
-  { name: 'Arus Kas', href: '/arus-kas', icon: FileText },
-  { name: 'HPP', href: '/hpp', icon: FileText },
+  { name: 'Hutang', href: '/hutang', icon: TrendingDown },
+  { name: 'Laba Rugi', href: '/laporan-keuangan', icon: FileText },
+  { name: 'Neraca', href: '/neraca', icon: Scale },
+  { name: 'Arus Kas', href: '/arus-kas', icon: ArrowRight },
+  { name: 'Ekuitas', href: '/ekuitas', icon: CreditCard },
+  { name: 'HPP', href: '/hpp', icon: Calculator },
+  { name: 'Catatan Keuangan', href: '/catatan-keuangan', icon: BookOpen },
+  { name: 'Langganan', href: '/langganan', icon: Crown },
 ];
 
 interface SidebarProps {
