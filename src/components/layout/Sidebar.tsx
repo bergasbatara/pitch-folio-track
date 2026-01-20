@@ -29,11 +29,11 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar">
       <div className="flex h-full flex-col">
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <TrendingUp className="h-4 w-4 text-primary-foreground" />
+        <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <TrendingUp className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-base font-semibold text-sidebar-foreground whitespace-nowrap">Asia Global Financial</span>
+          <span className="text-lg font-semibold text-sidebar-foreground whitespace-nowrap">Asia Global Financial</span>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
