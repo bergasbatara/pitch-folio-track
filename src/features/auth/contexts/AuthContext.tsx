@@ -7,6 +7,12 @@ interface User {
   avatar?: string;
 }
 
+interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -18,101 +24,133 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_KEY = 'auth_user';
-const USERS_KEY = 'registered_users';
-
-// Hardcoded test credentials
-const TEST_EMAIL = 'admin@test.com';
-const TEST_PASSWORD = 'password123';
+const AUTH_USER_KEY = 'auth_user';
+const AUTH_ACCESS_TOKEN_KEY = 'auth_access_token';
+const AUTH_REFRESH_TOKEN_KEY = 'auth_refresh_token';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-    setIsLoading(false);
+    const init = async () => {
+      const storedUser = localStorage.getItem(AUTH_USER_KEY);
+      const accessToken = localStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
+      const refreshToken = localStorage.getItem(AUTH_REFRESH_TOKEN_KEY);
+      if (storedUser && accessToken) {
+        try {
+          const me = await fetchJson<User>('/auth/me', {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          setUser(me);
+          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(me));
+        } catch (error) {
+          if (refreshToken) {
+            const refreshed = await tryRefresh(refreshToken);
+            if (refreshed) {
+              setUser(refreshed.user);
+            } else {
+              clearAuth();
+            }
+          } else {
+            clearAuth();
+          }
+        }
+      }
+      setIsLoading(false);
+    };
+    init();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Check hardcoded test credentials first
-    if (email === TEST_EMAIL && password === TEST_PASSWORD) {
-      const testUser: User = {
-        id: 'test-admin-001',
-        email: TEST_EMAIL,
-        name: 'Admin Test',
-      };
-      setUser(testUser);
-      localStorage.setItem(AUTH_KEY, JSON.stringify(testUser));
-      return true;
-    }
-    
-    // Fallback to registered users
-    const usersRaw = localStorage.getItem(USERS_KEY);
-    const users: Record<string, { password: string; name: string }> = usersRaw ? JSON.parse(usersRaw) : {};
-    
-    const userRecord = users[email];
-    if (userRecord && userRecord.password === password) {
-      const loggedInUser: User = {
-        id: email,
-        email,
-        name: userRecord.name,
-      };
-      setUser(loggedInUser);
-      localStorage.setItem(AUTH_KEY, JSON.stringify(loggedInUser));
-      return true;
-    }
-    return false;
+    const response = await fetchJson<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    applyAuth(response);
+    return true;
   };
 
   const register = async (email: string, password: string, name: string): Promise<boolean> => {
-    const usersRaw = localStorage.getItem(USERS_KEY);
-    const users: Record<string, { password: string; name: string }> = usersRaw ? JSON.parse(usersRaw) : {};
-    
-    if (users[email]) {
-      return false; // User already exists
-    }
-    
-    users[email] = { password, name };
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    
-    const newUser: User = { id: email, email, name };
-    setUser(newUser);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
+    const response = await fetchJson<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    });
+    applyAuth(response);
     return true;
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem(AUTH_KEY);
+    clearAuth();
   };
 
   const updateProfile = async (data: { name?: string; avatar?: string }): Promise<boolean> => {
-    if (!user) return false;
-    
-    const updatedUser: User = {
-      ...user,
-      name: data.name || user.name,
-      avatar: data.avatar || user.avatar,
-    };
-    
+    const accessToken = localStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
+    if (!accessToken) return false;
+    const updatedUser = await fetchJson<User>('/auth/profile', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
     setUser(updatedUser);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(updatedUser));
-    
-    // Also update in registered users if exists
-    const usersRaw = localStorage.getItem(USERS_KEY);
-    if (usersRaw) {
-      const users: Record<string, { password: string; name: string }> = JSON.parse(usersRaw);
-      if (users[user.email]) {
-        users[user.email].name = data.name || user.name;
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
-    }
-    
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedUser));
     return true;
+  };
+
+  const clearAuth = () => {
+    setUser(null);
+    localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(AUTH_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+  };
+
+  const applyAuth = (response: AuthResponse) => {
+    setUser(response.user);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
+    localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, response.accessToken);
+    localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, response.refreshToken);
+  };
+
+  const tryRefresh = async (refreshToken: string) => {
+    try {
+      const tokens = await fetchJson<{ accessToken: string; refreshToken: string }>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      });
+      localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, tokens.accessToken);
+      localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, tokens.refreshToken);
+      const me = await fetchJson<User>('/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${tokens.accessToken}` },
+      });
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(me));
+      return { user: me };
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+    const response = await fetch(`${API_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+      ...options,
+    });
+    if (!response.ok) {
+      let message = 'Request failed';
+      try {
+        const body = await response.json();
+        message = body.message ?? message;
+      } catch {
+        // ignore parsing errors
+      }
+      throw new Error(message);
+    }
+    return response.json() as Promise<T>;
   };
 
   return (

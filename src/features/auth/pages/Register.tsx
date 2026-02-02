@@ -42,20 +42,12 @@ export function RegisterPage() {
     setIsLoading(true);
     
     try {
-      const success = await register(email, password, name);
-      if (success) {
-        toast({
-          title: "Registrasi Berhasil",
-          description: "Akun Anda berhasil dibuat. Selamat datang!",
-        });
-        navigate('/');
-      } else {
-        toast({
-          title: "Registrasi Gagal",
-          description: "Email sudah terdaftar. Silakan gunakan email lain.",
-          variant: "destructive",
-        });
-      }
+      await register(email, password, name);
+      toast({
+        title: "Registrasi Berhasil",
+        description: "Akun Anda berhasil dibuat. Selamat datang!",
+      });
+      navigate('/');
     } catch (error) {
       toast({
         title: "Error",
