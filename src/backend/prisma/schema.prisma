@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships CompanyMember[]
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  taxId     String?
+  currency  String   @default("IDR")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     CompanyMember[]
+  products    Product[]
+  sales       Sale[]
+  purchases   Purchase[]
+  categories  PurchaseCategory[]
+  receivables Receivable[]
+  payables    Payable[]
+  subscription Subscription?
+}
+
+model CompanyMember {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  role      String   @default("owner")
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  price     Int
+  stock     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales   Sale[]
+
+  @@index([companyId])
+  @@unique([companyId, name])
+}
+
+model Sale {
+  id           String   @id @default(uuid())
+  companyId    String
+  productId    String
+  quantity     Int
+  pricePerUnit Int
+  totalPrice   Int
+  soldAt       DateTime
+  createdAt    DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([productId])
+}
+
+model PurchaseCategory {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Purchase {
+  id         String   @id @default(uuid())
+  companyId  String
+  categoryId String
+  itemName   String
+  supplier   String?
+  quantity   Int
+  unitCost   Int
+  totalCost  Int
+  date       DateTime
+  createdAt  DateTime @default(now())
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category PurchaseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([categoryId])
+}
+
+model Receivable {
+  id           String   @id @default(uuid())
+  companyId    String
+  customerName String
+  description  String
+  amount       Int
+  paidAmount   Int
+  dueDate      DateTime
+  status       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Payable {
+  id           String   @id @default(uuid())
+  companyId    String
+  supplierName String
+  description  String
+  amount       Int
+  paidAmount   Int
+  dueDate      DateTime
+  status       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  plan      String
+  status    String
+  startsAt  DateTime
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
