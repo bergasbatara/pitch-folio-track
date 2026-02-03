@@ -52,6 +52,21 @@ A comprehensive business financial management application for Indonesian SMEs. T
 - **PDF Export**: jsPDF
 - **Data Persistence**: LocalStorage (for prototyping)
 
+## Database Schema (Backend)
+
+The backend uses a single PostgreSQL database with multi-tenant tables scoped by `companyId`.
+
+- `User`: Login accounts with email, password hash, name, avatar, refresh token hash.
+- `Company`: Business profile (name, address, phone, email, taxId, currency).
+- `CompanyMember`: User-to-company membership with role.
+- `Product`: Inventory items owned by a company.
+- `Sale`: Sales transactions for products.
+- `PurchaseCategory`: Purchase/expense categories per company.
+- `Purchase`: Purchase transactions tied to categories.
+- `Receivable`: Customer receivables (amount, paidAmount, dueDate, status).
+- `Payable`: Supplier payables (amount, paidAmount, dueDate, status).
+- `Subscription`: Company plan and status.
+
 ## Local Development
 
 ### Prerequisites
