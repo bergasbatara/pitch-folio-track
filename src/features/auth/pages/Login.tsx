@@ -25,15 +25,17 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     
-    const success = await login(loginEmail, loginPassword);
-    
-    if (success) {
-      toast({ title: 'Login berhasil', description: 'Selamat datang kembali!' });
-      navigate('/');
-    } else {
+    try {
+      const success = await login(loginEmail, loginPassword);
+      if (success) {
+        toast({ title: 'Login berhasil', description: 'Selamat datang kembali!' });
+        navigate('/');
+      }
+    } catch (error) {
       toast({ title: 'Login gagal', description: 'Email atau password salah', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
