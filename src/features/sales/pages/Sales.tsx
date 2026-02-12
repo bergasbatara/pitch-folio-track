@@ -4,18 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Plus, DollarSign, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '@/features/products/hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import { SaleFormData } from '../types';
 import { AddSaleModal } from '../components/AddSaleModal';
 import { SalesTable } from '../components/SalesTable';
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales();
-  const { products, updateStock } = useProducts();
+  const { company } = useCompanyProfile();
+  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales(company?.id);
+  const { products } = useProducts(company?.id);
 
-  const handleAddSale = (data: SaleFormData, productName: string) => {
-    addSale(data, productName);
-    updateStock(data.productId, data.quantity);
+  const handleAddSale = async (data: SaleFormData) => {
+    if (!company?.id) return;
+    await addSale(data);
   };
 
   const stats = [

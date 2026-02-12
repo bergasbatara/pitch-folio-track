@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '@/features/onboarding';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { Mail, Lock, User, LogIn } from 'lucide-react';
 export default function Login() {
   const navigate = useNavigate();
   const { login, register } = useAuth();
+  const { resetOnboarding } = useOnboarding();
   const { toast } = useToast();
   
   const [loginEmail, setLoginEmail] = useState('');
@@ -42,15 +44,16 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     
-    const success = await register(registerEmail, registerPassword, registerName);
-    
-    if (success) {
+    try {
+      await register(registerEmail, registerPassword, registerName);
+      resetOnboarding();
       toast({ title: 'Registrasi berhasil', description: 'Akun Anda telah dibuat' });
-      navigate('/');
-    } else {
+      navigate('/onboarding/welcome');
+    } catch (error) {
       toast({ title: 'Registrasi gagal', description: 'Email sudah terdaftar', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleGoogleLogin = () => {

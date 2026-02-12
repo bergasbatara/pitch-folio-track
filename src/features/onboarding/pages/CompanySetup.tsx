@@ -54,7 +54,15 @@ export function CompanySetupPage() {
     setIsSubmitting(true);
 
     try {
-      saveCompanyProfile(formData);
+      const payload = {
+        name: String(formData.name ?? '').trim(),
+        address: String(formData.address ?? '').trim(),
+        phone: String(formData.phone ?? '').trim(),
+        email: String(formData.email ?? '').trim(),
+        taxId: formData.taxId ? String(formData.taxId).trim() : undefined,
+        currency: String(formData.currency ?? 'IDR'),
+      };
+      await saveCompanyProfile(payload);
       completeStep('company-setup');
       completeOnboarding();
 

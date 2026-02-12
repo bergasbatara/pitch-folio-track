@@ -1,11 +1,10 @@
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { Purchase, PurchaseCategory } from '../types';
-import { DEMO_CATEGORIES, generateDemoPurchases } from '@/shared/data/demoData';
-
-const DEMO_PURCHASES = generateDemoPurchases();
+const EMPTY_CATEGORIES: PurchaseCategory[] = [];
+const EMPTY_PURCHASES: Purchase[] = [];
 
 export function usePurchaseCategories() {
-  const [categories, setCategories] = useLocalStorage<PurchaseCategory[]>('purchase-categories', DEMO_CATEGORIES);
+  const [categories, setCategories] = useLocalStorage<PurchaseCategory[]>('purchase-categories', EMPTY_CATEGORIES);
 
   const addCategory = (name: string) => {
     const newCategory: PurchaseCategory = {
@@ -36,7 +35,7 @@ export function usePurchaseCategories() {
 }
 
 export function usePurchases() {
-  const [purchases, setPurchases] = useLocalStorage<Purchase[]>('purchases', DEMO_PURCHASES);
+  const [purchases, setPurchases] = useLocalStorage<Purchase[]>('purchases', EMPTY_PURCHASES);
 
   const addPurchase = (purchase: Omit<Purchase, 'id' | 'createdAt' | 'totalCost'>) => {
     const newPurchase: Purchase = {

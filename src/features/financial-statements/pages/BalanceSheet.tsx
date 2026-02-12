@@ -11,15 +11,17 @@ import { useSales } from '@/features/sales/hooks/useSales';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import { useReceivables, usePayables } from '@/features/receivables/hooks/useReceivables';
 import { useProducts } from '@/features/products/hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
 
 export default function BalanceSheet() {
   const [date, setDate] = useState<Date>(new Date());
-  const { sales } = useSales();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { getTotalReceivables } = useReceivables();
   const { getTotalPayables } = usePayables();
-  const { products } = useProducts();
+  const { company } = useCompanyProfile();
+  const { products } = useProducts(company?.id);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

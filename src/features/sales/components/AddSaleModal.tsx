@@ -21,7 +21,7 @@ import { Product } from '@/features/products/types';
 interface AddSaleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: SaleFormData, productName: string) => void;
+  onSubmit: (data: SaleFormData) => void;
   products: Product[];
 }
 
@@ -49,7 +49,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
       return;
     }
     
-    onSubmit(formData, selectedProduct.name);
+    onSubmit(formData);
     onClose();
     setFormData({ productId: '', quantity: 1, pricePerUnit: 0 });
   };

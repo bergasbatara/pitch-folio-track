@@ -2,17 +2,17 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText } from 'lucide-react';
-import { useCompanyProfile } from '@/features/onboarding/hooks/useCompanyProfile';
 import { useSales } from '@/features/sales/hooks/useSales';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import { useProducts } from '@/features/products/hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
 
 export default function NotesFS() {
   const { company } = useCompanyProfile();
-  const { sales } = useSales();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
-  const { products } = useProducts();
+  const { products } = useProducts(company?.id);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

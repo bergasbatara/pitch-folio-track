@@ -40,6 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshToken = localStorage.getItem(AUTH_REFRESH_TOKEN_KEY);
       if (storedUser && accessToken) {
         try {
+          if (isTokenExpired(accessToken) && refreshToken) {
+            const refreshed = await tryRefresh(refreshToken);
+            if (!refreshed) {
+              clearAuth();
+              setIsLoading(false);
+              return;
+            }
+          }
           const me = await fetchJson<User>('/auth/me', {
             method: 'GET',
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -133,12 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    };
     const response = await fetch(`${API_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
-      },
       ...options,
+      headers,
     });
     if (!response.ok) {
       let message = 'Request failed';
@@ -151,6 +160,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(message);
     }
     return response.json() as Promise<T>;
+  };
+
+  const isTokenExpired = (token: string) => {
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      if (!decoded.exp) return true;
+      return Date.now() >= decoded.exp * 1000;
+    } catch {
+      return true;
+    }
   };
 
   return (

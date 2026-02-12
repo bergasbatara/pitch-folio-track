@@ -1,5 +1,6 @@
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useSales } from '@/features/sales';
+import { useCompanyProfile } from '@/features/onboarding';
 import { usePurchases, usePurchaseCategories } from '@/features/purchases/hooks/usePurchases';
 import { useReceivables, usePayables } from '@/features/receivables';
 import { 
@@ -18,7 +19,8 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw } from 'lucide-react';
 
 export default function Index() {
-  const { sales } = useSales();
+  const { company } = useCompanyProfile();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { categories } = usePurchaseCategories();
   const { receivables } = useReceivables();

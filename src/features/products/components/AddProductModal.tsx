@@ -70,11 +70,15 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
             <Label htmlFor="price">Harga (Rp)</Label>
             <Input
               id="price"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="numeric"
               min="0"
               value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const numeric = raw.replace(/[^\d]/g, '');
+                setFormData({ ...formData, price: numeric ? parseInt(numeric, 10) : 0 });
+              }}
               className="bg-background border-border"
               required
             />

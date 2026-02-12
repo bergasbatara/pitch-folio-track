@@ -1,12 +1,10 @@
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { Receivable, Payable, ReceivableFormData, PayableFormData } from '../types';
-import { generateDemoReceivables, generateDemoPayables } from '@/shared/data/demoData';
-
-const DEMO_RECEIVABLES = generateDemoReceivables();
-const DEMO_PAYABLES = generateDemoPayables();
+const EMPTY_RECEIVABLES: Receivable[] = [];
+const EMPTY_PAYABLES: Payable[] = [];
 
 export function useReceivables() {
-  const [receivables, setReceivables] = useLocalStorage<Receivable[]>('agf-receivables', DEMO_RECEIVABLES);
+  const [receivables, setReceivables] = useLocalStorage<Receivable[]>('agf-receivables', EMPTY_RECEIVABLES);
 
   const addReceivable = (data: ReceivableFormData) => {
     const newReceivable: Receivable = {
@@ -61,7 +59,7 @@ export function useReceivables() {
 }
 
 export function usePayables() {
-  const [payables, setPayables] = useLocalStorage<Payable[]>('agf-payables', DEMO_PAYABLES);
+  const [payables, setPayables] = useLocalStorage<Payable[]>('agf-payables', EMPTY_PAYABLES);
 
   const addPayable = (data: PayableFormData) => {
     const newPayable: Payable = {
