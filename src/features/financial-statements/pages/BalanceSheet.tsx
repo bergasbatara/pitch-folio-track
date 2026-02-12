@@ -16,7 +16,7 @@ import jsPDF from 'jspdf';
 
 export default function BalanceSheet() {
   const [date, setDate] = useState<Date>(new Date());
-  const { sales } = useSales();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { getTotalReceivables } = useReceivables();
   const { getTotalPayables } = usePayables();

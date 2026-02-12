@@ -11,14 +11,13 @@ import { SalesTable } from '../components/SalesTable';
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales();
   const { company } = useCompanyProfile();
-  const { products, updateStock } = useProducts(company?.id);
+  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales(company?.id);
+  const { products } = useProducts(company?.id);
 
-  const handleAddSale = (data: SaleFormData, productName: string) => {
+  const handleAddSale = async (data: SaleFormData) => {
     if (!company?.id) return;
-    addSale(data, productName);
-    updateStock(data.productId, data.quantity);
+    await addSale(data);
   };
 
   const stats = [

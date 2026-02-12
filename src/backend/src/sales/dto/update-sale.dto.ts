@@ -1,28 +1,25 @@
 import { Transform } from "class-transformer";
 import { IsInt, IsOptional, IsString, Min } from "class-validator";
 
-export class UpdateProductDto {
+export class UpdateSaleDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
   @IsOptional()
   @IsString()
-  name?: string;
+  productId?: string;
 
-  @Transform(({ value }) => {
-    if (value === undefined || value === null) return undefined;
-    if (typeof value === "string") {
-      const normalized = value.replace(/[^\d]/g, "");
-      return normalized ? Number(normalized) : 0;
-    }
-    return Number(value);
-  })
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))
   @IsOptional()
   @IsInt()
-  @Min(0)
-  price?: number;
+  @Min(1)
+  quantity?: number;
 
   @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))
   @IsOptional()
   @IsInt()
   @Min(0)
-  stock?: number;
+  pricePerUnit?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  soldAt?: Date;
 }

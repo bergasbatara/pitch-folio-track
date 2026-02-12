@@ -6,7 +6,13 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @Transform(({ value }) => Number(value))
+  @Transform(({ value }) => {
+    if (typeof value === "string") {
+      const normalized = value.replace(/[^\d]/g, "");
+      return normalized ? Number(normalized) : 0;
+    }
+    return Number(value);
+  })
   @IsInt()
   @Min(0)
   price: number;

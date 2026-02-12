@@ -10,7 +10,7 @@ import jsPDF from 'jspdf';
 
 export default function NotesFS() {
   const { company } = useCompanyProfile();
-  const { sales } = useSales();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { products } = useProducts(company?.id);
 

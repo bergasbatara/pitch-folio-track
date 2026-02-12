@@ -8,13 +8,15 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 
 import { id } from 'date-fns/locale';
 import { useState } from 'react';
 import { useSales } from '@/features/sales/hooks/useSales';
+import { useCompanyProfile } from '@/features/onboarding';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import jsPDF from 'jspdf';
 import { cn } from '@/lib/utils';
 
 export default function EquityStatement() {
   const [date, setDate] = useState<Date>(new Date());
-  const { sales } = useSales();
+  const { company } = useCompanyProfile();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
 
   const formatCurrency = (value: number) => {

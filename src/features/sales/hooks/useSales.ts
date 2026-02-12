@@ -1,28 +1,56 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sale, SaleFormData } from '../types';
-import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
-const EMPTY_SALES: Sale[] = [];
 
-export function useSales() {
-  const [sales, setSales] = useLocalStorage<Sale[]>('retail-sales', EMPTY_SALES);
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const ACCESS_TOKEN_KEY = 'auth_access_token';
 
-  const addSale = useCallback((data: SaleFormData, productName: string) => {
-    const newSale: Sale = {
-      id: crypto.randomUUID(),
-      productId: data.productId,
-      productName,
-      quantity: data.quantity,
-      pricePerUnit: data.pricePerUnit,
-      totalPrice: data.quantity * data.pricePerUnit,
-      soldAt: new Date(),
+export function useSales(companyId?: string) {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!companyId || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const data = await fetchJson<Sale[]>(`/companies/${companyId}/sales`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setSales(data.map(hydrateSale));
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setSales((prev) => [newSale, ...prev]);
-    return newSale;
-  }, [setSales]);
+    load();
+  }, [companyId, accessToken]);
 
-  const deleteSale = useCallback((id: string) => {
+  const addSale = useCallback(async (data: SaleFormData) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const created = await fetchJson<Sale>(`/companies/${companyId}/sales`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    const hydrated = hydrateSale(created);
+    setSales((prev) => [hydrated, ...prev]);
+    return hydrated;
+  }, [companyId, accessToken]);
+
+  const deleteSale = useCallback(async (id: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    await fetchJson(`/companies/${companyId}/sales/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     setSales((prev) => prev.filter((sale) => sale.id !== id));
-  }, [setSales]);
+  }, [companyId, accessToken]);
 
   const totalRevenue = useMemo(() => {
     return sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
@@ -48,6 +76,7 @@ export function useSales() {
 
   return {
     sales,
+    isLoading,
     addSale,
     deleteSale,
     totalRevenue,
@@ -57,3 +86,30 @@ export function useSales() {
     getSalesByProduct,
   };
 }
+
+const hydrateSale = (sale: Sale) => ({
+  ...sale,
+  soldAt: new Date(sale.soldAt),
+});
+
+const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers ?? {}),
+  };
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+  if (!response.ok) {
+    let message = 'Request failed';
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {
+      // ignore parsing errors
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+};

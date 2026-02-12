@@ -8,6 +8,7 @@ import { CalendarIcon, Download, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useSales } from '@/features/sales/hooks/useSales';
+import { useCompanyProfile } from '@/features/onboarding';
 import { usePurchases, usePurchaseCategories } from '@/features/purchases/hooks/usePurchases';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -18,7 +19,8 @@ const formatCurrency = (value: number) => {
 
 export default function FinancialStatements() {
   const [date, setDate] = useState<Date>(new Date());
-  const { sales } = useSales();
+  const { company } = useCompanyProfile();
+  const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { categories } = usePurchaseCategories();
 
