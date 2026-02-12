@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, DollarSign, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '@/features/products/hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import { SaleFormData } from '../types';
 import { AddSaleModal } from '../components/AddSaleModal';
 import { SalesTable } from '../components/SalesTable';
@@ -11,9 +12,11 @@ import { SalesTable } from '../components/SalesTable';
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales();
-  const { products, updateStock } = useProducts();
+  const { company } = useCompanyProfile();
+  const { products, updateStock } = useProducts(company?.id);
 
   const handleAddSale = (data: SaleFormData, productName: string) => {
+    if (!company?.id) return;
     addSale(data, productName);
     updateStock(data.productId, data.quantity);
   };

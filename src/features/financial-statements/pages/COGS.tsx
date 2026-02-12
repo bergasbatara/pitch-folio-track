@@ -11,13 +11,15 @@ import { useState } from 'react';
 import { useSales } from '@/features/sales/hooks/useSales';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import { useProducts } from '@/features/products/hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
 
 export default function COGS() {
   const [date, setDate] = useState<Date>(new Date());
   const { sales } = useSales();
   const { purchases } = usePurchases();
-  const { products } = useProducts();
+  const { company } = useCompanyProfile();
+  const { products } = useProducts(company?.id);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

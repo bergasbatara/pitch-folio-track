@@ -3,6 +3,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, Package, AlertTriangle } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import { useCompanyProfile } from '@/features/onboarding';
 import { Product, ProductFormData } from '../types';
 import { AddProductModal } from '../components/AddProductModal';
 import { ProductsTable } from '../components/ProductsTable';
@@ -10,9 +11,11 @@ import { ProductsTable } from '../components/ProductsTable';
 export default function Products() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { company } = useCompanyProfile();
+  const { products, addProduct, updateProduct, deleteProduct } = useProducts(company?.id);
 
   const handleSubmit = (data: ProductFormData) => {
+    if (!company?.id) return;
     if (editingProduct) {
       updateProduct(editingProduct.id, data);
     } else {
