@@ -1,9 +1,4 @@
-<<<<<<< HEAD
 version: "3.9"
-=======
-version: '3.9'
-
->>>>>>> 0849f75 (Auth db error)
 services:
   db:
     image: postgres:16
@@ -14,17 +9,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pitch_folio_track
     ports:
-<<<<<<< HEAD
       - "5433:5432"
-=======
-      - '5433:5432'
->>>>>>> 0849f75 (Auth db error)
     volumes:
       - pg_data:/var/lib/postgresql/data
 
 volumes:
-<<<<<<< HEAD
   pg_data: {}
-=======
-  pg_data:
->>>>>>> 0849f75 (Auth db error)
