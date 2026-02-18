@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,18 +16,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { PurchaseCategory, Purchase } from '../types';
+import { PurchaseCategory, Purchase, PurchaseFormData } from '../types';
 import { Plus } from 'lucide-react';
 
 interface AddPurchaseModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: PurchaseCategory[];
-  onAddCategory: (name: string) => PurchaseCategory;
-  onAddPurchase: (purchase: Omit<Purchase, 'id' | 'createdAt' | 'totalCost'>) => void;
+  onAddCategory: (name: string) => Promise<PurchaseCategory>;
+  onAddPurchase: (purchase: PurchaseFormData) => Promise<void> | void;
   editingPurchase?: Purchase | null;
-  onUpdatePurchase?: (id: string, updates: Partial<Purchase>) => void;
+  onUpdatePurchase?: (id: string, updates: Partial<PurchaseFormData>) => Promise<void> | void;
 }
+
+const defaultDate = () => new Date().toISOString().split('T')[0];
 
 export function AddPurchaseModal({
   open,
@@ -38,18 +40,36 @@ export function AddPurchaseModal({
   editingPurchase,
   onUpdatePurchase,
 }: AddPurchaseModalProps) {
-  const [date, setDate] = useState(editingPurchase?.date || new Date().toISOString().split('T')[0]);
-  const [categoryId, setCategoryId] = useState(editingPurchase?.categoryId || '');
-  const [itemName, setItemName] = useState(editingPurchase?.itemName || '');
-  const [supplier, setSupplier] = useState(editingPurchase?.supplier || '');
-  const [quantity, setQuantity] = useState(editingPurchase?.quantity?.toString() || '');
-  const [unitCost, setUnitCost] = useState(editingPurchase?.unitCost?.toString() || '');
-  const [notes, setNotes] = useState(editingPurchase?.notes || '');
+  const [date, setDate] = useState(defaultDate());
+  const [categoryId, setCategoryId] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [notes, setNotes] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
 
+  useEffect(() => {
+    if (editingPurchase && open) {
+      setDate(toInputDate(editingPurchase.date));
+      setCategoryId(editingPurchase.categoryId);
+      setItemName(editingPurchase.itemName ?? '');
+      setSupplier(editingPurchase.supplier ?? '');
+      setQuantity(editingPurchase.quantity?.toString() ?? '');
+      setUnitCost(editingPurchase.unitCost?.toString() ?? '');
+      setNotes(editingPurchase.notes ?? '');
+      setNewCategoryName('');
+      setShowNewCategory(false);
+      return;
+    }
+    if (open) {
+      resetForm();
+    }
+  }, [editingPurchase, open]);
+
   const resetForm = () => {
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(defaultDate());
     setCategoryId('');
     setItemName('');
     setSupplier('');
@@ -60,12 +80,12 @@ export function AddPurchaseModal({
     setShowNewCategory(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!categoryId || !itemName || !quantity || !unitCost) return;
 
-    const purchaseData = {
+    const purchaseData: PurchaseFormData = {
       date,
       categoryId,
       itemName: itemName.trim(),
@@ -76,25 +96,25 @@ export function AddPurchaseModal({
     };
 
     if (editingPurchase && onUpdatePurchase) {
-      onUpdatePurchase(editingPurchase.id, purchaseData);
+      await onUpdatePurchase(editingPurchase.id, purchaseData);
     } else {
-      onAddPurchase(purchaseData);
+      await onAddPurchase(purchaseData);
     }
 
     resetForm();
     onOpenChange(false);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    const newCategory = onAddCategory(newCategoryName);
+    const newCategory = await onAddCategory(newCategoryName);
     setCategoryId(newCategory.id);
     setNewCategoryName('');
     setShowNewCategory(false);
   };
 
-  const totalCost = quantity && unitCost 
-    ? (parseFloat(quantity) * parseFloat(unitCost)).toFixed(2) 
+  const totalCost = quantity && unitCost
+    ? (parseFloat(quantity) * parseFloat(unitCost)).toFixed(2)
     : '0.00';
 
   return (
@@ -235,3 +255,8 @@ export function AddPurchaseModal({
     </Dialog>
   );
 }
+
+const toInputDate = (value?: string) => {
+  if (!value) return defaultDate();
+  return value.split('T')[0];
+};

@@ -3,15 +3,17 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { PurchasesTable } from '../components/PurchasesTable';
 import { AddPurchaseModal } from '../components/AddPurchaseModal';
 import { usePurchases, usePurchaseCategories } from '../hooks/usePurchases';
-import { Purchase } from '../types';
+import { Purchase, PurchaseFormData } from '../types';
 import { Plus, TrendingDown } from 'lucide-react';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Purchases() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
-  
-  const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend } = usePurchases();
-  const { categories, addCategory } = usePurchaseCategories();
+  const { company } = useCompanyProfile();
+
+  const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend } = usePurchases(company?.id);
+  const { categories, addCategory } = usePurchaseCategories(company?.id);
 
   const handleEdit = (purchase: Purchase) => {
     setEditingPurchase(purchase);
@@ -23,6 +25,16 @@ export default function Purchases() {
     if (!open) {
       setEditingPurchase(null);
     }
+  };
+
+  const handleAddPurchase = async (data: PurchaseFormData) => {
+    if (!company?.id) return;
+    await addPurchase(data);
+  };
+
+  const handleUpdatePurchase = async (id: string, updates: Partial<PurchaseFormData>) => {
+    if (!company?.id) return;
+    await updatePurchase(id, updates);
   };
 
   const formatCurrency = (value: number) => {
@@ -92,9 +104,9 @@ export default function Purchases() {
           onOpenChange={handleCloseModal}
           categories={categories}
           onAddCategory={addCategory}
-          onAddPurchase={addPurchase}
+          onAddPurchase={handleAddPurchase}
           editingPurchase={editingPurchase}
-          onUpdatePurchase={updatePurchase}
+          onUpdatePurchase={handleUpdatePurchase}
         />
       </div>
     </MainLayout>
