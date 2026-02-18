@@ -1,8 +1,5 @@
 {
-<<<<<<< HEAD
   "$schema": "https://json.schemastore.org/nest-cli",
-=======
->>>>>>> 0849f75 (Auth db error)
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
