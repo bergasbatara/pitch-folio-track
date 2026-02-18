@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { Transform } from "class-transformer";
 import { IsEmail, IsOptional, IsString } from "class-validator";
+=======
+import { Transform } from 'class-transformer';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
+>>>>>>> 0849f75 (Auth db error)
 
 export class UpdateCompanyDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
