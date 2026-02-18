@@ -71,6 +71,7 @@ model Product {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sales   Sale[]
+  purchases Purchase[]
 
   @@index([companyId])
   @@unique([companyId, name])
@@ -110,19 +111,23 @@ model Purchase {
   id         String   @id @default(uuid())
   companyId  String
   categoryId String
+  productId  String?
   itemName   String
   supplier   String?
   quantity   Int
   unitCost   Int
   totalCost  Int
   date       DateTime
+  notes      String?
   createdAt  DateTime @default(now())
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category PurchaseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  product  Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([categoryId])
+  @@index([productId])
 }
 
 model Receivable {
