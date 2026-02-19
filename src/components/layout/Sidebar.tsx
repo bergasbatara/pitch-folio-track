@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, TrendingDown, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User, Scale, ArrowRight, Calculator, CreditCard, BookOpen, Crown } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User, Scale, ArrowRight, Calculator, CreditCard, BookOpen, Crown, Users, Truck, Building2, Receipt } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
 
@@ -7,8 +7,12 @@ const navigation = [
   { name: 'Penjualan', href: '/sales', icon: ShoppingCart },
   { name: 'Pembelian', href: '/purchases', icon: ShoppingBag },
   { name: 'Produk', href: '/products', icon: Package },
+  { name: 'Pelanggan', href: '/pelanggan', icon: Users },
+  { name: 'Supplier', href: '/supplier', icon: Truck },
   { name: 'Piutang', href: '/piutang', icon: TrendingUp },
   { name: 'Hutang', href: '/hutang', icon: TrendingDown },
+  { name: 'Aset Tetap', href: '/aset-tetap', icon: Building2 },
+  { name: 'Pajak', href: '/pajak', icon: Receipt },
   { name: 'Laba Rugi', href: '/laporan-keuangan', icon: FileText },
   { name: 'Neraca', href: '/neraca', icon: Scale },
   { name: 'Arus Kas', href: '/arus-kas', icon: ArrowRight },
@@ -36,7 +40,7 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
           <span className="text-lg font-semibold text-sidebar-foreground whitespace-nowrap">Asia Global Financial</span>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (

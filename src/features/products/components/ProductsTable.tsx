@@ -1,11 +1,6 @@
-import { Product } from '../types';
+import { Product, PRODUCT_TYPE_LABELS, PRODUCT_UNIT_LABELS } from '../types';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -40,7 +35,10 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
           <TableRow className="bg-muted/50">
             <TableHead>Nama Produk</TableHead>
             <TableHead>Kode</TableHead>
-            <TableHead className="text-right">Harga</TableHead>
+            <TableHead>Tipe</TableHead>
+            <TableHead>Satuan</TableHead>
+            <TableHead className="text-right">Harga Beli</TableHead>
+            <TableHead className="text-right">Harga Jual</TableHead>
             <TableHead className="text-right">Stok</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]"></TableHead>
@@ -52,8 +50,13 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
             return (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {product.code || '-'}
+                <TableCell className="text-muted-foreground">{product.code || '-'}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{PRODUCT_TYPE_LABELS[product.type ?? 'barang']}</Badge>
+                </TableCell>
+                <TableCell>{PRODUCT_UNIT_LABELS[product.unit ?? 'pcs']}</TableCell>
+                <TableCell className="text-right">
+                  {product.buyPrice ? `Rp${product.buyPrice.toLocaleString('id-ID')}` : '-'}
                 </TableCell>
                 <TableCell className="text-right">
                   Rp{product.price.toLocaleString('id-ID')}
@@ -64,20 +67,10 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onEdit(product)}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(product)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDelete(product.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(product.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

@@ -11,6 +11,10 @@ import { FinancialStatementsPage, BalanceSheetPage, CashFlowPage, EquityStatemen
 import { WelcomePage, CompanySetupPage } from "@/features/onboarding";
 import { SubscriptionPage } from "@/features/subscription";
 import { ReceivablesPage, PayablesPage } from "@/features/receivables";
+import { CustomersPage } from "@/features/customers";
+import { SuppliersPage } from "@/features/suppliers";
+import { FixedAssetsPage } from "@/features/fixed-assets";
+import { TaxesPage } from "@/features/taxes";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +42,10 @@ const App = () => (
             <Route path="/sales" element={<ProtectedRoute><SalesPage /></ProtectedRoute>} />
             <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+            <Route path="/pelanggan" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+            <Route path="/supplier" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
+            <Route path="/aset-tetap" element={<ProtectedRoute><FixedAssetsPage /></ProtectedRoute>} />
+            <Route path="/pajak" element={<ProtectedRoute><TaxesPage /></ProtectedRoute>} />
             <Route path="/laporan-keuangan" element={<ProtectedRoute><FinancialStatementsPage /></ProtectedRoute>} />
             <Route path="/neraca" element={<ProtectedRoute><BalanceSheetPage /></ProtectedRoute>} />
             <Route path="/arus-kas" element={<ProtectedRoute><CashFlowPage /></ProtectedRoute>} />
