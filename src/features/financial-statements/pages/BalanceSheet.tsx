@@ -16,11 +16,11 @@ import jsPDF from 'jspdf';
 
 export default function BalanceSheet() {
   const [date, setDate] = useState<Date>(new Date());
+  const { company } = useCompanyProfile();
   const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
   const { getTotalReceivables } = useReceivables();
   const { getTotalPayables } = usePayables();
-  const { company } = useCompanyProfile();
   const { products } = useProducts(company?.id);
 
   const formatCurrency = (value: number) => {
