@@ -16,9 +16,9 @@ import jsPDF from 'jspdf';
 
 export default function COGS() {
   const [date, setDate] = useState<Date>(new Date());
+  const { company } = useCompanyProfile();
   const { sales } = useSales(company?.id);
   const { purchases } = usePurchases();
-  const { company } = useCompanyProfile();
   const { products } = useProducts(company?.id);
 
   const formatCurrency = (value: number) => {
