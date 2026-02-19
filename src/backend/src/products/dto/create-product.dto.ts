@@ -1,7 +1,16 @@
 import { Transform } from "class-transformer";
-import { IsInt, IsString, Min } from "class-validator";
+import { IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateProductDto {
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed.toUpperCase() : undefined;
+  })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
   @Transform(({ value }) => String(value ?? ""))
   @IsString()
   name: string;

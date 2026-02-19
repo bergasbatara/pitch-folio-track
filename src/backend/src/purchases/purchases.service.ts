@@ -13,7 +13,7 @@ export class PurchasesService {
       where: { companyId },
       include: {
         category: { select: { name: true } },
-        product: { select: { name: true } },
+        product: { select: { name: true, code: true } },
       },
       orderBy: { date: "desc" },
     });
@@ -21,6 +21,7 @@ export class PurchasesService {
       ...purchase,
       categoryName: purchase.category.name,
       productName: purchase.product?.name ?? null,
+      productCode: purchase.product?.code ?? null,
     }));
   }
 
@@ -30,7 +31,7 @@ export class PurchasesService {
       where: { id: purchaseId, companyId },
       include: {
         category: { select: { name: true } },
-        product: { select: { name: true } },
+        product: { select: { name: true, code: true } },
       },
     });
     if (!purchase) {
@@ -40,6 +41,7 @@ export class PurchasesService {
       ...purchase,
       categoryName: purchase.category.name,
       productName: purchase.product?.name ?? null,
+      productCode: purchase.product?.code ?? null,
     };
   }
 
@@ -57,8 +59,12 @@ export class PurchasesService {
         ? await tx.product.findFirst({
             where: { id: dto.productId, companyId },
           })
-        : null;
-      if (dto.productId && !product) {
+        : dto.productCode
+          ? await tx.product.findFirst({
+              where: { code: dto.productCode, companyId },
+            })
+          : null;
+      if ((dto.productId || dto.productCode) && !product) {
         throw new NotFoundException("Product not found");
       }
 
@@ -77,7 +83,7 @@ export class PurchasesService {
         },
         include: {
           category: { select: { name: true } },
-          product: { select: { name: true } },
+          product: { select: { name: true, code: true } },
         },
       });
 
@@ -92,6 +98,7 @@ export class PurchasesService {
         ...purchase,
         categoryName: purchase.category.name,
         productName: purchase.product?.name ?? null,
+        productCode: purchase.product?.code ?? null,
       };
     });
   }
@@ -116,7 +123,16 @@ export class PurchasesService {
         }
       }
 
-      const nextProductId = dto.productId ?? purchase.productId;
+      const resolvedProductId = dto.productCode
+        ? (await tx.product.findFirst({
+            where: { companyId, code: dto.productCode },
+            select: { id: true },
+          }))?.id
+        : dto.productId;
+      if (dto.productCode && !resolvedProductId) {
+        throw new NotFoundException("Product not found");
+      }
+      const nextProductId = resolvedProductId ?? purchase.productId;
       const nextQuantity = dto.quantity ?? purchase.quantity;
       const nextUnitCost = dto.unitCost ?? purchase.unitCost;
 
@@ -189,7 +205,7 @@ export class PurchasesService {
         where: { id: purchase.id, companyId },
         include: {
           category: { select: { name: true } },
-          product: { select: { name: true } },
+          product: { select: { name: true, code: true } },
         },
       });
 
@@ -201,6 +217,7 @@ export class PurchasesService {
         ...refreshed,
         categoryName: refreshed.category.name,
         productName: refreshed.product?.name ?? null,
+        productCode: refreshed.product?.code ?? null,
       };
     });
   }

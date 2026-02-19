@@ -39,6 +39,7 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead>Nama Produk</TableHead>
+            <TableHead>Kode</TableHead>
             <TableHead className="text-right">Harga</TableHead>
             <TableHead className="text-right">Stok</TableHead>
             <TableHead>Status</TableHead>
@@ -51,6 +52,9 @@ export function ProductsTable({ products, onEdit, onDelete }: ProductsTableProps
             return (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {product.code || '-'}
+                </TableCell>
                 <TableCell className="text-right">
                   Rp{product.price.toLocaleString('id-ID')}
                 </TableCell>

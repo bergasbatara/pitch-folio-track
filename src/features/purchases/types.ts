@@ -11,6 +11,7 @@ export interface Purchase {
   categoryName?: string;
   productId?: string | null;
   productName?: string | null;
+  productCode?: string | null;
   itemName: string;
   supplier?: string;
   quantity: number;
@@ -24,6 +25,7 @@ export interface PurchaseFormData {
   date: string;
   categoryId: string;
   productId?: string | null;
+  productCode?: string | null;
   itemName: string;
   supplier?: string;
   quantity: number;

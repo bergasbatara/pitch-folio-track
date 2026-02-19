@@ -43,6 +43,7 @@ export function AddPurchaseModal({
   const [date, setDate] = useState(defaultDate());
   const [categoryId, setCategoryId] = useState('');
   const [itemName, setItemName] = useState('');
+  const [productCode, setProductCode] = useState('');
   const [supplier, setSupplier] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unitCost, setUnitCost] = useState('');
@@ -55,6 +56,7 @@ export function AddPurchaseModal({
       setDate(toInputDate(editingPurchase.date));
       setCategoryId(editingPurchase.categoryId);
       setItemName(editingPurchase.itemName ?? '');
+      setProductCode(editingPurchase.productCode ?? '');
       setSupplier(editingPurchase.supplier ?? '');
       setQuantity(editingPurchase.quantity?.toString() ?? '');
       setUnitCost(editingPurchase.unitCost?.toString() ?? '');
@@ -72,6 +74,7 @@ export function AddPurchaseModal({
     setDate(defaultDate());
     setCategoryId('');
     setItemName('');
+    setProductCode('');
     setSupplier('');
     setQuantity('');
     setUnitCost('');
@@ -88,6 +91,7 @@ export function AddPurchaseModal({
     const purchaseData: PurchaseFormData = {
       date,
       categoryId,
+      productCode: productCode.trim() || undefined,
       itemName: itemName.trim(),
       supplier: supplier.trim() || undefined,
       quantity: parseFloat(quantity),
@@ -183,6 +187,16 @@ export function AddPurchaseModal({
               onChange={(e) => setItemName(e.target.value)}
               placeholder="cth., Tepung, Kardus kemasan"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="productCode">Kode Produk (opsional)</Label>
+            <Input
+              id="productCode"
+              value={productCode}
+              onChange={(e) => setProductCode(e.target.value)}
+              placeholder="cth., PRD-AB12"
             />
           </div>
 

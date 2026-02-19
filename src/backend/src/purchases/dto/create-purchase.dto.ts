@@ -14,6 +14,15 @@ export class CreatePurchaseDto {
   @IsString()
   productId?: string;
 
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed.toUpperCase() : undefined;
+  })
+  @IsOptional()
+  @IsString()
+  productCode?: string;
+
   @Transform(({ value }) => String(value ?? '').trim())
   @IsString()
   itemName!: string;

@@ -15,6 +15,15 @@ export class UpdatePurchaseDto {
   @IsString()
   productId?: string;
 
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed.toUpperCase() : undefined;
+  })
+  @IsOptional()
+  @IsString()
+  productCode?: string;
+
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
   @IsOptional()
   @IsString()

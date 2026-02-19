@@ -68,6 +68,7 @@ async function main() {
       update: {},
       create: {
         companyId: company.id,
+        code: "PRD-KOPI-01",
         name: "Kopi Arabika Premium",
         price: 45000,
         stock: 150,
@@ -78,6 +79,7 @@ async function main() {
       update: {},
       create: {
         companyId: company.id,
+        code: "PRD-TEH-01",
         name: "Teh Hijau Organik",
         price: 35000,
         stock: 200,

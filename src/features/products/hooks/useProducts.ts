@@ -31,10 +31,14 @@ export function useProducts(companyId?: string) {
     if (!companyId || !accessToken) {
       throw new Error('Missing company or auth token');
     }
+    const payload = {
+      ...data,
+      code: data.code?.trim() || undefined,
+    };
     const created = await fetchJson<Product>(`/companies/${companyId}/products`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const hydrated = hydrateProduct(created);
     setProducts((prev) => [hydrated, ...prev]);
@@ -45,10 +49,14 @@ export function useProducts(companyId?: string) {
     if (!companyId || !accessToken) {
       throw new Error('Missing company or auth token');
     }
+    const payload = {
+      ...data,
+      code: data.code !== undefined ? data.code.trim() || undefined : undefined,
+    };
     const updated = await fetchJson<Product>(`/companies/${companyId}/products/${id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const hydrated = hydrateProduct(updated);
     setProducts((prev) => prev.map((product) => (product.id === id ? hydrated : product)));

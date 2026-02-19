@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  code?: string | null;
   name: string;
   price: number;
   stock: number;
@@ -8,6 +9,7 @@ export interface Product {
 }
 
 export interface ProductFormData {
+  code?: string;
   name: string;
   price: number;
   stock: number;

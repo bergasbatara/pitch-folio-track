@@ -10,6 +10,7 @@ export interface Sale {
 
 export interface SaleFormData {
   productId: string;
+  productCode?: string;
   quantity: number;
   pricePerUnit: number;
 }

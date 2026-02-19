@@ -35,8 +35,13 @@ export class SalesService {
   async createSale(userId: string, companyId: string, dto: CreateSaleDto) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
+      if (!dto.productId && !dto.productCode) {
+        throw new BadRequestException("Product is required");
+      }
       const product = await tx.product.findFirst({
-        where: { id: dto.productId, companyId },
+        where: dto.productId
+          ? { id: dto.productId, companyId }
+          : { code: dto.productCode, companyId },
       });
       if (!product) {
         throw new NotFoundException("Product not found");
@@ -73,7 +78,16 @@ export class SalesService {
         throw new NotFoundException("Sale not found");
       }
 
-      const targetProductId = dto.productId ?? sale.productId;
+      const resolvedProductId = dto.productCode
+        ? (await tx.product.findFirst({
+            where: { companyId, code: dto.productCode },
+            select: { id: true },
+          }))?.id
+        : dto.productId;
+      if (dto.productCode && !resolvedProductId) {
+        throw new NotFoundException("Product not found");
+      }
+      const targetProductId = resolvedProductId ?? sale.productId;
       const quantity = dto.quantity ?? sale.quantity;
       const pricePerUnit = dto.pricePerUnit ?? sale.pricePerUnit;
 

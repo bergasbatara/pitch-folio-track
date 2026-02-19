@@ -63,6 +63,7 @@ model CompanyMember {
 model Product {
   id        String   @id @default(uuid())
   companyId String
+  code      String?
   name      String
   price     Int
   stock     Int
@@ -75,6 +76,7 @@ model Product {
 
   @@index([companyId])
   @@unique([companyId, name])
+  @@unique([companyId, code])
 }
 
 model Sale {
