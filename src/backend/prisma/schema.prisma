@@ -236,6 +236,7 @@ model FixedAsset {
   id                 String   @id @default(uuid())
   companyId           String
   name               String
+  assetType          String   @default("tetap")
   category           String
   acquisitionDate    DateTime
   acquisitionCost    Int

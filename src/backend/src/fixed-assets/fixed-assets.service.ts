@@ -32,6 +32,7 @@ export class FixedAssetsService {
       data: {
         companyId,
         name: String(dto.name ?? "").trim(),
+        assetType: String(dto.assetType ?? "tetap").trim(),
         category: String(dto.category ?? "").trim(),
         acquisitionDate: dto.acquisitionDate,
         acquisitionCost: Number(dto.acquisitionCost),
@@ -54,6 +55,7 @@ export class FixedAssetsService {
       where: { id: assetId },
       data: {
         name: dto.name !== undefined ? String(dto.name).trim() : undefined,
+        assetType: dto.assetType !== undefined ? String(dto.assetType).trim() : undefined,
         category: dto.category !== undefined ? String(dto.category).trim() : undefined,
         acquisitionDate: dto.acquisitionDate !== undefined ? dto.acquisitionDate : undefined,
         acquisitionCost: dto.acquisitionCost !== undefined ? Number(dto.acquisitionCost) : undefined,
