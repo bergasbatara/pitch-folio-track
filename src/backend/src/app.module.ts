@@ -9,6 +9,10 @@ import { ProductsModule } from "./products/products.module";
 import { SalesModule } from "./sales/sales.module";
 import { PurchasesModule } from "./purchases/purchases.module";
 import { ReceivablesModule } from "./receivables/receivables.module";
+import { CustomersModule } from "./customers/customers.module";
+import { SuppliersModule } from "./suppliers/suppliers.module";
+import { TaxesModule } from "./taxes/taxes.module";
+import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { ReceivablesModule } from "./receivables/receivables.module";
     SalesModule,
     PurchasesModule,
     ReceivablesModule,
+    CustomersModule,
+    SuppliersModule,
+    TaxesModule,
+    FixedAssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

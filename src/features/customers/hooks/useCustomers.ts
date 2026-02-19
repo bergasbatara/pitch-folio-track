@@ -1,46 +1,90 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Customer, CustomerFormData } from '../types';
 
-const STORAGE_KEY = 'app_customers';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const ACCESS_TOKEN_KEY = 'auth_access_token';
 
-function generateId() {
-  return crypto.randomUUID();
-}
-
-export function useCustomers() {
+export function useCustomers(companyId?: string) {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setCustomers(JSON.parse(stored)); } catch { /* ignore */ }
+    const load = async () => {
+      if (!companyId || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const data = await fetchJson<Customer[]>(`/companies/${companyId}/customers`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setCustomers(data);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [companyId, accessToken]);
+
+  const addCustomer = useCallback(async (data: CustomerFormData) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
     }
-  }, []);
+    const created = await fetchJson<Customer>(`/companies/${companyId}/customers`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    setCustomers((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, accessToken]);
 
-  const persist = useCallback((data: Customer[]) => {
-    setCustomers(data);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, []);
+  const updateCustomer = useCallback(async (id: string, data: Partial<CustomerFormData>) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const updated = await fetchJson<Customer>(`/companies/${companyId}/customers/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    setCustomers((prev) => prev.map((customer) => (customer.id === id ? updated : customer)));
+  }, [companyId, accessToken]);
 
-  const addCustomer = useCallback((data: CustomerFormData) => {
-    const now = new Date().toISOString();
-    const newCustomer: Customer = { ...data, id: generateId(), createdAt: now, updatedAt: now };
-    persist([newCustomer, ...customers]);
-    return newCustomer;
-  }, [customers, persist]);
+  const deleteCustomer = useCallback(async (id: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    await fetchJson(`/companies/${companyId}/customers/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setCustomers((prev) => prev.filter((customer) => customer.id !== id));
+  }, [companyId, accessToken]);
 
-  const updateCustomer = useCallback((id: string, data: Partial<CustomerFormData>) => {
-    const updated = customers.map(c =>
-      c.id === id ? { ...c, ...data, updatedAt: new Date().toISOString() } : c
-    );
-    persist(updated);
-  }, [customers, persist]);
+  const getCustomerById = useCallback((id: string) => customers.find((customer) => customer.id === id), [customers]);
 
-  const deleteCustomer = useCallback((id: string) => {
-    persist(customers.filter(c => c.id !== id));
-  }, [customers, persist]);
-
-  const getCustomerById = useCallback((id: string) => customers.find(c => c.id === id), [customers]);
-
-  return { customers, addCustomer, updateCustomer, deleteCustomer, getCustomerById };
+  return { customers, isLoading, addCustomer, updateCustomer, deleteCustomer, getCustomerById };
 }
+
+const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers ?? {}),
+  };
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+  if (!response.ok) {
+    let message = 'Request failed';
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {
+      // ignore parsing errors
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+};

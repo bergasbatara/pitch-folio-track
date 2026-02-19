@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useTaxCodes } from '../hooks/useTaxCodes';
 import { TaxCode, TaxCodeFormData } from '../types';
+import { useCompanyProfile } from '@/features/onboarding';
 
 const initial: TaxCodeFormData = { name: '', code: '', rate: 0, description: '' };
 
@@ -16,7 +17,8 @@ export default function Taxes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<TaxCode | null>(null);
   const [form, setForm] = useState<TaxCodeFormData>(initial);
-  const { taxCodes, addTaxCode, updateTaxCode, deleteTaxCode } = useTaxCodes();
+  const { company } = useCompanyProfile();
+  const { taxCodes, addTaxCode, updateTaxCode, deleteTaxCode } = useTaxCodes(company?.id);
 
   const openEdit = (t: TaxCode) => {
     setEditing(t);
@@ -26,9 +28,10 @@ export default function Taxes() {
 
   const handleClose = () => { setIsModalOpen(false); setEditing(null); setForm(initial); };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) { updateTaxCode(editing.id, form); } else { addTaxCode(form); }
+    if (!company?.id) return;
+    if (editing) { await updateTaxCode(editing.id, form); } else { await addTaxCode(form); }
     handleClose();
   };
 
