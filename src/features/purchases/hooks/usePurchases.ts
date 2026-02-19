@@ -1,80 +1,151 @@
-import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
-import { Purchase, PurchaseCategory } from '../types';
-const EMPTY_CATEGORIES: PurchaseCategory[] = [];
-const EMPTY_PURCHASES: Purchase[] = [];
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Purchase, PurchaseCategory, PurchaseFormData } from '../types';
 
-export function usePurchaseCategories() {
-  const [categories, setCategories] = useLocalStorage<PurchaseCategory[]>('purchase-categories', EMPTY_CATEGORIES);
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const ACCESS_TOKEN_KEY = 'auth_access_token';
 
-  const addCategory = (name: string) => {
-    const newCategory: PurchaseCategory = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      createdAt: new Date().toISOString(),
+export function usePurchaseCategories(companyId?: string) {
+  const [categories, setCategories] = useState<PurchaseCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!companyId || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const data = await fetchJson<PurchaseCategory[]>(`/companies/${companyId}/purchase-categories`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setCategories(data.map(hydrateCategory));
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setCategories([...categories, newCategory]);
-    return newCategory;
-  };
+    load();
+  }, [companyId, accessToken]);
 
-  const updateCategory = (id: string, name: string) => {
-    setCategories(categories.map(cat => 
-      cat.id === id ? { ...cat, name: name.trim() } : cat
-    ));
-  };
+  const addCategory = useCallback(async (name: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const created = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ name }),
+    });
+    const hydrated = hydrateCategory(created);
+    setCategories((prev) => [...prev, hydrated]);
+    return hydrated;
+  }, [companyId, accessToken]);
 
-  const deleteCategory = (id: string) => {
-    setCategories(categories.filter(cat => cat.id !== id));
-  };
+  const updateCategory = useCallback(async (id: string, name: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const updated = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ name }),
+    });
+    const hydrated = hydrateCategory(updated);
+    setCategories((prev) => prev.map((category) => (category.id === id ? hydrated : category)));
+  }, [companyId, accessToken]);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    await fetchJson(`/companies/${companyId}/purchase-categories/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setCategories((prev) => prev.filter((category) => category.id !== id));
+  }, [companyId, accessToken]);
 
   return {
     categories,
+    isLoading,
     addCategory,
     updateCategory,
     deleteCategory,
   };
 }
 
-export function usePurchases() {
-  const [purchases, setPurchases] = useLocalStorage<Purchase[]>('purchases', EMPTY_PURCHASES);
+export function usePurchases(companyId?: string) {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
-  const addPurchase = (purchase: Omit<Purchase, 'id' | 'createdAt' | 'totalCost'>) => {
-    const newPurchase: Purchase = {
-      ...purchase,
-      id: crypto.randomUUID(),
-      totalCost: purchase.quantity * purchase.unitCost,
-      createdAt: new Date().toISOString(),
-    };
-    setPurchases([newPurchase, ...purchases]);
-    return newPurchase;
-  };
-
-  const updatePurchase = (id: string, updates: Partial<Omit<Purchase, 'id' | 'createdAt'>>) => {
-    setPurchases(purchases.map(p => {
-      if (p.id !== id) return p;
-      const updated = { ...p, ...updates };
-      if (updates.quantity !== undefined || updates.unitCost !== undefined) {
-        updated.totalCost = updated.quantity * updated.unitCost;
+  useEffect(() => {
+    const load = async () => {
+      if (!companyId || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const data = await fetchJson<Purchase[]>(`/companies/${companyId}/purchases`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setPurchases(data.map(hydratePurchase));
+      } finally {
+        setIsLoading(false);
       }
-      return updated;
-    }));
-  };
+    };
+    load();
+  }, [companyId, accessToken]);
 
-  const deletePurchase = (id: string) => {
-    setPurchases(purchases.filter(p => p.id !== id));
-  };
+  const addPurchase = useCallback(async (data: PurchaseFormData) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const created = await fetchJson<Purchase>(`/companies/${companyId}/purchases`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    const hydrated = hydratePurchase(created);
+    setPurchases((prev) => [hydrated, ...prev]);
+    return hydrated;
+  }, [companyId, accessToken]);
 
-  const getTotalSpend = () => {
-    return purchases.reduce((sum, p) => sum + p.totalCost, 0);
-  };
+  const updatePurchase = useCallback(async (id: string, updates: Partial<PurchaseFormData>) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const updated = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(updates),
+    });
+    const hydrated = hydratePurchase(updated);
+    setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? hydrated : purchase)));
+  }, [companyId, accessToken]);
 
-  const getSpendByCategory = (categoryId: string) => {
+  const deletePurchase = useCallback(async (id: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    await fetchJson(`/companies/${companyId}/purchases/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setPurchases((prev) => prev.filter((purchase) => purchase.id !== id));
+  }, [companyId, accessToken]);
+
+  const getTotalSpend = useCallback(() => {
+    return purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
+  }, [purchases]);
+
+  const getSpendByCategory = useCallback((categoryId: string) => {
     return purchases
-      .filter(p => p.categoryId === categoryId)
-      .reduce((sum, p) => sum + p.totalCost, 0);
-  };
+      .filter((purchase) => purchase.categoryId === categoryId)
+      .reduce((sum, purchase) => sum + purchase.totalCost, 0);
+  }, [purchases]);
 
   return {
     purchases,
+    isLoading,
     addPurchase,
     updatePurchase,
     deletePurchase,
@@ -82,3 +153,47 @@ export function usePurchases() {
     getSpendByCategory,
   };
 }
+
+const normalizeDate = (value?: string) => {
+  if (!value) {
+    return new Date().toISOString().split('T')[0];
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString().split('T')[0];
+  }
+  return parsed.toISOString().split('T')[0];
+};
+
+const hydratePurchase = (purchase: Purchase): Purchase => ({
+  ...purchase,
+  date: normalizeDate(purchase.date),
+  createdAt: purchase.createdAt,
+});
+
+const hydrateCategory = (category: PurchaseCategory): PurchaseCategory => ({
+  ...category,
+  createdAt: category.createdAt,
+});
+
+const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers ?? {}),
+  };
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+  if (!response.ok) {
+    let message = 'Request failed';
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {
+      // ignore parsing errors
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+};

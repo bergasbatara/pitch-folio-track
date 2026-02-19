@@ -8,6 +8,10 @@ export interface Purchase {
   id: string;
   date: string;
   categoryId: string;
+  categoryName?: string;
+  productId?: string | null;
+  productName?: string | null;
+  productCode?: string | null;
   itemName: string;
   supplier?: string;
   quantity: number;
@@ -15,4 +19,16 @@ export interface Purchase {
   totalCost: number;
   notes?: string;
   createdAt: string;
+}
+
+export interface PurchaseFormData {
+  date: string;
+  categoryId: string;
+  productId?: string | null;
+  productCode?: string | null;
+  itemName: string;
+  supplier?: string;
+  quantity: number;
+  unitCost: number;
+  notes?: string;
 }

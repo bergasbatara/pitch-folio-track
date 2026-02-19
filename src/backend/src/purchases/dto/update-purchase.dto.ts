@@ -1,8 +1,16 @@
 import { Transform } from "class-transformer";
 import { IsInt, IsOptional, IsString, Min } from "class-validator";
 
-export class UpdateSaleDto {
+export class UpdatePurchaseDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    return String(value);
+  })
   @IsOptional()
   @IsString()
   productId?: string;
@@ -16,6 +24,16 @@ export class UpdateSaleDto {
   @IsString()
   productCode?: string;
 
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  itemName?: string;
+
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  supplier?: string;
+
   @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))
   @IsOptional()
   @IsInt()
@@ -26,9 +44,14 @@ export class UpdateSaleDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  pricePerUnit?: number;
+  unitCost?: number;
 
   @IsOptional()
   @Transform(({ value }) => (value ? new Date(value) : undefined))
-  soldAt?: Date;
+  date?: Date;
+
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

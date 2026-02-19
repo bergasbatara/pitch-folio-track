@@ -31,14 +31,27 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
     quantity: 1,
     pricePerUnit: 0,
   });
+  const [productCode, setProductCode] = useState('');
 
   const selectedProduct = products.find(p => p.id === formData.productId);
 
   useEffect(() => {
     if (selectedProduct) {
       setFormData(prev => ({ ...prev, pricePerUnit: selectedProduct.price }));
+      setProductCode(selectedProduct.code ?? '');
     }
   }, [selectedProduct]);
+
+  useEffect(() => {
+    const normalized = productCode.trim().toUpperCase();
+    if (!normalized) return;
+    const matched = products.find(product => (product.code ?? '').toUpperCase() === normalized);
+    if (matched) {
+      setFormData(prev => ({ ...prev, productId: matched.id }));
+    } else {
+      setFormData(prev => ({ ...prev, productId: '' }));
+    }
+  }, [productCode, products]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +62,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
       return;
     }
     
-    onSubmit(formData);
+    onSubmit({ ...formData, productCode: productCode.trim() || undefined });
     onClose();
     setFormData({ productId: '', quantity: 1, pricePerUnit: 0 });
   };
@@ -64,6 +77,16 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="productCode">Kode Produk (opsional)</Label>
+            <Input
+              id="productCode"
+              value={productCode}
+              onChange={(e) => setProductCode(e.target.value)}
+              placeholder="cth., PRD-AB12"
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="product">Produk</Label>
             <Select
               value={formData.productId}
@@ -75,7 +98,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
               <SelectContent>
                 {products.map((product) => (
                   <SelectItem key={product.id} value={product.id}>
-                    {product.name} (Stok: {product.stock})
+                    {product.name} {product.code ? `(${product.code})` : ''} (Stok: {product.stock})
                   </SelectItem>
                 ))}
               </SelectContent>

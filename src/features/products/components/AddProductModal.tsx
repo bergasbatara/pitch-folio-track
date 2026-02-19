@@ -18,6 +18,7 @@ interface AddProductModalProps {
 }
 
 const initialFormData: ProductFormData = {
+  code: '',
   name: '',
   price: 0,
   stock: 0,
@@ -29,6 +30,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
   useEffect(() => {
     if (editingProduct) {
       setFormData({
+        code: editingProduct.code ?? '',
         name: editingProduct.name,
         price: editingProduct.price,
         stock: editingProduct.stock,
@@ -54,6 +56,16 @@ export function AddProductModal({ isOpen, onClose, onSubmit, editingProduct }: A
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="code">Kode Produk</Label>
+            <Input
+              id="code"
+              value={formData.code ?? ''}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+              placeholder="cth., PRD-AB12"
+              className="bg-background border-border"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="name">Nama Produk</Label>
             <Input

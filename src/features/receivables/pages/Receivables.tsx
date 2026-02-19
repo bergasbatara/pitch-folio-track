@@ -11,9 +11,11 @@ import { Plus, Users, CreditCard, AlertCircle, Trash2 } from 'lucide-react';
 import { useReceivables } from '../hooks/useReceivables';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Receivables() {
-  const { receivables, addReceivable, deleteReceivable, recordPayment, getTotalReceivables, getPendingReceivables } = useReceivables();
+  const { company } = useCompanyProfile();
+  const { receivables, addReceivable, deleteReceivable, getTotalReceivables, getPendingReceivables } = useReceivables(company?.id);
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     customerName: '',
@@ -27,9 +29,10 @@ export default function Receivables() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addReceivable({
+    if (!company?.id) return;
+    await addReceivable({
       customerName: formData.customerName,
       description: formData.description,
       amount: parseFloat(formData.amount),

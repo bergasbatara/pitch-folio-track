@@ -26,8 +26,8 @@ interface PurchasesTableProps {
 }
 
 export function PurchasesTable({ purchases, categories, onEdit, onDelete }: PurchasesTableProps) {
-  const getCategoryName = (categoryId: string) => {
-    return categories.find(c => c.id === categoryId)?.name || 'Tidak diketahui';
+  const getCategoryName = (categoryId: string, fallback?: string) => {
+    return categories.find(c => c.id === categoryId)?.name || fallback || 'Tidak diketahui';
   };
 
   const formatCurrency = (value: number) => {
@@ -71,7 +71,7 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
               <TableCell className="font-medium">{purchase.itemName}</TableCell>
               <TableCell>
                 <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-                  {getCategoryName(purchase.categoryId)}
+                  {getCategoryName(purchase.categoryId, purchase.categoryName)}
                 </span>
               </TableCell>
               <TableCell className="text-muted-foreground">
