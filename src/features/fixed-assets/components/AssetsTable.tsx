@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2 } from 'lucide-react';
-import { FixedAsset, ASSET_CATEGORY_LABELS, calculateDepreciation } from '../types';
+import { FixedAsset, ASSET_CATEGORY_LABELS, ASSET_TYPE_LABELS, calculateDepreciation } from '../types';
 import { Badge } from '@/components/ui/badge';
 
 const fmt = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
@@ -14,7 +14,7 @@ interface Props {
 
 export function AssetsTable({ assets, onEdit, onDelete }: Props) {
   if (!assets.length) {
-    return <p className="text-center text-muted-foreground py-8">Belum ada aset tetap.</p>;
+    return <p className="text-center text-muted-foreground py-8">Belum ada aset.</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -22,6 +22,7 @@ export function AssetsTable({ assets, onEdit, onDelete }: Props) {
         <TableHeader>
           <TableRow>
             <TableHead>Nama Aset</TableHead>
+            <TableHead>Jenis</TableHead>
             <TableHead>Kategori</TableHead>
             <TableHead className="text-right">Nilai Perolehan</TableHead>
             <TableHead className="text-right">Akum. Penyusutan</TableHead>
@@ -35,6 +36,7 @@ export function AssetsTable({ assets, onEdit, onDelete }: Props) {
             return (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.name}</TableCell>
+                <TableCell><Badge variant={a.assetType === 'tetap' ? 'default' : 'outline'}>{ASSET_TYPE_LABELS[a.assetType] ?? 'Aset Tetap'}</Badge></TableCell>
                 <TableCell><Badge variant="secondary">{ASSET_CATEGORY_LABELS[a.category]}</Badge></TableCell>
                 <TableCell className="text-right">{fmt(a.acquisitionCost)}</TableCell>
                 <TableCell className="text-right">{fmt(dep.accumulatedDepreciation)}</TableCell>

@@ -11,7 +11,7 @@ const navigation = [
   { name: 'Supplier', href: '/supplier', icon: Truck },
   { name: 'Piutang', href: '/piutang', icon: TrendingUp },
   { name: 'Hutang', href: '/hutang', icon: TrendingDown },
-  { name: 'Aset Tetap', href: '/aset-tetap', icon: Building2 },
+  { name: 'Aset', href: '/aset-tetap', icon: Building2 },
   { name: 'Pajak', href: '/pajak', icon: Receipt },
   { name: 'Laba Rugi', href: '/laporan-keuangan', icon: FileText },
   { name: 'Neraca', href: '/neraca', icon: Scale },

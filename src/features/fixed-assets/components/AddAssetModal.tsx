@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FixedAsset, FixedAssetFormData, AssetCategory, ASSET_USEFUL_LIFE, ASSET_CATEGORY_LABELS } from '../types';
+import { FixedAsset, FixedAssetFormData, AssetCategory, AssetType, ASSET_USEFUL_LIFE, ASSET_CATEGORY_LABELS, ASSET_TYPE_LABELS } from '../types';
 
 interface Props {
   isOpen: boolean;
@@ -14,7 +14,7 @@ interface Props {
 }
 
 const initial: FixedAssetFormData = {
-  name: '', category: 'mesin', acquisitionDate: new Date().toISOString().slice(0, 10),
+  name: '', assetType: 'tetap', category: 'mesin', acquisitionDate: new Date().toISOString().slice(0, 10),
   acquisitionCost: 0, usefulLifeMonths: 48, residualValue: 0, depreciationMethod: 'straight_line',
 };
 
@@ -24,7 +24,7 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
   useEffect(() => {
     if (editingAsset) {
       setForm({
-        name: editingAsset.name, category: editingAsset.category,
+        name: editingAsset.name, assetType: editingAsset.assetType ?? 'tetap', category: editingAsset.category,
         acquisitionDate: editingAsset.acquisitionDate.slice(0, 10),
         acquisitionCost: editingAsset.acquisitionCost, usefulLifeMonths: editingAsset.usefulLifeMonths,
         residualValue: editingAsset.residualValue, depreciationMethod: editingAsset.depreciationMethod,
@@ -44,7 +44,7 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">{editingAsset ? 'Edit Aset' : 'Tambah Aset Tetap'}</DialogTitle>
+          <DialogTitle className="text-foreground">{editingAsset ? 'Edit Aset' : 'Tambah Aset'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -52,10 +52,19 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
             <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="cth. Kendaraan Operasional" className="bg-background border-border" required />
           </div>
           <div className="space-y-2">
+            <Label>Jenis Aset</Label>
+            <Select value={form.assetType} onValueChange={(v: AssetType) => setForm({ ...form, assetType: v })}>
+              <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-card border-border z-50">
+                {Object.entries(ASSET_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label>Kategori / Akun Aset</Label>
             <Select value={form.category} onValueChange={(v: AssetCategory) => handleCategoryChange(v)}>
               <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card border-border z-50">
                 {Object.entries(ASSET_CATEGORY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
