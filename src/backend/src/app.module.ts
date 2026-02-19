@@ -9,6 +9,8 @@ import { ProductsModule } from "./products/products.module";
 import { SalesModule } from "./sales/sales.module";
 import { PurchasesModule } from "./purchases/purchases.module";
 import { ReceivablesModule } from "./receivables/receivables.module";
+import { CustomersModule } from "./customers/customers.module";
+import { SuppliersModule } from "./suppliers/suppliers.module";
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { ReceivablesModule } from "./receivables/receivables.module";
     SalesModule,
     PurchasesModule,
     ReceivablesModule,
+    CustomersModule,
+    SuppliersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

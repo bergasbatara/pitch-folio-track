@@ -6,17 +6,20 @@ import { useCustomers } from '../hooks/useCustomers';
 import { Customer, CustomerFormData } from '../types';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { CustomersTable } from '../components/CustomersTable';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Customers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+  const { company } = useCompanyProfile();
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers(company?.id);
 
-  const handleSubmit = (data: CustomerFormData) => {
+  const handleSubmit = async (data: CustomerFormData) => {
+    if (!company?.id) return;
     if (editing) {
-      updateCustomer(editing.id, data);
+      await updateCustomer(editing.id, data);
     } else {
-      addCustomer(data);
+      await addCustomer(data);
     }
     setEditing(null);
   };

@@ -6,14 +6,17 @@ import { useSuppliers } from '../hooks/useSuppliers';
 import { Supplier, SupplierFormData } from '../types';
 import { AddSupplierModal } from '../components/AddSupplierModal';
 import { SuppliersTable } from '../components/SuppliersTable';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
+  const { company } = useCompanyProfile();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers(company?.id);
 
-  const handleSubmit = (data: SupplierFormData) => {
-    if (editing) { updateSupplier(editing.id, data); } else { addSupplier(data); }
+  const handleSubmit = async (data: SupplierFormData) => {
+    if (!company?.id) return;
+    if (editing) { await updateSupplier(editing.id, data); } else { await addSupplier(data); }
     setEditing(null);
   };
 

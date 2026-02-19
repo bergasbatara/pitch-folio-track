@@ -43,6 +43,8 @@ model Company {
   categories  PurchaseCategory[]
   receivables Receivable[]
   payables    Payable[]
+  customers   Customer[]
+  suppliers   Supplier[]
   subscription Subscription?
 }
 
@@ -176,4 +178,38 @@ model Subscription {
   createdAt DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  type      String
+  address   String?
+  email     String?
+  phone     String?
+  npwp      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  type      String
+  address   String?
+  email     String?
+  phone     String?
+  npwp      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }

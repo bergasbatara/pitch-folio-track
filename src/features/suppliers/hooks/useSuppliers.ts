@@ -1,37 +1,90 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Supplier, SupplierFormData } from '../types';
 
-const STORAGE_KEY = 'app_suppliers';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const ACCESS_TOKEN_KEY = 'auth_access_token';
 
-export function useSuppliers() {
+export function useSuppliers(companyId?: string) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) { try { setSuppliers(JSON.parse(stored)); } catch { /* */ } }
-  }, []);
+    const load = async () => {
+      if (!companyId || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const data = await fetchJson<Supplier[]>(`/companies/${companyId}/suppliers`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setSuppliers(data);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [companyId, accessToken]);
 
-  const persist = useCallback((data: Supplier[]) => {
-    setSuppliers(data);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, []);
+  const addSupplier = useCallback(async (data: SupplierFormData) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const created = await fetchJson<Supplier>(`/companies/${companyId}/suppliers`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    setSuppliers((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, accessToken]);
 
-  const addSupplier = useCallback((data: SupplierFormData) => {
-    const now = new Date().toISOString();
-    const s: Supplier = { ...data, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    persist([s, ...suppliers]);
-    return s;
-  }, [suppliers, persist]);
+  const updateSupplier = useCallback(async (id: string, data: Partial<SupplierFormData>) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    const updated = await fetchJson<Supplier>(`/companies/${companyId}/suppliers/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(data),
+    });
+    setSuppliers((prev) => prev.map((supplier) => (supplier.id === id ? updated : supplier)));
+  }, [companyId, accessToken]);
 
-  const updateSupplier = useCallback((id: string, data: Partial<SupplierFormData>) => {
-    persist(suppliers.map(s => s.id === id ? { ...s, ...data, updatedAt: new Date().toISOString() } : s));
-  }, [suppliers, persist]);
+  const deleteSupplier = useCallback(async (id: string) => {
+    if (!companyId || !accessToken) {
+      throw new Error('Missing company or auth token');
+    }
+    await fetchJson(`/companies/${companyId}/suppliers/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setSuppliers((prev) => prev.filter((supplier) => supplier.id !== id));
+  }, [companyId, accessToken]);
 
-  const deleteSupplier = useCallback((id: string) => {
-    persist(suppliers.filter(s => s.id !== id));
-  }, [suppliers, persist]);
+  const getSupplierById = useCallback((id: string) => suppliers.find((supplier) => supplier.id === id), [suppliers]);
 
-  const getSupplierById = useCallback((id: string) => suppliers.find(s => s.id === id), [suppliers]);
-
-  return { suppliers, addSupplier, updateSupplier, deleteSupplier, getSupplierById };
+  return { suppliers, isLoading, addSupplier, updateSupplier, deleteSupplier, getSupplierById };
 }
+
+const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers ?? {}),
+  };
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+  if (!response.ok) {
+    let message = 'Request failed';
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {
+      // ignore parsing errors
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+};
