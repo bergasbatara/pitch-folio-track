@@ -11,6 +11,8 @@ import { PurchasesModule } from "./purchases/purchases.module";
 import { ReceivablesModule } from "./receivables/receivables.module";
 import { CustomersModule } from "./customers/customers.module";
 import { SuppliersModule } from "./suppliers/suppliers.module";
+import { TaxesModule } from "./taxes/taxes.module";
+import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { SuppliersModule } from "./suppliers/suppliers.module";
     ReceivablesModule,
     CustomersModule,
     SuppliersModule,
+    TaxesModule,
+    FixedAssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

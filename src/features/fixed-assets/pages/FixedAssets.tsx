@@ -6,16 +6,19 @@ import { useFixedAssets } from '../hooks/useFixedAssets';
 import { FixedAsset, FixedAssetFormData, calculateDepreciation } from '../types';
 import { AddAssetModal } from '../components/AddAssetModal';
 import { AssetsTable } from '../components/AssetsTable';
+import { useCompanyProfile } from '@/features/onboarding';
 
 const fmt = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
 
 export default function FixedAssets() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<FixedAsset | null>(null);
-  const { assets, addAsset, updateAsset, deleteAsset } = useFixedAssets();
+  const { company } = useCompanyProfile();
+  const { assets, addAsset, updateAsset, deleteAsset } = useFixedAssets(company?.id);
 
-  const handleSubmit = (data: FixedAssetFormData) => {
-    if (editing) { updateAsset(editing.id, data); } else { addAsset(data); }
+  const handleSubmit = async (data: FixedAssetFormData) => {
+    if (!company?.id) return;
+    if (editing) { await updateAsset(editing.id, data); } else { await addAsset(data); }
     setEditing(null);
   };
 
