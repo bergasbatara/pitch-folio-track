@@ -11,9 +11,11 @@ import { Plus, Building, CreditCard, AlertCircle, Trash2 } from 'lucide-react';
 import { usePayables } from '../hooks/useReceivables';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Payables() {
-  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables } = usePayables();
+  const { company } = useCompanyProfile();
+  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables } = usePayables(company?.id);
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     supplierName: '',
@@ -27,9 +29,10 @@ export default function Payables() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addPayable({
+    if (!company?.id) return;
+    await addPayable({
       supplierName: formData.supplierName,
       description: formData.description,
       amount: parseFloat(formData.amount),
