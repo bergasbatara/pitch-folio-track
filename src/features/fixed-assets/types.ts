@@ -1,8 +1,10 @@
 export type AssetCategory = 'gedung' | 'kendaraan' | 'mesin' | 'tanah' | 'lainnya';
+export type AssetType = 'tetap' | 'lancar';
 
 export interface FixedAsset {
   id: string;
   name: string;
+  assetType: AssetType;
   category: AssetCategory;
   acquisitionDate: string;
   acquisitionCost: number;
@@ -14,6 +16,11 @@ export interface FixedAsset {
 }
 
 export type FixedAssetFormData = Omit<FixedAsset, 'id' | 'createdAt' | 'updatedAt'>;
+
+export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
+  tetap: 'Aset Tetap',
+  lancar: 'Aset Lancar',
+};
 
 export const ASSET_USEFUL_LIFE: Record<AssetCategory, number> = {
   gedung: 240,

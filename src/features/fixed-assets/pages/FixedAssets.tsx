@@ -34,8 +34,8 @@ export default function FixedAssets() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Aset Tetap</h1>
-            <p className="text-muted-foreground">Kelola aset tetap dan penyusutan</p>
+          <h1 className="text-2xl font-bold text-foreground">Aset</h1>
+            <p className="text-muted-foreground">Kelola aset tetap, aset lancar, dan penyusutan</p>
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Aset</Button>
         </div>
@@ -57,7 +57,7 @@ export default function FixedAssets() {
           ))}
         </div>
         <div className="bg-card rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold mb-4">Daftar Aset Tetap</h2>
+          <h2 className="text-lg font-semibold mb-4">Daftar Aset</h2>
           <AssetsTable assets={assets} onEdit={handleEdit} onDelete={deleteAsset} />
         </div>
       </div>
