@@ -45,20 +45,20 @@ export function ProfilePage() {
       const success = await updateProfile({ name, avatar, address, phone, companyName });
       if (success) {
         toast({
-          title: "Profile Updated",
-          description: "Your profile information has been updated successfully.",
+          title: "Profil Diperbarui",
+          description: "Informasi profil Anda berhasil diperbarui.",
         });
       } else {
         toast({
-          title: "Failed",
-          description: "Failed to update profile.",
+          title: "Gagal",
+          description: "Gagal memperbarui profil.",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "An error occurred while updating your profile.",
+        description: "Terjadi kesalahan saat memperbarui profil.",
         variant: "destructive",
       });
     } finally {
