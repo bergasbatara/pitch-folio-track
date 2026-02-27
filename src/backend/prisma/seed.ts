@@ -49,6 +49,63 @@ async function main() {
     },
   });
 
+  await prisma.$transaction([
+    prisma.plan.upsert({
+      where: { id: "business" },
+      update: {},
+      create: {
+        id: "business",
+        name: "Business",
+        price: 299000,
+        currency: "IDR",
+        period: "monthly",
+        features: [
+          "Pencatatan Transaksi",
+          "Persiapan Penyusunan Laporan Keuangan",
+          "Penyusunan Catatan Laporan Keuangan",
+          "Neraca, Laba Rugi, Arus Kas",
+        ],
+        recommended: false,
+      },
+    }),
+    prisma.plan.upsert({
+      where: { id: "professional" },
+      update: {},
+      create: {
+        id: "professional",
+        name: "Professional",
+        price: 499000,
+        currency: "IDR",
+        period: "monthly",
+        features: [
+          "Semua fitur Business",
+          "Drafting Laporan Keuangan untuk Audit",
+          "Rasio Keuangan",
+          "Analisis Tren",
+        ],
+        recommended: true,
+      },
+    }),
+    prisma.plan.upsert({
+      where: { id: "premium" },
+      update: {},
+      create: {
+        id: "premium",
+        name: "Premium",
+        price: 799000,
+        currency: "IDR",
+        period: "monthly",
+        features: [
+          "Semua fitur Professional",
+          "Analisis Keuangan Lanjutan",
+          "Modeling & Proyeksi Keuangan",
+          "Konsultasi Prioritas",
+        ],
+        recommended: false,
+      },
+    }),
+  ]);
+
   const categories = await prisma.$transaction([
     prisma.purchaseCategory.upsert({
       where: { companyId_name: { companyId: company.id, name: "Bahan Baku" } },
@@ -140,7 +197,7 @@ async function main() {
     update: {},
     create: {
       companyId: company.id,
-      plan: "business",
+      planId: "business",
       status: "active",
       startsAt: new Date(),
     },

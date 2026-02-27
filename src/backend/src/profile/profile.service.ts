@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
-import type { User } from "@prisma/client";
+import type { User, Company } from "@prisma/client";
 
 @Injectable()
 export class ProfileService {
@@ -26,7 +26,7 @@ export class ProfileService {
         dto.phone !== undefined ||
         dto.taxId !== undefined;
 
-      let company = null;
+      let company: Company | null = null;
       if (wantsCompanyUpdate) {
         const membership = await tx.companyMember.findFirst({
           where: { userId },

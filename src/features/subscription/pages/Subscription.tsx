@@ -6,16 +6,26 @@ import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Sparkles, Building2 } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 import { useToast } from '@/components/ui/use-toast';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Subscription() {
-  const { plans, subscription, subscribe, getCurrentPlan, isSubscribed } = useSubscription();
+  const { company } = useCompanyProfile();
+  const { plans, subscription, subscribe, getCurrentPlan, isSubscribed } = useSubscription(company?.id);
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   const currentPlan = getCurrentPlan();
 
-  const handleSubscribe = (planId: string) => {
-    subscribe(planId);
+  const handleSubscribe = async (planId: string) => {
+    if (!company?.id) {
+      toast({
+        title: 'Perusahaan belum ada',
+        description: 'Selesaikan onboarding perusahaan terlebih dahulu.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await subscribe(planId);
     toast({
       title: 'Berlangganan Berhasil',
       description: `Anda sekarang berlangganan paket ${plans.find(p => p.id === planId)?.name}`,

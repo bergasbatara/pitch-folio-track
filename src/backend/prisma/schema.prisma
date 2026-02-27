@@ -176,13 +176,29 @@ model Payable {
 model Subscription {
   id        String   @id @default(uuid())
   companyId String   @unique
-  plan      String
+  planId    String
   status    String
   startsAt  DateTime
   endsAt    DateTime?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+}
+
+model Plan {
+  id          String   @id
+  name        String
+  price       Int
+  currency    String
+  period      String
+  features    String[]
+  recommended Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions Subscription[]
 }
 
 model Customer {
