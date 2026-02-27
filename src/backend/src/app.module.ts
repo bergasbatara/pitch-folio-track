@@ -13,6 +13,7 @@ import { CustomersModule } from "./customers/customers.module";
 import { SuppliersModule } from "./suppliers/suppliers.module";
 import { TaxesModule } from "./taxes/taxes.module";
 import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
+import { ProfileModule } from "./profile/profile.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
     SuppliersModule,
     TaxesModule,
     FixedAssetsModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

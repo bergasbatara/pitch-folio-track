@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -9,19 +9,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Save, Camera, MapPin, Phone, Building2 } from 'lucide-react';
+import { useCompanyProfile } from '@/features/onboarding';
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { company, saveCompanyProfile } = useCompanyProfile();
   
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
-  const [address, setAddress] = useState(user?.address || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [companyName, setCompanyName] = useState(user?.companyName || '');
+  const [address, setAddress] = useState(company?.address || user?.address || '');
+  const [phone, setPhone] = useState(company?.phone || user?.phone || '');
+  const [companyName, setCompanyName] = useState(company?.name || user?.companyName || '');
+  const [taxId, setTaxId] = useState(company?.taxId || '');
   const [isLoading, setIsLoading] = useState(false);
   const [showAvatarInput, setShowAvatarInput] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name || '');
+    setAvatar(user.avatar || '');
+    setAddress(company?.address || user.address || '');
+    setPhone(company?.phone || user.phone || '');
+    setCompanyName(company?.name || user.companyName || '');
+    setTaxId(company?.taxId || '');
+  }, [user, company]);
 
   if (!user) {
     navigate('/login');
@@ -42,19 +55,33 @@ export function ProfilePage() {
     setIsLoading(true);
     
     try {
-      const success = await updateProfile({ name, avatar, address, phone, companyName });
-      if (success) {
-        toast({
-          title: "Profil Diperbarui",
-          description: "Informasi profil Anda berhasil diperbarui.",
-        });
-      } else {
-        toast({
-          title: "Gagal",
-          description: "Gagal memperbarui profil.",
-          variant: "destructive",
+      const trimmedName = name.trim();
+      const trimmedCompanyName = companyName.trim();
+      const trimmedAddress = address.trim();
+      const trimmedPhone = phone.trim();
+      const trimmedTaxId = taxId.trim();
+
+      await updateProfile({
+        name: trimmedName || undefined,
+        avatar: avatar.trim() || undefined,
+        address: trimmedAddress || undefined,
+        phone: trimmedPhone || undefined,
+        companyName: trimmedCompanyName || undefined,
+      });
+
+      if (company?.id) {
+        await saveCompanyProfile({
+          name: trimmedCompanyName || company.name,
+          address: trimmedAddress || company.address,
+          phone: trimmedPhone || company.phone,
+          taxId: trimmedTaxId || undefined,
         });
       }
+
+      toast({
+        title: "Profil Diperbarui",
+        description: "Informasi profil Anda berhasil diperbarui.",
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -176,6 +203,19 @@ export function ProfilePage() {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Masukkan alamat Anda"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="taxId" className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5" /> NPWP
+                </Label>
+                <Input
+                  id="taxId"
+                  type="text"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  placeholder="Nomor NPWP perusahaan"
                 />
               </div>
 
