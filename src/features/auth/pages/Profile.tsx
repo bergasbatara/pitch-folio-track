@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Mail, Save } from 'lucide-react';
+import { User, Mail, Save, Camera, MapPin, Phone, Building2 } from 'lucide-react';
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
@@ -17,7 +17,11 @@ export function ProfilePage() {
   
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+  const [address, setAddress] = useState(user?.address || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [companyName, setCompanyName] = useState(user?.companyName || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [showAvatarInput, setShowAvatarInput] = useState(false);
 
   if (!user) {
     navigate('/login');
@@ -38,7 +42,7 @@ export function ProfilePage() {
     setIsLoading(true);
     
     try {
-      const success = await updateProfile({ name, avatar });
+      const success = await updateProfile({ name, avatar, address, phone, companyName });
       if (success) {
         toast({
           title: "Profil Diperbarui",
@@ -77,12 +81,30 @@ export function ProfilePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center mb-6">
-              <Avatar className="h-24 w-24 mb-4">
-                <AvatarImage src={avatar} alt={name} />
-                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                  {getInitials(name)}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative group cursor-pointer mb-4" onClick={() => setShowAvatarInput(!showAvatarInput)}>
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={avatar} alt={name} />
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {getInitials(name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 flex items-end justify-center rounded-full overflow-hidden">
+                  <div className="w-full bg-black/50 text-white text-xs text-center py-1">
+                    <Camera className="h-3 w-3 mx-auto" />
+                  </div>
+                </div>
+              </div>
+              {showAvatarInput && (
+                <div className="w-full max-w-xs mb-2">
+                  <Input
+                    type="url"
+                    value={avatar}
+                    onChange={(e) => setAvatar(e.target.value)}
+                    placeholder="https://example.com/avatar.jpg"
+                    className="text-sm"
+                  />
+                </div>
+              )}
               <h2 className="text-xl font-semibold">{user.name}</h2>
               <p className="text-muted-foreground flex items-center gap-1">
                 <Mail className="h-4 w-4" />
@@ -106,7 +128,9 @@ export function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Nama</Label>
+                <Label htmlFor="name" className="flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" /> Nama
+                </Label>
                 <Input
                   id="name"
                   type="text"
@@ -117,13 +141,41 @@ export function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="avatar">URL Avatar (opsional)</Label>
+                <Label htmlFor="companyName" className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5" /> Nama Perusahaan
+                </Label>
                 <Input
-                  id="avatar"
-                  type="url"
-                  value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
+                  id="companyName"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Masukkan nama perusahaan"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="flex items-center gap-1">
+                  <Phone className="h-3.5 w-3.5" /> Nomor Telepon
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Masukkan nomor telepon"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address" className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> Alamat
+                </Label>
+                <Input
+                  id="address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Masukkan alamat Anda"
                 />
               </div>
 
