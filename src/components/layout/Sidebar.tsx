@@ -63,10 +63,10 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
 
         {user && (
           <div className="border-t border-sidebar-border p-3 space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2 text-sm text-sidebar-foreground">
+            <Link to="/profile" className="sidebar-link w-full">
               <User className="h-4 w-4" />
               <span className="truncate">{user.name}</span>
-            </div>
+            </Link>
             <button onClick={logout} className="sidebar-link w-full text-destructive hover:text-destructive hover:bg-destructive/10">
               <LogOut className="h-5 w-5" />
               Keluar
