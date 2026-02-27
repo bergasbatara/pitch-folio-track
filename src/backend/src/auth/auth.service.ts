@@ -102,6 +102,9 @@ export class AuthService {
       data: {
         name: dto.name,
         avatar: dto.avatar,
+        address: dto.address,
+        phone: dto.phone,
+        companyName: dto.companyName,
       },
     });
     return this.sanitizeUser(user);

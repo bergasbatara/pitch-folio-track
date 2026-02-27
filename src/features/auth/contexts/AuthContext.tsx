@@ -5,6 +5,9 @@ interface User {
   email: string;
   name: string;
   avatar?: string;
+  address?: string;
+  phone?: string;
+  companyName?: string;
 }
 
 interface AuthResponse {
@@ -19,7 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (email: string, password: string, name: string) => Promise<boolean>;
-  updateProfile: (data: { name?: string; avatar?: string }) => Promise<boolean>;
+  updateProfile: (data: { name?: string; avatar?: string; address?: string; phone?: string; companyName?: string }) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuth();
   };
 
-  const updateProfile = async (data: { name?: string; avatar?: string }): Promise<boolean> => {
+  const updateProfile = async (data: { name?: string; avatar?: string; address?: string; phone?: string; companyName?: string }): Promise<boolean> => {
     const accessToken = localStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
     if (!accessToken) return false;
     const updatedUser = await fetchJson<User>('/auth/profile', {
