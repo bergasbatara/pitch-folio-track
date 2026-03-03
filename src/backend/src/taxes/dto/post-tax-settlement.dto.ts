@@ -15,5 +15,10 @@ export class PostTaxSettlementDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
   @IsOptional()
   @IsString()
+  taxCodeId?: string;
+
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
   memo?: string;
 }

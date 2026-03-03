@@ -7,9 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTaxCodes } from '../hooks/useTaxCodes';
 import { TaxCode, TaxCodeFormData } from '../types';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useToast } from '@/components/ui/use-toast';
 
 const initial: TaxCodeFormData = { name: '', code: '', rate: 0, description: '' };
 
@@ -17,8 +19,14 @@ export default function Taxes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<TaxCode | null>(null);
   const [form, setForm] = useState<TaxCodeFormData>(initial);
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [settlementDate, setSettlementDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [settlementMemo, setSettlementMemo] = useState('');
+  const [settlementTaxCodeId, setSettlementTaxCodeId] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
   const { company } = useCompanyProfile();
   const { taxCodes, addTaxCode, updateTaxCode, deleteTaxCode } = useTaxCodes(company?.id);
+  const { toast } = useToast();
 
   const openEdit = (t: TaxCode) => {
     setEditing(t);
@@ -33,6 +41,56 @@ export default function Taxes() {
     if (!company?.id) return;
     if (editing) { await updateTaxCode(editing.id, form); } else { await addTaxCode(form); }
     handleClose();
+  };
+
+  const handleTaxSettlement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company?.id) {
+      toast({ title: 'Perusahaan belum ada', description: 'Selesaikan onboarding perusahaan terlebih dahulu.', variant: 'destructive' });
+      return;
+    }
+    const accessToken = localStorage.getItem('auth_access_token');
+    if (!accessToken) {
+      toast({ title: 'Tidak ada token', description: 'Silakan login ulang.', variant: 'destructive' });
+      return;
+    }
+    const amount = parseInt(settlementAmount.replace(/[^\d]/g, ''), 10);
+    if (!amount || amount <= 0) {
+      toast({ title: 'Jumlah tidak valid', description: 'Masukkan jumlah pajak yang valid.', variant: 'destructive' });
+      return;
+    }
+    if (!settlementTaxCodeId) {
+      toast({ title: 'Pilih jenis pajak', description: 'Silakan pilih kode pajak.', variant: 'destructive' });
+      return;
+    }
+    setIsPosting(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/taxes/settlement`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          amount,
+          date: settlementDate,
+          taxCodeId: settlementTaxCodeId,
+          memo: settlementMemo?.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? 'Gagal memposting jurnal pajak');
+      }
+      toast({ title: 'Pembayaran pajak berhasil diposting' });
+      setSettlementAmount('');
+      setSettlementMemo('');
+      setSettlementTaxCodeId('');
+    } catch (err: any) {
+      toast({ title: 'Gagal', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   return (
@@ -56,6 +114,57 @@ export default function Taxes() {
             </div>
           </div>
         </div>
+
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h2 className="text-lg font-semibold mb-4">Setor / Pembayaran Pajak</h2>
+          <form onSubmit={handleTaxSettlement} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div className="space-y-2">
+              <Label>Jumlah (Rp)</Label>
+              <Input
+                value={settlementAmount}
+                onChange={(e) => setSettlementAmount(e.target.value)}
+                placeholder="500000"
+                className="bg-background border-border"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal</Label>
+              <Input
+                type="date"
+                value={settlementDate}
+                onChange={(e) => setSettlementDate(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Jenis Pajak</Label>
+              <Select value={settlementTaxCodeId} onValueChange={setSettlementTaxCodeId}>
+                <SelectTrigger className="bg-background border-border"><SelectValue placeholder="Pilih pajak" /></SelectTrigger>
+                <SelectContent>
+                  {taxCodes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.code} - {t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Memo (Opsional)</Label>
+              <Input
+                value={settlementMemo}
+                onChange={(e) => setSettlementMemo(e.target.value)}
+                placeholder="Pembayaran PPN Februari"
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="md:col-span-4 flex justify-end">
+              <Button type="submit" disabled={isPosting}>
+                {isPosting ? 'Memposting...' : 'Posting Jurnal Pajak'}
+              </Button>
+            </div>
+          </form>
+        </div>
+
         <div className="bg-card rounded-xl border border-border p-6">
           <h2 className="text-lg font-semibold mb-4">Daftar Kode Pajak</h2>
           {!taxCodes.length ? (

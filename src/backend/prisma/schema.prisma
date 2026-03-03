@@ -248,6 +248,7 @@ model TaxCode {
   updatedAt   DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalEntries JournalEntry[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -274,6 +275,7 @@ model Account {
 model JournalEntry {
   id        String   @id @default(uuid())
   companyId String
+  taxCodeId String?
   date      DateTime
   memo      String?
   source    String?
@@ -282,10 +284,12 @@ model JournalEntry {
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taxCode TaxCode? @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
   lines   JournalLine[]
 
   @@index([companyId])
   @@index([companyId, source, sourceId])
+  @@index([taxCodeId])
 }
 
 model JournalLine {

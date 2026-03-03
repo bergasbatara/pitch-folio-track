@@ -106,12 +106,23 @@ export class TaxesService {
       await this.ensureDefaultAccounts(tx, companyId);
       const taxPayableId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxPayable);
       const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+      let taxCodeId: string | undefined;
+      if (dto.taxCodeId) {
+        const taxCode = await tx.taxCode.findFirst({
+          where: { id: dto.taxCodeId, companyId },
+        });
+        if (!taxCode) {
+          throw new NotFoundException("Tax code not found");
+        }
+        taxCodeId = taxCode.id;
+      }
       const entry = await tx.journalEntry.create({
         data: {
           companyId,
           date: dto.date ?? new Date(),
           memo: dto.memo ?? "Pembayaran Pajak",
           source: "tax_settlement",
+          taxCodeId,
         },
       });
       await tx.journalLine.createMany({
