@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } fro
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateFixedAssetDto } from "./dto/create-fixed-asset.dto";
 import { UpdateFixedAssetDto } from "./dto/update-fixed-asset.dto";
+import { PostDepreciationDto } from "./dto/post-depreciation.dto";
 import { FixedAssetsService } from "./fixed-assets.service";
 
 @UseGuards(JwtAuthGuard)
@@ -49,5 +50,15 @@ export class FixedAssetsController {
     @Param("assetId") assetId: string,
   ) {
     return this.fixedAssetsService.deleteAsset(req.user.sub, companyId, assetId);
+  }
+
+  @Post(":assetId/depreciation")
+  postDepreciation(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Param("assetId") assetId: string,
+    @Body() dto: PostDepreciationDto,
+  ) {
+    return this.fixedAssetsService.postDepreciation(req.user.sub, companyId, assetId, dto.date);
   }
 }

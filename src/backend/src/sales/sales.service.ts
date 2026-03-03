@@ -192,12 +192,17 @@ export class SalesService {
   }
 
   private async ensureDefaultAccounts(tx: Prisma.TransactionClient, companyId: string) {
-    const count = await tx.account.count({ where: { companyId } });
-    if (count > 0) return;
-    await tx.account.createMany({
-      data: DEFAULT_ACCOUNTS.map((acc) => ({ ...acc, companyId })),
-      skipDuplicates: true,
+    const existing = await tx.account.findMany({
+      where: { companyId },
+      select: { code: true },
     });
+    const existingCodes = new Set(existing.map((a) => a.code));
+    const toCreate = DEFAULT_ACCOUNTS.filter((acc) => !existingCodes.has(acc.code)).map((acc) => ({
+      ...acc,
+      companyId,
+    }));
+    if (toCreate.length === 0) return;
+    await tx.account.createMany({ data: toCreate, skipDuplicates: true });
   }
 
   private async getAccountIdByCode(tx: Prisma.TransactionClient, companyId: string, code: string) {

@@ -2,6 +2,9 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTaxCodeDto } from "./dto/create-tax-code.dto";
 import { UpdateTaxCodeDto } from "./dto/update-tax-code.dto";
+import { PostTaxSettlementDto } from "./dto/post-tax-settlement.dto";
+import type { Prisma } from "@prisma/client";
+import { DEFAULT_ACCOUNTS, DEFAULT_ACCOUNT_CODES } from "../accounts/accounts.defaults";
 
 const DEFAULT_TAX_CODES = [
   { name: "PPN", code: "PPN", rate: 11, description: "Pajak Pertambahan Nilai" },
@@ -97,6 +100,30 @@ export class TaxesService {
     return { success: true };
   }
 
+  async postTaxSettlement(userId: string, companyId: string, dto: PostTaxSettlementDto) {
+    await this.assertOwner(userId, companyId);
+    return this.prisma.$transaction(async (tx) => {
+      await this.ensureDefaultAccounts(tx, companyId);
+      const taxPayableId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxPayable);
+      const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+      const entry = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date: dto.date ?? new Date(),
+          memo: dto.memo ?? "Pembayaran Pajak",
+          source: "tax_settlement",
+        },
+      });
+      await tx.journalLine.createMany({
+        data: [
+          { entryId: entry.id, accountId: taxPayableId, debit: dto.amount, credit: 0 },
+          { entryId: entry.id, accountId: cashId, debit: 0, credit: dto.amount },
+        ],
+      });
+      return entry;
+    });
+  }
+
   private async assertMember(userId: string, companyId: string) {
     const membership = await this.prisma.companyMember.findUnique({
       where: { userId_companyId: { userId, companyId } },
@@ -104,5 +131,36 @@ export class TaxesService {
     if (!membership) {
       throw new ForbiddenException("Not a member of this company");
     }
+  }
+
+  private async assertOwner(userId: string, companyId: string) {
+    const membership = await this.prisma.companyMember.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!membership || membership.role !== "owner") {
+      throw new ForbiddenException("Owner role required");
+    }
+  }
+
+  private async ensureDefaultAccounts(tx: Prisma.TransactionClient, companyId: string) {
+    const existing = await tx.account.findMany({
+      where: { companyId },
+      select: { code: true },
+    });
+    const existingCodes = new Set(existing.map((a) => a.code));
+    const toCreate = DEFAULT_ACCOUNTS.filter((acc) => !existingCodes.has(acc.code)).map((acc) => ({
+      ...acc,
+      companyId,
+    }));
+    if (toCreate.length === 0) return;
+    await tx.account.createMany({ data: toCreate, skipDuplicates: true });
+  }
+
+  private async getAccountIdByCode(tx: Prisma.TransactionClient, companyId: string, code: string) {
+    const account = await tx.account.findFirst({ where: { companyId, code } });
+    if (!account) {
+      throw new NotFoundException(`Account ${code} not found`);
+    }
+    return account.id;
   }
 }

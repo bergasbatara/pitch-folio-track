@@ -92,12 +92,17 @@ export class AccountsService {
   }
 
   private async ensureDefaults(companyId: string) {
-    const count = await this.prisma.account.count({ where: { companyId } });
-    if (count > 0) return;
-    await this.prisma.account.createMany({
-      data: DEFAULT_ACCOUNTS.map((acc) => ({ ...acc, companyId })),
-      skipDuplicates: true,
+    const existing = await this.prisma.account.findMany({
+      where: { companyId },
+      select: { code: true },
     });
+    const existingCodes = new Set(existing.map((a) => a.code));
+    const toCreate = DEFAULT_ACCOUNTS.filter((acc) => !existingCodes.has(acc.code)).map((acc) => ({
+      ...acc,
+      companyId,
+    }));
+    if (toCreate.length === 0) return;
+    await this.prisma.account.createMany({ data: toCreate, skipDuplicates: true });
   }
 
   private async assertMember(userId: string, companyId: string) {
