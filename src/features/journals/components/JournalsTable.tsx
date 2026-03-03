@@ -56,8 +56,8 @@ export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTab
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <Button size="icon" variant="ghost" onClick={() => onView(e)} title="Lihat"><Eye className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => onEdit(e)} disabled={isSystem} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => onDelete(e.id)} disabled={isSystem} className="text-destructive hover:text-destructive" title="Hapus"><Trash2 className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => onEdit(e)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => onDelete(e.id)} className="text-destructive hover:text-destructive" title="Hapus"><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </TableCell>
             </TableRow>
