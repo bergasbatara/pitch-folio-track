@@ -49,6 +49,8 @@ model Company {
   customers   Customer[]
   suppliers   Supplier[]
   taxCodes    TaxCode[]
+  accounts    Account[]
+  journalEntries JournalEntry[]
   fixedAssets FixedAsset[]
   subscription Subscription?
 }
@@ -249,6 +251,57 @@ model TaxCode {
 
   @@unique([companyId, code])
   @@index([companyId])
+}
+
+model Account {
+  id            String   @id @default(uuid())
+  companyId     String
+  code          String
+  name          String
+  type          String
+  normalBalance String
+  isSystem      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model JournalEntry {
+  id        String   @id @default(uuid())
+  companyId String
+  date      DateTime
+  memo      String?
+  source    String?
+  sourceId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalLine[]
+
+  @@index([companyId])
+  @@index([companyId, source, sourceId])
+}
+
+model JournalLine {
+  id        String   @id @default(uuid())
+  entryId   String
+  accountId String
+  debit     Int      @default(0)
+  credit    Int      @default(0)
+  memo      String?
+  createdAt DateTime @default(now())
+
+  entry  JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account Account     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([accountId])
 }
 
 model FixedAsset {

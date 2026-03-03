@@ -16,6 +16,8 @@ import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module";
 import { ProfileModule } from "./profile/profile.module";
 import { PlansModule } from "./plans/plans.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
+import { AccountsModule } from "./accounts/accounts.module";
+import { JournalsModule } from "./journals/journals.module";
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
     ProfileModule,
     PlansModule,
     SubscriptionsModule,
+    AccountsModule,
+    JournalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

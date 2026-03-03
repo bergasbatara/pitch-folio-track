@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateSaleDto } from "./dto/create-sale.dto";
 import { UpdateSaleDto } from "./dto/update-sale.dto";
+import type { Prisma } from "@prisma/client";
+import { DEFAULT_ACCOUNTS, DEFAULT_ACCOUNT_CODES } from "../accounts/accounts.defaults";
 
 @Injectable()
 export class SalesService {
@@ -64,6 +66,7 @@ export class SalesService {
         where: { id: product.id },
         data: { stock: product.stock - dto.quantity },
       });
+      await this.upsertSaleJournal(tx, companyId, sale.id, totalPrice, sale.soldAt);
       return { ...sale, productName: product.name };
     });
   }
@@ -140,6 +143,8 @@ export class SalesService {
         },
       });
 
+      await this.upsertSaleJournal(tx, companyId, updated.id, updated.totalPrice, updated.soldAt);
+
       const product = await tx.product.findFirst({
         where: { id: updated.productId, companyId },
       });
@@ -169,6 +174,9 @@ export class SalesService {
           data: { stock: product.stock + sale.quantity },
         });
       }
+      await tx.journalEntry.deleteMany({
+        where: { companyId, source: "sale", sourceId: sale.id },
+      });
       await tx.sale.delete({ where: { id: sale.id } });
       return { success: true };
     });
@@ -181,5 +189,69 @@ export class SalesService {
     if (!membership) {
       throw new ForbiddenException("Not a member of this company");
     }
+  }
+
+  private async ensureDefaultAccounts(tx: Prisma.TransactionClient, companyId: string) {
+    const count = await tx.account.count({ where: { companyId } });
+    if (count > 0) return;
+    await tx.account.createMany({
+      data: DEFAULT_ACCOUNTS.map((acc) => ({ ...acc, companyId })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async getAccountIdByCode(tx: Prisma.TransactionClient, companyId: string, code: string) {
+    const account = await tx.account.findFirst({ where: { companyId, code } });
+    if (!account) {
+      throw new NotFoundException(`Account ${code} not found`);
+    }
+    return account.id;
+  }
+
+  private async upsertSaleJournal(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    saleId: string,
+    total: number,
+    soldAt: Date,
+  ) {
+    await this.ensureDefaultAccounts(tx, companyId);
+    const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+    const revenueId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.revenue);
+
+    const existing = await tx.journalEntry.findFirst({
+      where: { companyId, source: "sale", sourceId: saleId },
+    });
+
+    if (!existing) {
+      const entry = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date: soldAt,
+          memo: `Penjualan #${saleId}`,
+          source: "sale",
+          sourceId: saleId,
+        },
+      });
+      await tx.journalLine.createMany({
+        data: [
+          { entryId: entry.id, accountId: cashId, debit: total, credit: 0 },
+          { entryId: entry.id, accountId: revenueId, debit: 0, credit: total },
+        ],
+      });
+      return;
+    }
+
+    await tx.journalEntry.update({
+      where: { id: existing.id },
+      data: { date: soldAt, memo: `Penjualan #${saleId}` },
+    });
+    await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: existing.id, accountId: cashId, debit: total, credit: 0 },
+        { entryId: existing.id, accountId: revenueId, debit: 0, credit: total },
+      ],
+    });
   }
 }

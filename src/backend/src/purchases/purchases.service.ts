@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePurchaseDto } from "./dto/create-purchase.dto";
 import { UpdatePurchaseDto } from "./dto/update-purchase.dto";
+import type { Prisma } from "@prisma/client";
+import { DEFAULT_ACCOUNTS, DEFAULT_ACCOUNT_CODES } from "../accounts/accounts.defaults";
 
 @Injectable()
 export class PurchasesService {
@@ -93,6 +95,8 @@ export class PurchasesService {
           data: { stock: product.stock + dto.quantity },
         });
       }
+
+      await this.upsertPurchaseJournal(tx, companyId, purchase.id, purchase.totalCost, purchase.date);
 
       return {
         ...purchase,
@@ -201,6 +205,8 @@ export class PurchasesService {
         },
       });
 
+      await this.upsertPurchaseJournal(tx, companyId, purchase.id, nextQuantity * nextUnitCost, dto.date ?? purchase.date);
+
       const refreshed = await tx.purchase.findFirst({
         where: { id: purchase.id, companyId },
         include: {
@@ -249,6 +255,9 @@ export class PurchasesService {
         });
       }
 
+      await tx.journalEntry.deleteMany({
+        where: { companyId, source: "purchase", sourceId: purchase.id },
+      });
       await tx.purchase.delete({ where: { id: purchase.id } });
       return { success: true };
     });
@@ -261,5 +270,69 @@ export class PurchasesService {
     if (!membership) {
       throw new ForbiddenException("Not a member of this company");
     }
+  }
+
+  private async ensureDefaultAccounts(tx: Prisma.TransactionClient, companyId: string) {
+    const count = await tx.account.count({ where: { companyId } });
+    if (count > 0) return;
+    await tx.account.createMany({
+      data: DEFAULT_ACCOUNTS.map((acc) => ({ ...acc, companyId })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async getAccountIdByCode(tx: Prisma.TransactionClient, companyId: string, code: string) {
+    const account = await tx.account.findFirst({ where: { companyId, code } });
+    if (!account) {
+      throw new NotFoundException(`Account ${code} not found`);
+    }
+    return account.id;
+  }
+
+  private async upsertPurchaseJournal(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    purchaseId: string,
+    total: number,
+    date: Date,
+  ) {
+    await this.ensureDefaultAccounts(tx, companyId);
+    const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+    const expenseId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.purchases);
+
+    const existing = await tx.journalEntry.findFirst({
+      where: { companyId, source: "purchase", sourceId: purchaseId },
+    });
+
+    if (!existing) {
+      const entry = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date,
+          memo: `Pembelian #${purchaseId}`,
+          source: "purchase",
+          sourceId: purchaseId,
+        },
+      });
+      await tx.journalLine.createMany({
+        data: [
+          { entryId: entry.id, accountId: expenseId, debit: total, credit: 0 },
+          { entryId: entry.id, accountId: cashId, debit: 0, credit: total },
+        ],
+      });
+      return;
+    }
+
+    await tx.journalEntry.update({
+      where: { id: existing.id },
+      data: { date, memo: `Pembelian #${purchaseId}` },
+    });
+    await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: existing.id, accountId: expenseId, debit: total, credit: 0 },
+        { entryId: existing.id, accountId: cashId, debit: 0, credit: total },
+      ],
+    });
   }
 }
