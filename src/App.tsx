@@ -15,6 +15,8 @@ import { CustomersPage } from "@/features/customers";
 import { SuppliersPage } from "@/features/suppliers";
 import { FixedAssetsPage } from "@/features/fixed-assets";
 import { TaxesPage } from "@/features/taxes";
+import { AccountsPage } from "@/features/accounts";
+import { JournalsPage } from "@/features/journals";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +56,8 @@ const App = () => (
             <Route path="/catatan-keuangan" element={<ProtectedRoute><NotesFSPage /></ProtectedRoute>} />
             <Route path="/piutang" element={<ProtectedRoute><ReceivablesPage /></ProtectedRoute>} />
             <Route path="/hutang" element={<ProtectedRoute><PayablesPage /></ProtectedRoute>} />
+            <Route path="/akun" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
+            <Route path="/jurnal" element={<ProtectedRoute><JournalsPage /></ProtectedRoute>} />
             <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

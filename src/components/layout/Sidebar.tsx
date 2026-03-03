@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, TrendingDown, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User, Scale, ArrowRight, Calculator, CreditCard, BookOpen, Crown, Users, Truck, Building2, Receipt } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, Package, ShoppingCart, ShoppingBag, FileText, Settings, Plus, LogOut, User, Scale, ArrowRight, Calculator, CreditCard, BookOpen, Crown, Users, Truck, Building2, Receipt, ListTree, BookMarked } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
 
@@ -13,6 +13,8 @@ const navigation = [
   { name: 'Hutang', href: '/hutang', icon: TrendingDown },
   { name: 'Aset', href: '/aset-tetap', icon: Building2 },
   { name: 'Pajak', href: '/pajak', icon: Receipt },
+  { name: 'Daftar Akun', href: '/akun', icon: ListTree },
+  { name: 'Jurnal Umum', href: '/jurnal', icon: BookMarked },
   { name: 'Laba Rugi', href: '/laporan-keuangan', icon: FileText },
   { name: 'Neraca', href: '/neraca', icon: Scale },
   { name: 'Arus Kas', href: '/arus-kas', icon: ArrowRight },
