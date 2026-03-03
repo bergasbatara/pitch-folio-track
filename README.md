@@ -128,6 +128,129 @@ bun dev
 
 The app will be available at `http://localhost:8080`
 
+## Backend Quickstart
+
+### Prerequisites
+- PostgreSQL (local or Docker)
+- Node.js 18+
+
+### Environment
+Create `src/backend/.env`:
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pitch_folio_track
+JWT_ACCESS_SECRET=dev_access_secret
+JWT_REFRESH_SECRET=dev_refresh_secret
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=7d
+PORT=3000
+FRONTEND_URL=http://localhost:8080
+```
+
+### Install + Run Backend
+```bash
+cd src/backend
+npm install
+npm run prisma:migrate:dev -- --name init
+npm run prisma:seed
+npm run start:dev
+```
+
+## Backend API (Key Endpoints)
+
+### Auth
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `GET /auth/me`
+- `PATCH /auth/profile`
+- `PATCH /profile` (combined User + Company update)
+
+### Company & Onboarding
+- `POST /companies`
+- `GET /companies/current`
+- `PATCH /companies/:companyId`
+
+### Products
+- `GET /companies/:companyId/products`
+- `POST /companies/:companyId/products`
+- `PATCH /companies/:companyId/products/:productId`
+- `DELETE /companies/:companyId/products/:productId`
+
+### Sales
+- `GET /companies/:companyId/sales`
+- `POST /companies/:companyId/sales`
+- `PATCH /companies/:companyId/sales/:saleId`
+- `DELETE /companies/:companyId/sales/:saleId`
+
+### Purchases & Categories
+- `GET /companies/:companyId/purchases`
+- `POST /companies/:companyId/purchases`
+- `PATCH /companies/:companyId/purchases/:purchaseId`
+- `DELETE /companies/:companyId/purchases/:purchaseId`
+- `GET /companies/:companyId/purchase-categories`
+- `POST /companies/:companyId/purchase-categories`
+- `PATCH /companies/:companyId/purchase-categories/:categoryId`
+- `DELETE /companies/:companyId/purchase-categories/:categoryId`
+
+### Receivables & Payables
+- `GET /companies/:companyId/receivables`
+- `POST /companies/:companyId/receivables`
+- `PATCH /companies/:companyId/receivables/:receivableId`
+- `DELETE /companies/:companyId/receivables/:receivableId`
+- `GET /companies/:companyId/payables`
+- `POST /companies/:companyId/payables`
+- `PATCH /companies/:companyId/payables/:payableId`
+- `DELETE /companies/:companyId/payables/:payableId`
+
+### Customers & Suppliers
+- `GET /companies/:companyId/customers`
+- `POST /companies/:companyId/customers`
+- `PATCH /companies/:companyId/customers/:customerId`
+- `DELETE /companies/:companyId/customers/:customerId`
+- `GET /companies/:companyId/suppliers`
+- `POST /companies/:companyId/suppliers`
+- `PATCH /companies/:companyId/suppliers/:supplierId`
+- `DELETE /companies/:companyId/suppliers/:supplierId`
+
+### Taxes
+- `GET /companies/:companyId/tax-codes`
+- `POST /companies/:companyId/tax-codes`
+- `PATCH /companies/:companyId/tax-codes/:taxCodeId`
+- `DELETE /companies/:companyId/tax-codes/:taxCodeId`
+- `POST /companies/:companyId/taxes/settlement`
+
+### Fixed Assets
+- `GET /companies/:companyId/fixed-assets`
+- `POST /companies/:companyId/fixed-assets`
+- `PATCH /companies/:companyId/fixed-assets/:assetId`
+- `DELETE /companies/:companyId/fixed-assets/:assetId`
+- `POST /companies/:companyId/fixed-assets/:assetId/depreciation`
+
+### COA & Journal Entries
+- `GET /companies/:companyId/accounts`
+- `POST /companies/:companyId/accounts`
+- `PATCH /companies/:companyId/accounts/:accountId`
+- `DELETE /companies/:companyId/accounts/:accountId`
+- `GET /companies/:companyId/journals`
+- `POST /companies/:companyId/journals`
+- `PATCH /companies/:companyId/journals/:entryId`
+- `DELETE /companies/:companyId/journals/:entryId`
+
+### Plans & Subscriptions
+- `GET /plans`
+- `GET /companies/:companyId/subscription`
+- `POST /companies/:companyId/subscription`
+- `PATCH /companies/:companyId/subscription`
+
+### Reporting
+- `GET /companies/:companyId/reports/daily?date=YYYY-MM-DD`
+
+## Reporting Roadmap
+- **Profit & Loss API** (`/reports/profit-loss`)
+- **Balance Sheet API** (`/reports/balance-sheet`)
+- **Cash Flow API** (`/reports/cash-flow`)
+- **Trial Balance API** (`/reports/trial-balance`)
+
 ### Test Credentials
 
 - **Email**: `bergaspurboyo@gmail.com`
