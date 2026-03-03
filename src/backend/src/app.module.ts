@@ -18,6 +18,7 @@ import { PlansModule } from "./plans/plans.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { JournalsModule } from "./journals/journals.module";
+import { ReportsModule } from "./reports/reports.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { JournalsModule } from "./journals/journals.module";
     SubscriptionsModule,
     AccountsModule,
     JournalsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

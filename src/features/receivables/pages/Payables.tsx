@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Building, CreditCard, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, Building, CreditCard, AlertCircle, Trash2, Banknote } from 'lucide-react';
 import { usePayables } from '../hooks/useReceivables';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -15,8 +15,11 @@ import { useCompanyProfile } from '@/features/onboarding';
 
 export default function Payables() {
   const { company } = useCompanyProfile();
-  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables } = usePayables(company?.id);
+  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables, recordPayment } = usePayables(company?.id);
   const [isOpen, setIsOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentTarget, setPaymentTarget] = useState<null | { id: string; amount: number; paidAmount: number; supplierName: string }>(null);
   const [formData, setFormData] = useState({
     supplierName: '',
     description: '',
@@ -41,6 +44,25 @@ export default function Payables() {
     });
     setFormData({ supplierName: '', description: '', amount: '', dueDate: '', paidAmount: '0' });
     setIsOpen(false);
+  };
+
+  const openPayment = (payable: { id: string; amount: number; paidAmount: number; supplierName: string }) => {
+    setPaymentTarget(payable);
+    const remaining = Math.max(payable.amount - payable.paidAmount, 0);
+    setPaymentAmount(remaining ? String(remaining) : '');
+    setPaymentOpen(true);
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentTarget) return;
+    const remaining = Math.max(paymentTarget.amount - paymentTarget.paidAmount, 0);
+    const amount = Math.min(parseFloat(paymentAmount), remaining);
+    if (!amount || amount <= 0) return;
+    await recordPayment(paymentTarget.id, amount);
+    setPaymentOpen(false);
+    setPaymentAmount('');
+    setPaymentTarget(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -163,9 +185,19 @@ export default function Payables() {
                     <TableCell>{format(new Date(payable.dueDate), 'dd MMM yyyy', { locale: localeId })}</TableCell>
                     <TableCell>{getStatusBadge(payable.status)}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => deletePayable(payable.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={payable.amount <= payable.paidAmount}
+                          onClick={() => openPayment(payable)}
+                        >
+                          <Banknote className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deletePayable(payable.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -181,6 +213,31 @@ export default function Payables() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Catat Pembayaran Hutang</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handlePaymentSubmit} className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              {paymentTarget ? `Supplier: ${paymentTarget.supplierName}` : ''}
+            </div>
+            <div className="space-y-2">
+              <Label>Jumlah Pembayaran (Rp)</Label>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                min="0"
+                step="1"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">Simpan</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
