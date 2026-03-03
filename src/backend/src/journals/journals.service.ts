@@ -88,9 +88,8 @@ export class JournalsService {
     if (!existing) {
       throw new NotFoundException("Journal entry not found");
     }
-    if (existing.source) {
-      throw new BadRequestException("System journal entry cannot be edited");
-    }
+
+
 
     let normalizedLines: ReturnType<typeof this.normalizeLines> | null = null;
     if (dto.lines) {
@@ -144,9 +143,8 @@ export class JournalsService {
     if (!existing) {
       throw new NotFoundException("Journal entry not found");
     }
-    if (existing.source) {
-      throw new BadRequestException("System journal entry cannot be deleted");
-    }
+
+
     await this.prisma.journalEntry.delete({ where: { id: entryId } });
     return { success: true };
   }
