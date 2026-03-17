@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,14 +6,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Download, FileText } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { useSales } from '@/features/sales/hooks/useSales';
-import { usePurchases } from '@/features/purchases/hooks/usePurchases';
-import { useProducts } from '@/features/products/hooks/useProducts';
 import { useCompanyProfile } from '@/features/onboarding';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
+import { useToast } from '@/components/ui/use-toast';
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -57,9 +55,10 @@ export default function NotesFS() {
   const [date, setDate] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodType>('monthly');
   const { company } = useCompanyProfile();
-  const { sales } = useSales(company?.id);
-  const { purchases } = usePurchases();
-  const { products } = useProducts(company?.id);
+  const [report, setReport] = useState<{ totals: { revenue: number; expense: number; netProfit: number; inventoryValue: number } } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const accessToken = useMemo(() => localStorage.getItem('auth_access_token'), []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -67,23 +66,35 @@ export default function NotesFS() {
 
   const { start, end } = getDateRange(date, period);
 
-  const filteredSales = useMemo(() => {
-    return sales.filter((s) => {
-      const d = s.soldAt instanceof Date ? s.soldAt : new Date(s.soldAt);
-      return isWithinInterval(d, { start, end });
-    });
-  }, [sales, start, end]);
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const from = format(start, 'yyyy-MM-dd');
+        const to = format(end, 'yyyy-MM-dd');
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/notes?from=${from}&to=${to}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message ?? 'Gagal memuat catatan keuangan');
+        }
+        const data = await res.json();
+        setReport(data);
+      } catch (err: any) {
+        setReport(null);
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [company?.id, accessToken, start, end, toast]);
 
-  const filteredPurchases = useMemo(() => {
-    return purchases.filter((p) => {
-      const d = parseISO(p.date);
-      return isWithinInterval(d, { start, end });
-    });
-  }, [purchases, start, end]);
-
-  const totalSales = filteredSales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const totalPurchases = filteredPurchases.reduce((sum, p) => sum + p.totalCost, 0);
-  const inventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+  const totalSales = report?.totals.revenue ?? 0;
+  const totalPurchases = report?.totals.expense ?? 0;
+  const inventoryValue = report?.totals.inventoryValue ?? 0;
 
   const periodLabel = getPeriodLabel(date, period);
 
@@ -235,18 +246,18 @@ export default function NotesFS() {
             <div className="grid md:grid-cols-3 gap-4">
               <div className="p-4 bg-emerald-500/10 rounded-lg">
                 <p className="text-sm text-muted-foreground">Total Penjualan</p>
-                <p className="text-xl font-bold text-emerald-500">{formatCurrency(totalSales)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{filteredSales.length} transaksi</p>
+                <p className="text-xl font-bold text-emerald-500">{isLoading ? 'Memuat...' : formatCurrency(totalSales)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Periode: {periodLabel}</p>
               </div>
               <div className="p-4 bg-destructive/10 rounded-lg">
                 <p className="text-sm text-muted-foreground">Total Pembelian</p>
-                <p className="text-xl font-bold text-destructive">{formatCurrency(totalPurchases)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{filteredPurchases.length} transaksi</p>
+                <p className="text-xl font-bold text-destructive">{isLoading ? 'Memuat...' : formatCurrency(totalPurchases)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Periode: {periodLabel}</p>
               </div>
               <div className="p-4 bg-primary/10 rounded-lg">
                 <p className="text-sm text-muted-foreground">Nilai Persediaan</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency(inventoryValue)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{products.length} produk</p>
+                <p className="text-xl font-bold text-primary">{isLoading ? 'Memuat...' : formatCurrency(inventoryValue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Posisi saat ini</p>
               </div>
             </div>
           </CardContent>

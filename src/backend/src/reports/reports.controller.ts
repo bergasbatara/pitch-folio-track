@@ -25,4 +25,14 @@ export class ReportsController {
   ) {
     return this.reportsService.getRangeStatement(req.user.sub, companyId, from, to);
   }
+
+  @Get("notes")
+  getNotes(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.reportsService.getNotesSummary(req.user.sub, companyId, from, to);
+  }
 }

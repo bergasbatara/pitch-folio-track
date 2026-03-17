@@ -28,6 +28,31 @@ export class ReportsService {
     return this.buildReport(companyId, start, end);
   }
 
+  async getNotesSummary(userId: string, companyId: string, fromStr: string, toStr: string) {
+    await this.assertMember(userId, companyId);
+    const from = this.parseDate(fromStr);
+    const to = this.parseDate(toStr);
+    const start = new Date(from);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+
+    const report = await this.buildReport(companyId, start, end);
+    const products = await this.prisma.product.findMany({
+      where: { companyId },
+      select: { price: true, stock: true },
+    });
+    const inventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+
+    return {
+      ...report,
+      totals: {
+        ...report.totals,
+        inventoryValue,
+      },
+    };
+  }
+
   async getDailyStatement(userId: string, companyId: string, date?: string) {
     await this.assertMember(userId, companyId);
     const target = this.parseDate(date);
