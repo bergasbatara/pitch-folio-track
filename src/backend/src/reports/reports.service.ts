@@ -35,7 +35,10 @@ export class ReportsService {
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(start.getDate() + 1);
+    return this.buildReport(companyId, start, end);
+  }
 
+  private async buildReport(companyId: string, start: Date, end: Date) {
     const lines = await this.prisma.journalLine.findMany({
       where: {
         entry: {
@@ -109,7 +112,8 @@ export class ReportsService {
     const netProfit = revenue - expense;
 
     return {
-      date: start.toISOString().slice(0, 10),
+      from: start.toISOString().slice(0, 10),
+      to: new Date(end.getTime() - 1).toISOString().slice(0, 10),
       totals: {
         revenue,
         expense,
