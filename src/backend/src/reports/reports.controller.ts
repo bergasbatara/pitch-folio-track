@@ -15,4 +15,14 @@ export class ReportsController {
   ) {
     return this.reportsService.getDailyStatement(req.user.sub, companyId, date);
   }
+
+  @Get("range")
+  getRange(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.reportsService.getRangeStatement(req.user.sub, companyId, from, to);
+  }
 }
