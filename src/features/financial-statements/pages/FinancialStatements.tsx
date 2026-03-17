@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,51 +7,83 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Download, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useSales } from '@/features/sales/hooks/useSales';
 import { useCompanyProfile } from '@/features/onboarding';
-import { usePurchases, usePurchaseCategories } from '@/features/purchases/hooks/usePurchases';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
+import { useToast } from '@/components/ui/use-toast';
 
 const formatCurrency = (value: number) => {
   return `Rp ${value.toLocaleString('id-ID')}`;
 };
 
+type DailyReport = {
+  date: string;
+  totals: {
+    revenue: number;
+    expense: number;
+    netProfit: number;
+    cashIn: number;
+    cashOut: number;
+    netCash: number;
+    receivableChange: number;
+    payableChange: number;
+  };
+  byType: Record<string, number>;
+  accounts: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    normalBalance: string;
+    debit: number;
+    credit: number;
+    net: number;
+  }>;
+};
+
 export default function FinancialStatements() {
   const [date, setDate] = useState<Date>(new Date());
   const { company } = useCompanyProfile();
-  const { sales } = useSales(company?.id);
-  const { purchases } = usePurchases();
-  const { categories } = usePurchaseCategories();
+  const [report, setReport] = useState<DailyReport | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const accessToken = useMemo(() => localStorage.getItem('auth_access_token'), []);
 
-  const filteredSales = sales.filter((sale) => {
-    const saleDate = new Date(sale.soldAt);
-    return saleDate.getDate() === date.getDate() && saleDate.getMonth() === date.getMonth() && saleDate.getFullYear() === date.getFullYear();
-  });
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id || !accessToken) return;
+      setIsLoading(true);
+      try {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${dateStr}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message ?? 'Gagal memuat laporan harian');
+        }
+        const data = await res.json();
+        setReport(data);
+      } catch (err: any) {
+        setReport(null);
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [company?.id, accessToken, date, toast]);
 
-  const filteredPurchases = purchases.filter((purchase) => {
-    const purchaseDate = new Date(purchase.date);
-    return purchaseDate.getDate() === date.getDate() && purchaseDate.getMonth() === date.getMonth() && purchaseDate.getFullYear() === date.getFullYear();
-  });
+  const revenueAccounts = report?.accounts
+    .filter((acc) => acc.type === 'revenue' && acc.net !== 0)
+    .sort((a, b) => b.net - a.net) ?? [];
+  const expenseAccounts = report?.accounts
+    .filter((acc) => acc.type === 'expense' && acc.net !== 0)
+    .sort((a, b) => b.net - a.net) ?? [];
 
-  const salesByProduct = filteredSales.reduce((acc, sale) => {
-    acc[sale.productName] = (acc[sale.productName] || 0) + sale.totalPrice;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const purchasesByCategory = filteredPurchases.reduce((acc, purchase) => {
-    const category = categories.find((c) => c.id === purchase.categoryId);
-    const categoryName = category?.name || 'Lainnya';
-    acc[categoryName] = (acc[categoryName] || 0) + purchase.totalCost;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const totalPendapatan = filteredSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-  const totalBeban = filteredPurchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
-  const labaRugi = totalPendapatan - totalBeban;
-  const totalAsetPenjualan = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-  const totalUtang = purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
-  const totalEkuitas = totalAsetPenjualan - totalUtang;
+  const totalPendapatan = report?.totals.revenue ?? 0;
+  const totalBeban = report?.totals.expense ?? 0;
+  const labaRugi = report?.totals.netProfit ?? 0;
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -101,7 +133,7 @@ export default function FinancialStatements() {
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold">Laba Rugi Harian</span>
               <span className={cn('text-xl font-bold', labaRugi >= 0 ? 'text-emerald-500' : 'text-destructive')}>
-                {formatCurrency(labaRugi)}
+                {isLoading ? 'Memuat...' : formatCurrency(labaRugi)}
               </span>
             </div>
           </CardContent>
@@ -111,22 +143,30 @@ export default function FinancialStatements() {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-lg">Pendapatan</CardTitle></CardHeader>
             <CardContent>
-              {Object.entries(salesByProduct).map(([name, amount]) => (
-                <div key={name} className="flex justify-between py-2 border-b border-border/50">
-                  <span>{name}</span><span>{formatCurrency(amount)}</span>
-                </div>
-              ))}
+              {revenueAccounts.length ? (
+                revenueAccounts.map((acc) => (
+                  <div key={acc.id} className="flex justify-between py-2 border-b border-border/50">
+                    <span>{acc.code} - {acc.name}</span><span>{formatCurrency(acc.net)}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground py-2">Tidak ada pendapatan pada tanggal ini.</div>
+              )}
               <div className="flex justify-between py-2 font-bold"><span>Total</span><span>{formatCurrency(totalPendapatan)}</span></div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-lg">Beban</CardTitle></CardHeader>
             <CardContent>
-              {Object.entries(purchasesByCategory).map(([name, amount]) => (
-                <div key={name} className="flex justify-between py-2 border-b border-border/50">
-                  <span>{name}</span><span>{formatCurrency(amount)}</span>
-                </div>
-              ))}
+              {expenseAccounts.length ? (
+                expenseAccounts.map((acc) => (
+                  <div key={acc.id} className="flex justify-between py-2 border-b border-border/50">
+                    <span>{acc.code} - {acc.name}</span><span>{formatCurrency(acc.net)}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground py-2">Tidak ada beban pada tanggal ini.</div>
+              )}
               <div className="flex justify-between py-2 font-bold"><span>Total</span><span>{formatCurrency(totalBeban)}</span></div>
             </CardContent>
           </Card>
