@@ -17,6 +17,17 @@ type AccountSummary = {
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getRangeStatement(userId: string, companyId: string, fromStr: string, toStr: string) {
+    await this.assertMember(userId, companyId);
+    const from = this.parseDate(fromStr);
+    const to = this.parseDate(toStr);
+    const start = new Date(from);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    return this.buildReport(companyId, start, end);
+  }
+
   async getDailyStatement(userId: string, companyId: string, date?: string) {
     await this.assertMember(userId, companyId);
     const target = this.parseDate(date);
