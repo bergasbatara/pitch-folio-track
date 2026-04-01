@@ -49,21 +49,111 @@ export default function CashFlow() {
   const endingBalance = beginningBalance + netOperatingCashFlow;
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('LAPORAN ARUS KAS', 105, 20, { align: 'center' });
-    doc.setFontSize(11);
-    doc.text(`Periode: ${format(date, 'MMMM yyyy', { locale: id })}`, 105, 30, { align: 'center' });
-    
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210;
+    const marginL = 15;
+    const marginR = 15;
+    const contentW = pageW - marginL - marginR;
+    const periodLabel = format(date, 'MMMM yyyy', { locale: id });
+
+    const fmtNum = (v: number) => {
+      if (v === 0) return '-';
+      return new Intl.NumberFormat('id-ID').format(v);
+    };
+
+    // Header
     doc.setFontSize(12);
-    doc.text('ARUS KAS DARI AKTIVITAS OPERASI', 20, 50);
-    doc.text(`Penerimaan dari Penjualan: ${formatCurrency(cashFromSales)}`, 25, 60);
-    doc.text(`Pembayaran untuk Pembelian: (${formatCurrency(cashForPurchases)})`, 25, 70);
-    doc.text(`Arus Kas Bersih dari Operasi: ${formatCurrency(netOperatingCashFlow)}`, 20, 85);
-    
-    doc.text(`Saldo Awal Kas: ${formatCurrency(beginningBalance)}`, 20, 105);
-    doc.text(`Saldo Akhir Kas: ${formatCurrency(endingBalance)}`, 20, 115);
-    
+    doc.setFont('helvetica', 'bold');
+    doc.text(company?.name || '[Nama Perusahaan]', marginL, 18);
+    doc.setFontSize(11);
+    doc.text('Laporan Arus Kas', marginL, 24);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Per ${periodLabel}`, marginL, 30);
+    doc.setFontSize(9);
+    doc.text('(Dinyatakan dalam Rupiah, kecuali dinyatakan lain)', marginL, 36);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.8);
+    doc.line(marginL, 39, pageW - marginR, 39);
+
+    // Table columns
+    const colPos = marginL;
+    const colP2 = marginL + 140;
+    const colP1 = pageW - marginR;
+
+    let y = 46;
+
+    // Table header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pos', colPos, y);
+    doc.text(periodLabel, colP2 + 10, y, { align: 'right' });
+    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 2, pageW - marginR, y + 2);
+    y += 7;
+
+    const addRow = (label: string, val2: string, val1: string, bold = false, indent = 0) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.text(label, colPos + indent, y);
+      doc.text(val2, colP2 + 10, y, { align: 'right' });
+      doc.text(val1, colP1, y, { align: 'right' });
+      y += 5.5;
+    };
+
+    const addSectionHeader = (label: string) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, colPos, y);
+      y += 5.5;
+    };
+
+    // Aktivitas Operasi
+    addSectionHeader('Aktivitas Operasi');
+    addRow('Laba/Rugi Bersih', fmtNum(netOperatingCashFlow), '-', false, 4);
+    addRow('Penyesuaian:', '', '', false, 4);
+    addRow('Akumulasi Penyusutan', '-', '-', false, 8);
+    addRow('Kenaikan & Penurunan Kas', '', '', false, 4);
+    addRow('Piutang Usaha', '-', '-', false, 8);
+    addRow('Persediaan', '-', '-', false, 8);
+    addRow('Biaya Dibayar Dimuka (Down Payment)', '-', '-', false, 8);
+    addRow('Aset Lancar Lainnya', '-', '-', false, 8);
+    addRow('Total Arus Kas Bersih Aktivitas Operasional', fmtNum(netOperatingCashFlow), '-', true);
+    y += 3;
+
+    // Aktivitas Investasi
+    addSectionHeader('Aktivitas Investasi');
+    addRow('Pembelian Aset', '-', '-', false, 4);
+    addRow('Penjualan Aset', '-', '-', false, 4);
+    addRow('Total Arus Kas Bersih Aktivitas Investasi', '-', '-', true);
+    y += 3;
+
+    // Aktivitas Pendanaan
+    addSectionHeader('Aktivitas Pendanaan');
+    addRow('Pembayaran Utang Bank', '-', '-', false, 4);
+    addRow('Penerimaan Utang Bank', '-', '-', false, 4);
+    addRow('Total Arus Kas Bersih Aktivitas Pendanaan', '-', '-', true);
+    y += 4;
+
+    // Summary
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 5;
+    addRow('Kenaikan Bersih Kas dan Setara Kas', fmtNum(netOperatingCashFlow), '-', true);
+    addRow('Kas dan Setara Kas Pada Awal Periode', fmtNum(beginningBalance), '-', false);
+    addRow('Kas dan Setara Kas Pada Akhir Periode', fmtNum(endingBalance), '-', true);
+
+    // Footer
+    y += 8;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    const footer = 'Lihat catatan atas laporan keuangan terlampir yang merupakan bagian yang tidak terpisahkan dari laporan keuangan secara keseluruhan';
+    const footerLines = doc.splitTextToSize(footer, contentW);
+    doc.text(footerLines, marginL, y);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('1+1', pageW / 2, 285, { align: 'center' });
+
     doc.save(`Arus_Kas_${format(date, 'yyyy-MM')}.pdf`);
   };
 
