@@ -248,7 +248,35 @@ export default function NotesFS() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>3. Ringkasan Transaksi</span>
-              <span className="text-sm font-normal text-muted-foreground">{periodLabel}</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-sm font-normal text-muted-foreground gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {periodLabel}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="p-3 border-b">
+                    <Select value={period} onValueChange={(v) => setPeriod(v as PeriodType)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PERIOD_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(newDate) => newDate && setDate(newDate)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </CardTitle>
           </CardHeader>
           <CardContent>
