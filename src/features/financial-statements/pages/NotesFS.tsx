@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Download, FileText } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Download, FileText } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useCompanyProfile } from '@/features/onboarding';
@@ -391,7 +397,300 @@ export default function NotesFS() {
 
     addPageNumber();
 
-    doc.save(`Catatan_Laporan_Keuangan_${format(start, 'yyyy-MM-dd')}.pdf`);
+    doc.save(`Catatan_Laporan_Keuangan_1_${format(start, 'yyyy-MM-dd')}.pdf`);
+  };
+
+  const exportToPDF2 = () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210;
+    const marginL = 20;
+    const marginR = 20;
+    const contentW = pageW - marginL - marginR;
+    let pageNum = 1;
+    const totalPages = 4;
+
+    const fmtCur = (v: number) => {
+      if (v === 0) return '( -)';
+      return `( ${new Intl.NumberFormat('id-ID').format(Math.abs(v))})`;
+    };
+
+    const addFooter = () => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${pageNum}+${totalPages}`, pageW / 2, 285, { align: 'center' });
+    };
+
+    const addHeader = () => {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(company?.name || '[Nama Perusahaan]', marginL, 20);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Catatan atas laporan keuangan', marginL, 26);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Per ${periodLabel}`, marginL, 32);
+      doc.setFontSize(9);
+      doc.text('(Dinyatakan dalam Rupiah, kecuali dinyatakan lain)', marginL, 38);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.8);
+      doc.line(marginL, 41, pageW - marginR, 41);
+    };
+
+    const drawTable2Col = (y: number, title: string, desc: string, rows: [string, string, string][], totalRow: [string, string, string]) => {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, marginL, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const descLines = doc.splitTextToSize(desc, contentW);
+      doc.text(descLines, marginL, y);
+      y += descLines.length * 4.5 + 6;
+
+      const col1 = marginL;
+      const col2 = marginL + 90;
+      const col3 = pageW - marginR;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('', col1, y);
+      doc.text(periodLabel, col2, y, { align: 'right' });
+      doc.text('[Periode 1]', col3, y, { align: 'right' });
+      doc.setLineWidth(0.3);
+      doc.line(col1, y + 1.5, col3, y + 1.5);
+      y += 6;
+
+      doc.setFont('helvetica', 'normal');
+      for (const [label, v1, v2] of rows) {
+        doc.text(label, col1 + 2, y);
+        doc.text(v1, col2, y, { align: 'right' });
+        doc.text(v2, col3, y, { align: 'right' });
+        y += 5.5;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(totalRow[0], col1 + 2, y);
+      doc.text(totalRow[1], col2, y, { align: 'right' });
+      doc.text(totalRow[2], col3, y, { align: 'right' });
+      doc.setLineWidth(0.3);
+      doc.line(col1, y + 1.5, col3, y + 1.5);
+      y += 8;
+      return y;
+    };
+
+    // ── PAGE 1 ──
+    addHeader();
+    let y = 50;
+
+    y = drawTable2Col(y, '3. KAS DAN SETARA KAS',
+      `Akun tersebut merupakan saldo kas dan setara kas per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['Kas', fmtCur(0), fmtCur(0)]],
+      ['Jumlah Kas', fmtCur(0), fmtCur(0)]);
+
+    y = drawTable2Col(y, '4. PIUTANG USAHA',
+      `Akun tersebut merupakan saldo piutang usaha per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['Piutang Usaha', fmtCur(0), fmtCur(0)]],
+      ['Jumlah Piutang Usaha', fmtCur(0), fmtCur(0)]);
+
+    y = drawTable2Col(y, '5. PERSEDIAAN',
+      `Akun tersebut merupakan saldo persediaan per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['- [List Item Persediaan]', fmtCur(0), fmtCur(0)]],
+      ['Jumlah Persediaan', fmtCur(inventoryValue), fmtCur(0)]);
+
+    y = drawTable2Col(y, '6. BIAYA DIBAYAR DIMUKA',
+      `Akun tersebut merupakan saldo biaya dibayar dimuka per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['Biaya Dibayar Dimuka', fmtCur(0), fmtCur(0)]],
+      ['Jumlah Biaya Dibayar Dimuka', fmtCur(0), fmtCur(0)]);
+
+    addFooter();
+
+    // ── PAGE 2 ──
+    doc.addPage();
+    pageNum = 2;
+    y = 20;
+
+    y = drawTable2Col(y, '7. PAJAK DIBAYAR DIMUKA',
+      `Akun tersebut merupakan saldo pajak dibayar dimuka per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['Pajak Dibayar Dimuka', fmtCur(0), fmtCur(0)]],
+      ['Jumlah Pajak Dibayar Dimuka', fmtCur(0), fmtCur(0)]);
+
+    // 8. ASET TETAP
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('8. ASET TETAP', marginL, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const asetDesc = `Saldo aset tetap setelah dikurangi akumulasi penyusutan per ${periodLabel}, adalah sebagai berikut :`;
+    const asetLines = doc.splitTextToSize(asetDesc, contentW);
+    doc.text(asetLines, marginL, y);
+    y += asetLines.length * 4.5 + 6;
+
+    // Asset table header
+    const ac1 = marginL;
+    const ac2 = marginL + 45;
+    const ac3 = marginL + 75;
+    const ac4 = marginL + 105;
+    const ac5 = pageW - marginR;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('', ac1, y);
+    doc.text('Saldo Awal', ac2, y, { align: 'right' });
+    doc.text('Penambahan', ac3, y, { align: 'right' });
+    doc.text('Pengurangan', ac4, y, { align: 'right' });
+    doc.text('Saldo Akhir', ac5, y, { align: 'right' });
+    doc.line(ac1, y + 1.5, ac5, y + 1.5);
+    y += 5.5;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Harga perolehan :', ac1 + 2, y);
+    doc.text(fmtCur(0), ac2, y, { align: 'right' });
+    doc.text(fmtCur(0), ac3, y, { align: 'right' });
+    doc.text(fmtCur(0), ac4, y, { align: 'right' });
+    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    y += 5;
+    doc.text('Akumulasi penyusutan :', ac1 + 2, y);
+    doc.text(fmtCur(0), ac2, y, { align: 'right' });
+    doc.text(fmtCur(0), ac3, y, { align: 'right' });
+    doc.text(fmtCur(0), ac4, y, { align: 'right' });
+    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Nilai Buku', ac1 + 2, y);
+    doc.text(fmtCur(0), ac2, y, { align: 'right' });
+    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    doc.line(ac1, y + 1.5, ac5, y + 1.5);
+    y += 10;
+
+    y = drawTable2Col(y, '9. KEWAJIBAN JANGKA PENDEK',
+      `Akun tersebut merupakan saldo kewajiban per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['a. Utang Usaha', fmtCur(0), fmtCur(0)],
+        ['b. Utang Bank', fmtCur(0), fmtCur(0)],
+        ['c. Kewajiban Jangka Pendek Lainnya', fmtCur(0), fmtCur(0)],
+      ],
+      ['Jumlah Kewajiban Jangka Pendek', fmtCur(0), fmtCur(0)]);
+
+    addFooter();
+
+    // ── PAGE 3 ──
+    doc.addPage();
+    pageNum = 3;
+    y = 20;
+
+    y = drawTable2Col(y, '10. KEWAJIBAN JANGKA PANJANG',
+      `Akun tersebut merupakan saldo kewajiban jangka panjang per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['a. Utang Bank', fmtCur(0), fmtCur(0)],
+        ['b. Utang Pembiayaan dan Utang Lainnya', fmtCur(0), fmtCur(0)],
+      ],
+      ['Jumlah Kewajiban Jangka Panjang', fmtCur(0), fmtCur(0)]);
+
+    // 11. MODAL SAHAM
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('11. MODAL SAHAM', marginL, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const modalDesc = 'Berdasarkan akta pendirian perusahaan, rincian pemegang saham adalah sebagai berikut :';
+    const modalLines = doc.splitTextToSize(modalDesc, contentW);
+    doc.text(modalLines, marginL, y);
+    y += modalLines.length * 4.5 + 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    const mc1 = marginL;
+    const mc2 = marginL + 50;
+    const mc3 = marginL + 75;
+    const mc4 = pageW - marginR;
+    doc.text('Pemegang Saham', mc1 + 2, y);
+    doc.text('Jumlah Saham', mc2, y, { align: 'right' });
+    doc.text('Kepemilikan', mc3, y, { align: 'right' });
+    doc.text('Jumlah Modal (Rp)', mc4, y, { align: 'right' });
+    doc.line(mc1, y + 1.5, mc4, y + 1.5);
+    y += 5.5;
+    doc.setFont('helvetica', 'normal');
+    doc.text('[Nama Pemegang Saham]', mc1 + 2, y);
+    doc.text('-', mc2, y, { align: 'right' });
+    doc.text('-', mc3, y, { align: 'right' });
+    doc.text(fmtCur(0), mc4, y, { align: 'right' });
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Jumlah', mc1 + 2, y);
+    doc.text('-', mc2, y, { align: 'right' });
+    doc.text('100%', mc3, y, { align: 'right' });
+    doc.text(fmtCur(0), mc4, y, { align: 'right' });
+    doc.line(mc1, y + 1.5, mc4, y + 1.5);
+    y += 10;
+
+    y = drawTable2Col(y, '11. PENDAPATAN',
+      `Akun tersebut merupakan saldo pendapatan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['a. Penjualan', fmtCur(totalSales), fmtCur(0)],
+      ],
+      ['Jumlah Pendapatan', fmtCur(totalSales), fmtCur(0)]);
+
+    y = drawTable2Col(y, '12. BEBAN POKOK PENDAPATAN',
+      `Akun tersebut merupakan saldo beban pokok pendapatan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [['Beban Pokok Pendapatan', fmtCur(totalPurchases), fmtCur(0)]],
+      ['Jumlah Beban Pokok Pendapatan', fmtCur(totalPurchases), fmtCur(0)]);
+
+    y = drawTable2Col(y, '13. BEBAN PENJUALAN',
+      `Akun tersebut merupakan saldo beban penjualan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['Iklan dan Promosi', fmtCur(0), fmtCur(0)],
+        ['Entertainment', fmtCur(0), fmtCur(0)],
+      ],
+      ['Jumlah Beban Penjualan', fmtCur(0), fmtCur(0)]);
+
+    addFooter();
+
+    // ── PAGE 4 ──
+    doc.addPage();
+    pageNum = 4;
+    y = 20;
+
+    y = drawTable2Col(y, '14. LAIN-LAIN',
+      `Akun tersebut merupakan saldo beban lain-lain dan pendapatan lain-lain untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['a. Beban Lain-Lain:', '', ''],
+        ['   - Beban Bunga', fmtCur(0), fmtCur(0)],
+        ['   - Beban Administrasi Bank', fmtCur(0), fmtCur(0)],
+        ['Total Beban Lain-Lain', fmtCur(0), fmtCur(0)],
+        ['b. Pendapatan Lain-Lain:', '', ''],
+        ['   - Pendapatan Bunga Bank', fmtCur(0), fmtCur(0)],
+        ['Total Pendapatan Lain-Lain', fmtCur(0), fmtCur(0)],
+      ],
+      ['Jumlah Beban(Pendapatan) Lain-Lain', fmtCur(0), fmtCur(0)]);
+
+    y = drawTable2Col(y, '15. BEBAN UMUM DAN ADMINISTRASI',
+      `Akun tersebut merupakan beban umum dan administrasi untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
+      [
+        ['Beban Gaji Karyawan', fmtCur(0), fmtCur(0)],
+        ['Beban Listrik', fmtCur(0), fmtCur(0)],
+        ['Beban Perlengkapan', fmtCur(0), fmtCur(0)],
+        ['Beban Transportasi', fmtCur(0), fmtCur(0)],
+        ['Beban Pemeliharaan', fmtCur(0), fmtCur(0)],
+        ['Beban ATK', fmtCur(0), fmtCur(0)],
+        ['Penyusutan', fmtCur(0), fmtCur(0)],
+        ['Lain-lain', fmtCur(0), fmtCur(0)],
+      ],
+      ['Jumlah Beban Umum dan Administrasi', fmtCur(0), fmtCur(0)]);
+
+    // 16. PENYELESAIAN
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('16. PENYELESAIAN LAPORAN KEUANGAN', marginL, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const penyelesaian = `Manajemen Perusahaan bertanggung jawab atas penyusunan laporan keuangan untuk tahun yang berakhir pada tanggal ${periodLabel} yang telah diselesaikan pada tanggal tersebut.`;
+    const penLines = doc.splitTextToSize(penyelesaian, contentW);
+    doc.text(penLines, marginL, y);
+
+    addFooter();
+
+    doc.save(`Catatan_Laporan_Keuangan_2_${format(start, 'yyyy-MM-dd')}.pdf`);
   };
 
   return (
@@ -433,10 +732,23 @@ export default function NotesFS() {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={exportToPDF} className="gap-2">
-              <Download className="h-4 w-4" />
-              Ekspor PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Ekspor PDF
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToPDF}>
+                  Catatan Laporan Keuangan 1
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF2}>
+                  Catatan Laporan Keuangan 2
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
