@@ -64,18 +64,27 @@ export default function NotesFS() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
   };
 
-  const { start, end } = getDateRange(date, period);
+  const { start, end } = useMemo(() => getDateRange(date, period), [date, period]);
+  const from = useMemo(() => format(start, 'yyyy-MM-dd'), [start]);
+  const to = useMemo(() => format(end, 'yyyy-MM-dd'), [end]);
 
   useEffect(() => {
     const load = async () => {
       if (!company?.id || !accessToken) return;
       setIsLoading(true);
       try {
-        const from = format(start, 'yyyy-MM-dd');
-        const to = format(end, 'yyyy-MM-dd');
-        const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/notes?from=${from}&to=${to}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+        const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/notes?from=${from}&to=${to}&ts=${Date.now()}`;
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+          cache: 'no-store',
         });
+        if (res.status === 304) {
+          return;
+        }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.message ?? 'Gagal memuat catatan keuangan');
@@ -90,7 +99,7 @@ export default function NotesFS() {
       }
     };
     load();
-  }, [company?.id, accessToken, start, end, toast]);
+  }, [company?.id, accessToken, from, to, toast]);
 
   const totalSales = report?.totals.revenue ?? 0;
   const totalPurchases = report?.totals.expense ?? 0;

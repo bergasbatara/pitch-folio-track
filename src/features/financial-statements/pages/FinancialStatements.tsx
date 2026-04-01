@@ -98,11 +98,19 @@ export default function FinancialStatements() {
       try {
         const { from, to } = getDateRange(date, period);
         const url = period === 'daily'
-          ? `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${from}`
-          : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${from}&to=${to}`;
+          ? `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${from}&ts=${Date.now()}`
+          : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${from}&to=${to}&ts=${Date.now()}`;
         const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+          cache: 'no-store',
         });
+        if (res.status === 304) {
+          return;
+        }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.message ?? 'Gagal memuat laporan');
