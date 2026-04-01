@@ -43,26 +43,130 @@ export default function BalanceSheet() {
   const totalEquity = totalCurrentAssets - totalLiabilities;
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('NERACA (BALANCE SHEET)', 105, 20, { align: 'center' });
-    doc.setFontSize(11);
-    doc.text(`Per ${format(date, 'dd MMMM yyyy', { locale: id })}`, 105, 30, { align: 'center' });
-    
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210;
+    const marginL = 15;
+    const marginR = 15;
+    const contentW = pageW - marginL - marginR;
+    const periodLabel = format(date, 'dd MMMM yyyy', { locale: id });
+
+    const fmtNum = (v: number) => {
+      if (v === 0) return '-';
+      return new Intl.NumberFormat('id-ID').format(v);
+    };
+
+    // Header
     doc.setFontSize(12);
-    doc.text('ASET', 20, 50);
-    doc.text(`Kas: ${formatCurrency(cashBalance)}`, 25, 60);
-    doc.text(`Piutang Usaha: ${formatCurrency(accountsReceivable)}`, 25, 70);
-    doc.text(`Persediaan: ${formatCurrency(inventoryValue)}`, 25, 80);
-    doc.text(`Total Aset: ${formatCurrency(totalCurrentAssets)}`, 20, 95);
-    
-    doc.text('KEWAJIBAN', 20, 115);
-    doc.text(`Hutang Usaha: ${formatCurrency(accountsPayable)}`, 25, 125);
-    doc.text(`Total Kewajiban: ${formatCurrency(totalLiabilities)}`, 20, 140);
-    
-    doc.text('EKUITAS', 20, 160);
-    doc.text(`Modal Pemilik: ${formatCurrency(totalEquity)}`, 25, 170);
-    
+    doc.setFont('helvetica', 'bold');
+    doc.text(company?.name || '[Nama Perusahaan]', marginL, 18);
+    doc.setFontSize(11);
+    doc.text('Laporan Neraca', marginL, 24);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Per ${periodLabel}`, marginL, 30);
+    doc.setFontSize(9);
+    doc.text('(Dinyatakan dalam Rupiah, kecuali dinyatakan lain)', marginL, 36);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.8);
+    doc.line(marginL, 39, pageW - marginR, 39);
+
+    // Table columns
+    const colPos = marginL;
+    const colCat = marginL + 105;
+    const colP2 = marginL + 135;
+    const colP1 = pageW - marginR;
+
+    let y = 46;
+
+    // Table header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pos', colPos, y);
+    doc.text('Catatan', colCat, y, { align: 'right' });
+    doc.text(periodLabel, colP2 + 15, y, { align: 'right' });
+    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 2, pageW - marginR, y + 2);
+    y += 7;
+
+    const addRow = (label: string, catatan: string, val2: string, val1: string, bold = false, indent = 0) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.text(label, colPos + indent, y);
+      if (catatan) doc.text(catatan, colCat, y, { align: 'right' });
+      doc.text(val2, colP2 + 15, y, { align: 'right' });
+      doc.text(val1, colP1, y, { align: 'right' });
+      y += 5.5;
+    };
+
+    const addSectionHeader = (label: string) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, colPos, y);
+      y += 5.5;
+    };
+
+    // ASET
+    addSectionHeader('Aset');
+    addSectionHeader('Aset Lancar');
+    addRow('Kas', '3', fmtNum(cashBalance), '-', false, 4);
+    addRow('Piutang Usaha', '4', fmtNum(accountsReceivable), '-', false, 4);
+    addRow('Persediaan', '5', fmtNum(inventoryValue), '-', false, 4);
+    addRow('Biaya Dibayar Dimuka (Down Payment)', '6', '-', '-', false, 4);
+    addRow('Aset Lancar Lainnya', '7', '-', '-', false, 4);
+    addRow('Total Aset Lancar', '', fmtNum(totalCurrentAssets), '-', true);
+    y += 2;
+
+    addSectionHeader('Aset Tetap (Tidak Lancar)');
+    addRow('Peralatan', '8', '-', '-', false, 4);
+    addRow('Total Aset Tidak Lancar', '', '-', '-', true);
+    y += 2;
+    addRow('Total Aset', '', fmtNum(totalCurrentAssets), '-', true);
+
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 6;
+
+    // LIABILITAS
+    addSectionHeader('Liabilitas');
+    addSectionHeader('Liabilitas Jangka Pendek');
+    addRow('Utang Usaha', '9a.', fmtNum(accountsPayable), '-', false, 4);
+    addRow('Utang Bank dan Lembaga Keuangan Lainnya', '9b.', '-', '-', false, 4);
+    addRow('Kewajiban Jangka Pendek Lainnya', '9c.', '-', '-', false, 4);
+    addRow('Total Liabilitas Jangka Pendek', '', fmtNum(totalLiabilities), '-', true);
+    y += 2;
+
+    addSectionHeader('Liabilitas Jangka Panjang');
+    addRow('Utang Bank (Jth Tempo Lebih dari 1 Tahun)', '10a.', '-', '-', false, 4);
+    addRow('Utang Pembiayaan dan Utang Lainnya', '10b.', '-', '-', false, 4);
+    addRow('Total Liabilitas Jangka Panjang', '', '-', '-', true);
+    y += 2;
+    addRow('Total Liabilitas', '', fmtNum(totalLiabilities), '-', true);
+
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 6;
+
+    // EKUITAS
+    addSectionHeader('Ekuitas');
+    addRow('Modal Pemilik', '11', fmtNum(totalEquity), '-', false, 4);
+    addRow('Saldo Laba', '', '-', '-', false, 4);
+    addRow('Total Modal', '', fmtNum(totalEquity), '-', true);
+    y += 2;
+    addRow('Total Kewajiban dan Modal', '', fmtNum(totalCurrentAssets), '-', true);
+
+    y += 6;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    const footer = 'Lihat catatan atas laporan keuangan terlampir yang merupakan bagian yang tidak terpisahkan dari laporan keuangan secara keseluruhan';
+    const footerLines = doc.splitTextToSize(footer, contentW);
+    doc.text(footerLines, marginL, y);
+
+    // Page number
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('1+1', pageW / 2, 285, { align: 'center' });
+
     doc.save(`Neraca_${format(date, 'yyyy-MM-dd')}.pdf`);
   };
 
