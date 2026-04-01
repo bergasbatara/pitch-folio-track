@@ -170,7 +170,7 @@ export default function NotesFS() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text(`Tahun ${format(date, 'yyyy')}`, marginL + 10, y);
-    doc.setDecoratorLine?.(marginL + 10, y + 0.5, marginL + 50, y + 0.5);
+    doc.line(marginL + 10, y + 1, marginL + 50, y + 1);
     y += 8;
 
     doc.setFont('helvetica', 'normal');
