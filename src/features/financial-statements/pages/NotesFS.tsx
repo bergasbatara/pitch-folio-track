@@ -732,10 +732,23 @@ export default function NotesFS() {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={exportToPDF} className="gap-2">
-              <Download className="h-4 w-4" />
-              Ekspor PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Ekspor PDF
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToPDF}>
+                  Catatan Laporan Keuangan 1
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF2}>
+                  Catatan Laporan Keuangan 2
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
