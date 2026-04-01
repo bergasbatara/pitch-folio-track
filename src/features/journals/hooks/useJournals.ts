@@ -1,55 +1,49 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { JournalEntry, JournalFormData } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const ACCESS_TOKEN_KEY = 'auth_access_token';
 
 export function useJournals(companyId?: string) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
-    if (!companyId || !accessToken) return;
+    if (!companyId) return;
     setIsLoading(true);
     fetchJson<JournalEntry[]>(`/companies/${companyId}/journals`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${accessToken}` },
     })
       .then(setEntries)
       .finally(() => setIsLoading(false));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addEntry = useCallback(async (data: JournalFormData) => {
-    if (!companyId || !accessToken) throw new Error('Missing company or auth');
+    if (!companyId) throw new Error('Missing company');
     const created = await fetchJson<JournalEntry>(`/companies/${companyId}/journals`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     setEntries((prev) => [created, ...prev]);
     return created;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updateEntry = useCallback(async (id: string, data: JournalFormData) => {
-    if (!companyId || !accessToken) throw new Error('Missing company or auth');
+    if (!companyId) throw new Error('Missing company');
     const updated = await fetchJson<JournalEntry>(`/companies/${companyId}/journals/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
     return updated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deleteEntry = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) throw new Error('Missing company or auth');
+    if (!companyId) throw new Error('Missing company');
     await fetchJson(`/companies/${companyId}/journals/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setEntries((prev) => prev.filter((e) => e.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   return { entries, isLoading, addEntry, updateEntry, deleteEntry };
 }
@@ -58,6 +52,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    credentials: 'include',
   });
   if (!response.ok) {
     let message = 'Request failed';

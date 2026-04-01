@@ -1,23 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Product, ProductFormData } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const ACCESS_TOKEN_KEY = 'auth_access_token';
 
 export function useProducts(companyId?: string) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
-
   useEffect(() => {
     const load = async () => {
-      if (!companyId || !accessToken) return;
+      if (!companyId) return;
       setIsLoading(true);
       try {
         const data = await fetchJson<Product[]>(`/companies/${companyId}/products`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setProducts(data.map(hydrateProduct));
       } finally {
@@ -25,11 +21,11 @@ export function useProducts(companyId?: string) {
       }
     };
     load();
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addProduct = useCallback(async (data: ProductFormData) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const payload = {
       ...data,
@@ -37,17 +33,16 @@ export function useProducts(companyId?: string) {
     };
     const created = await fetchJson<Product>(`/companies/${companyId}/products`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(payload),
     });
     const hydrated = hydrateProduct(created);
     setProducts((prev) => [hydrated, ...prev]);
     return hydrated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updateProduct = useCallback(async (id: string, data: Partial<ProductFormData>) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const payload = {
       ...data,
@@ -55,23 +50,21 @@ export function useProducts(companyId?: string) {
     };
     const updated = await fetchJson<Product>(`/companies/${companyId}/products/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(payload),
     });
     const hydrated = hydrateProduct(updated);
     setProducts((prev) => prev.map((product) => (product.id === id ? hydrated : product)));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deleteProduct = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     await fetchJson(`/companies/${companyId}/products/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setProducts((prev) => prev.filter((product) => product.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updateStock = useCallback(async (id: string, quantitySold: number) => {
     const current = products.find((product) => product.id === id);
@@ -109,6 +102,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
   if (!response.ok) {
     let message = 'Request failed';

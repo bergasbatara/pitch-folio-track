@@ -1,32 +1,24 @@
-import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
+import { useMemo } from 'react';
 import { OnboardingState } from '../types';
-
-const DEFAULT_STATE: OnboardingState = {
-  completed: false,
-  currentStep: 0,
-  completedSteps: [],
-};
+import { useCompanyProfile } from './useCompanyProfile';
 
 export function useOnboarding() {
-  const [state, setState] = useLocalStorage<OnboardingState>('onboarding-state', DEFAULT_STATE);
+  const { company, isProfileComplete, isLoading } = useCompanyProfile();
+  const completed = useMemo(() => isProfileComplete(), [isProfileComplete, company?.id, company?.updatedAt]);
+  const completedSteps = useMemo(() => (completed ? ['company-setup'] : []), [completed]);
+  const currentStep = completed ? 1 : 0;
+  const state: OnboardingState = { completed, currentStep, completedSteps };
 
   const completeStep = (stepId: string) => {
-    setState({
-      ...state,
-      completedSteps: [...new Set([...state.completedSteps, stepId])],
-      currentStep: state.currentStep + 1,
-    });
+    return stepId;
   };
 
   const completeOnboarding = () => {
-    setState({
-      ...state,
-      completed: true,
-    });
+    return true;
   };
 
   const resetOnboarding = () => {
-    setState(DEFAULT_STATE);
+    return true;
   };
 
   return {
@@ -35,5 +27,6 @@ export function useOnboarding() {
     completeOnboarding,
     resetOnboarding,
     isStepCompleted: (stepId: string) => state.completedSteps.includes(stepId),
+    isLoading,
   };
 }

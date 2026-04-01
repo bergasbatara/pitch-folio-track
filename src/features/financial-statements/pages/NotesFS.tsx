@@ -64,7 +64,6 @@ export default function NotesFS() {
   const [report, setReport] = useState<{ totals: { revenue: number; expense: number; netProfit: number; inventoryValue: number } } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const accessToken = useMemo(() => localStorage.getItem('auth_access_token'), []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -76,17 +75,17 @@ export default function NotesFS() {
 
   useEffect(() => {
     const load = async () => {
-      if (!company?.id || !accessToken) return;
+      if (!company?.id) return;
       setIsLoading(true);
       try {
         const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/notes?from=${from}&to=${to}&ts=${Date.now()}`;
         const res = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
             'Cache-Control': 'no-cache',
             Pragma: 'no-cache',
           },
           cache: 'no-store',
+          credentials: 'include',
         });
         if (res.status === 304) {
           return;
@@ -105,7 +104,7 @@ export default function NotesFS() {
       }
     };
     load();
-  }, [company?.id, accessToken, from, to, toast]);
+  }, [company?.id, from, to, toast]);
 
   const totalSales = report?.totals.revenue ?? 0;
   const totalPurchases = report?.totals.expense ?? 0;

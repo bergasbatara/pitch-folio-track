@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { Response } from "express";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -8,21 +10,46 @@ import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post("register")
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register(dto);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user };
   }
 
   @Post("login")
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user };
   }
 
   @Post("refresh")
-  refresh(@Body() dto: RefreshDto) {
-    return this.authService.refresh(dto);
+  async refresh(
+    @Req() req: { cookies?: Record<string, string> },
+    @Body() dto: RefreshDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = dto.refreshToken ?? req.cookies?.refresh_token;
+    if (!refreshToken) {
+      throw new UnauthorizedException("Missing refresh token");
+    }
+    const tokens = await this.authService.refresh(refreshToken);
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("logout")
+  async logout(@Req() req: { user: { sub: string } }, @Res({ passthrough: true }) res: Response) {
+    await this.authService.logout(req.user.sub);
+    this.clearAuthCookies(res);
+    return { success: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -35,5 +62,47 @@ export class AuthController {
   @Patch("profile")
   updateProfile(@Req() req: { user: { sub: string } }, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(req.user.sub, dto);
+  }
+
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    const accessTtl = this.configService.get<string>("JWT_ACCESS_TTL") ?? "15m";
+    const refreshTtl = this.configService.get<string>("JWT_REFRESH_TTL") ?? "7d";
+    const secure = (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure,
+      maxAge: this.parseTtl(accessTtl, 15 * 60 * 1000),
+    });
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure,
+      maxAge: this.parseTtl(refreshTtl, 7 * 24 * 60 * 60 * 1000),
+    });
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.cookie("access_token", "", { httpOnly: true, sameSite: "lax", maxAge: 0 });
+    res.cookie("refresh_token", "", { httpOnly: true, sameSite: "lax", maxAge: 0 });
+  }
+
+  private parseTtl(input: string, fallbackMs: number) {
+    const match = /^(\d+)([smhd])$/.exec(input.trim());
+    if (!match) return fallbackMs;
+    const value = Number(match[1]);
+    const unit = match[2];
+    switch (unit) {
+      case "s":
+        return value * 1000;
+      case "m":
+        return value * 60 * 1000;
+      case "h":
+        return value * 60 * 60 * 1000;
+      case "d":
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return fallbackMs;
+    }
   }
 }

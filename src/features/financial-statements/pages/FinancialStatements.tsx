@@ -89,11 +89,10 @@ export default function FinancialStatements() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const accessToken = useMemo(() => localStorage.getItem('auth_access_token'), []);
 
   useEffect(() => {
     const load = async () => {
-      if (!company?.id || !accessToken) return;
+      if (!company?.id) return;
       setIsLoading(true);
       try {
         const { from, to } = getDateRange(date, period);
@@ -102,11 +101,11 @@ export default function FinancialStatements() {
           : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${from}&to=${to}&ts=${Date.now()}`;
         const res = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
             'Cache-Control': 'no-cache',
             Pragma: 'no-cache',
           },
           cache: 'no-store',
+          credentials: 'include',
         });
         if (res.status === 304) {
           return;
@@ -125,7 +124,7 @@ export default function FinancialStatements() {
       }
     };
     load();
-  }, [company?.id, accessToken, date, period, toast]);
+  }, [company?.id, date, period, toast]);
 
   const revenueAccounts = report?.accounts
     .filter((acc) => acc.type === 'revenue' && acc.net !== 0)

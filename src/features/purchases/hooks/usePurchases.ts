@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Purchase, PurchaseCategory, PurchaseFormData } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const ACCESS_TOKEN_KEY = 'auth_access_token';
 
 export function usePurchaseCategories(companyId?: string) {
   const [categories, setCategories] = useState<PurchaseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
     const load = async () => {
-      if (!companyId || !accessToken) return;
+      if (!companyId) return;
       setIsLoading(true);
       try {
         const data = await fetchJson<PurchaseCategory[]>(`/companies/${companyId}/purchase-categories`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setCategories(data.map(hydrateCategory));
       } finally {
@@ -24,45 +21,42 @@ export function usePurchaseCategories(companyId?: string) {
       }
     };
     load();
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addCategory = useCallback(async (name: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const created = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ name }),
     });
     const hydrated = hydrateCategory(created);
     setCategories((prev) => [...prev, hydrated]);
     return hydrated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updateCategory = useCallback(async (id: string, name: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const updated = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ name }),
     });
     const hydrated = hydrateCategory(updated);
     setCategories((prev) => prev.map((category) => (category.id === id ? hydrated : category)));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deleteCategory = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     await fetchJson(`/companies/${companyId}/purchase-categories/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setCategories((prev) => prev.filter((category) => category.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   return {
     categories,
@@ -76,16 +70,14 @@ export function usePurchaseCategories(companyId?: string) {
 export function usePurchases(companyId?: string) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
     const load = async () => {
-      if (!companyId || !accessToken) return;
+      if (!companyId) return;
       setIsLoading(true);
       try {
         const data = await fetchJson<Purchase[]>(`/companies/${companyId}/purchases`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setPurchases(data.map(hydratePurchase));
       } finally {
@@ -93,45 +85,42 @@ export function usePurchases(companyId?: string) {
       }
     };
     load();
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addPurchase = useCallback(async (data: PurchaseFormData) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const created = await fetchJson<Purchase>(`/companies/${companyId}/purchases`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     const hydrated = hydratePurchase(created);
     setPurchases((prev) => [hydrated, ...prev]);
     return hydrated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updatePurchase = useCallback(async (id: string, updates: Partial<PurchaseFormData>) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const updated = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(updates),
     });
     const hydrated = hydratePurchase(updated);
     setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? hydrated : purchase)));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deletePurchase = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     await fetchJson(`/companies/${companyId}/purchases/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setPurchases((prev) => prev.filter((purchase) => purchase.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const getTotalSpend = useCallback(() => {
     return purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
@@ -184,6 +173,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
   if (!response.ok) {
     let message = 'Request failed';

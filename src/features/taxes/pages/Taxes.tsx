@@ -49,11 +49,6 @@ export default function Taxes() {
       toast({ title: 'Perusahaan belum ada', description: 'Selesaikan onboarding perusahaan terlebih dahulu.', variant: 'destructive' });
       return;
     }
-    const accessToken = localStorage.getItem('auth_access_token');
-    if (!accessToken) {
-      toast({ title: 'Tidak ada token', description: 'Silakan login ulang.', variant: 'destructive' });
-      return;
-    }
     const amount = parseInt(settlementAmount.replace(/[^\d]/g, ''), 10);
     if (!amount || amount <= 0) {
       toast({ title: 'Jumlah tidak valid', description: 'Masukkan jumlah pajak yang valid.', variant: 'destructive' });
@@ -69,7 +64,6 @@ export default function Taxes() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           amount,
@@ -77,6 +71,7 @@ export default function Taxes() {
           taxCodeId: settlementTaxCodeId,
           memo: settlementMemo?.trim() || undefined,
         }),
+        credentials: 'include',
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

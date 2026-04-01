@@ -18,19 +18,12 @@ export function useCompanyProfile() {
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-  const ACCESS_TOKEN_KEY = 'auth_access_token';
 
   useEffect(() => {
     const init = async () => {
-      const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-      if (!accessToken) {
-        setIsLoading(false);
-        return;
-      }
       try {
         const fetched = await fetchJson<CompanyProfile>('/companies/current', {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setCompany(hydrateCompany(fetched));
       } catch {
@@ -43,14 +36,9 @@ export function useCompanyProfile() {
   }, []);
 
   const saveCompanyProfile = async (profile: Partial<CompanyProfile>) => {
-    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!accessToken) {
-      throw new Error('Missing access token');
-    }
     if (company?.id) {
       const updated = await fetchJson<CompanyProfile>(`/companies/${company.id}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(profile),
       });
       const hydrated = hydrateCompany(updated);
@@ -59,7 +47,6 @@ export function useCompanyProfile() {
     }
     const created = await fetchJson<CompanyProfile>('/companies', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(profile),
     });
     const hydrated = hydrateCompany(created);
@@ -90,6 +77,7 @@ export function useCompanyProfile() {
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
       headers,
+      credentials: 'include',
     });
     if (!response.ok) {
       let message = 'Request failed';

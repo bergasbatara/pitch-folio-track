@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Receivable, Payable, ReceivableFormData, PayableFormData } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const ACCESS_TOKEN_KEY = 'auth_access_token';
 
 export function useReceivables(companyId?: string) {
   const [receivables, setReceivables] = useState<Receivable[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
     const load = async () => {
-      if (!companyId || !accessToken) return;
+      if (!companyId) return;
       setIsLoading(true);
       try {
         const data = await fetchJson<Receivable[]>(`/companies/${companyId}/receivables`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setReceivables(data.map(hydrateReceivable));
       } finally {
@@ -24,45 +21,42 @@ export function useReceivables(companyId?: string) {
       }
     };
     load();
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addReceivable = useCallback(async (data: ReceivableFormData) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const created = await fetchJson<Receivable>(`/companies/${companyId}/receivables`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     const hydrated = hydrateReceivable(created);
     setReceivables((prev) => [...prev, hydrated]);
     return hydrated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updateReceivable = useCallback(async (id: string, data: Partial<Receivable>) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const updated = await fetchJson<Receivable>(`/companies/${companyId}/receivables/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     const hydrated = hydrateReceivable(updated);
     setReceivables((prev) => prev.map((receivable) => (receivable.id === id ? hydrated : receivable)));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deleteReceivable = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     await fetchJson(`/companies/${companyId}/receivables/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setReceivables((prev) => prev.filter((receivable) => receivable.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const recordPayment = useCallback(async (id: string, amount: number) => {
     const receivable = receivables.find((r) => r.id === id);
@@ -89,16 +83,14 @@ export function useReceivables(companyId?: string) {
 export function usePayables(companyId?: string) {
   const [payables, setPayables] = useState<Payable[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const accessToken = useMemo(() => localStorage.getItem(ACCESS_TOKEN_KEY), []);
 
   useEffect(() => {
     const load = async () => {
-      if (!companyId || !accessToken) return;
+      if (!companyId) return;
       setIsLoading(true);
       try {
         const data = await fetchJson<Payable[]>(`/companies/${companyId}/payables`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${accessToken}` },
         });
         setPayables(data.map(hydratePayable));
       } finally {
@@ -106,45 +98,42 @@ export function usePayables(companyId?: string) {
       }
     };
     load();
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const addPayable = useCallback(async (data: PayableFormData) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const created = await fetchJson<Payable>(`/companies/${companyId}/payables`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     const hydrated = hydratePayable(created);
     setPayables((prev) => [...prev, hydrated]);
     return hydrated;
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const updatePayable = useCallback(async (id: string, data: Partial<Payable>) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     const updated = await fetchJson<Payable>(`/companies/${companyId}/payables/${id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(data),
     });
     const hydrated = hydratePayable(updated);
     setPayables((prev) => prev.map((payable) => (payable.id === id ? hydrated : payable)));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const deletePayable = useCallback(async (id: string) => {
-    if (!companyId || !accessToken) {
-      throw new Error('Missing company or auth token');
+    if (!companyId) {
+      throw new Error('Missing company');
     }
     await fetchJson(`/companies/${companyId}/payables/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
     });
     setPayables((prev) => prev.filter((payable) => payable.id !== id));
-  }, [companyId, accessToken]);
+  }, [companyId]);
 
   const recordPayment = useCallback(async (id: string, amount: number) => {
     const payable = payables.find((p) => p.id === id);
@@ -190,6 +179,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
   if (!response.ok) {
     let message = 'Request failed';
