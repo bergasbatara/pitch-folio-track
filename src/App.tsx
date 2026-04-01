@@ -48,7 +48,7 @@ const App = () => (
             <Route path="/supplier" element={<ProtectedRoute><SuppliersPage /></ProtectedRoute>} />
             <Route path="/aset-tetap" element={<ProtectedRoute><FixedAssetsPage /></ProtectedRoute>} />
             <Route path="/pajak" element={<ProtectedRoute><TaxesPage /></ProtectedRoute>} />
-            <Route path="/laporan-keuangan" element={<ProtectedRoute><FinancialStatementsPage /></ProtectedRoute>} />
+            <Route path="/laba-rugi" element={<ProtectedRoute><FinancialStatementsPage /></ProtectedRoute>} />
             <Route path="/neraca" element={<ProtectedRoute><BalanceSheetPage /></ProtectedRoute>} />
             <Route path="/arus-kas" element={<ProtectedRoute><CashFlowPage /></ProtectedRoute>} />
             <Route path="/ekuitas" element={<ProtectedRoute><EquityStatementPage /></ProtectedRoute>} />

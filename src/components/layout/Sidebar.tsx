@@ -15,7 +15,7 @@ const navigation = [
   { name: 'Pajak', href: '/pajak', icon: Receipt },
   { name: 'Daftar Akun', href: '/akun', icon: ListTree },
   { name: 'Jurnal Umum', href: '/jurnal', icon: BookMarked },
-  { name: 'Laba Rugi', href: '/laporan-keuangan', icon: FileText },
+  { name: 'Laba Rugi', href: '/laba-rugi', icon: FileText },
   { name: 'Neraca', href: '/neraca', icon: Scale },
   { name: 'Arus Kas', href: '/arus-kas', icon: ArrowRight },
   { name: 'Ekuitas', href: '/ekuitas', icon: CreditCard },
