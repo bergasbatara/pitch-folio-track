@@ -142,43 +142,119 @@ export default function FinancialStatements() {
   const periodTitle = PERIOD_OPTIONS.find(p => p.value === period)?.label ?? '';
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text(`LAPORAN KEUANGAN ${periodTitle.toUpperCase()}`, 105, 20, { align: 'center' });
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210;
+    const marginL = 15;
+    const marginR = 15;
+    const contentW = pageW - marginL - marginR;
+
+    const fmtNum = (v: number) => {
+      if (v === 0) return '-';
+      return new Intl.NumberFormat('id-ID').format(v);
+    };
+
+    // Header
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(company?.name || '[Nama Perusahaan]', marginL, 18);
     doc.setFontSize(11);
-    doc.text(`Periode: ${periodLabel}`, 105, 30, { align: 'center' });
-    doc.setFontSize(12);
-    let y = 50;
+    doc.text('Laporan Laba Rugi', marginL, 24);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Periode ${periodLabel}`, marginL, 30);
+    doc.setFontSize(9);
+    doc.text('(Dinyatakan dalam Rupiah, kecuali dinyatakan lain)', marginL, 36);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.8);
+    doc.line(marginL, 39, pageW - marginR, 39);
 
-    doc.text(`Pendapatan:`, 20, y);
-    y += 8;
-    revenueAccounts.forEach((acc) => {
-      doc.setFontSize(10);
-      doc.text(`  ${acc.code} - ${acc.name}`, 20, y);
-      doc.text(formatCurrency(acc.net), 190, y, { align: 'right' });
-      y += 7;
-    });
-    doc.setFontSize(12);
-    doc.text(`Total Pendapatan: ${formatCurrency(totalPendapatan)}`, 20, y + 3);
-    y += 15;
+    // Table columns
+    const colPos = marginL;
+    const colCat = marginL + 105;
+    const colP2 = marginL + 140;
+    const colP1 = pageW - marginR;
 
-    doc.text(`Beban:`, 20, y);
-    y += 8;
+    let y = 46;
+
+    // Table header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pos', colPos, y);
+    doc.text('Catatan', colCat, y, { align: 'right' });
+    doc.text(periodLabel, colP2 + 10, y, { align: 'right' });
+    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 2, pageW - marginR, y + 2);
+    y += 7;
+
+    const addRow = (label: string, catatan: string, val2: string, val1: string, bold = false, indent = 0) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.text(label, colPos + indent, y);
+      if (catatan) doc.text(catatan, colCat, y, { align: 'right' });
+      doc.text(val2, colP2 + 10, y, { align: 'right' });
+      doc.text(val1, colP1, y, { align: 'right' });
+      y += 5.5;
+    };
+
+    // Pendapatan
+    addRow('Pendapatan', '11', fmtNum(totalPendapatan), '-', false);
+    // HPP
+    addRow('Harga Pokok Penjualan', '12', fmtNum(totalBeban), '-', false);
+    y += 1;
+    const labaKotor = totalPendapatan - totalBeban;
+    addRow('LABA KOTOR', '', fmtNum(labaKotor), '-', true);
+    y += 3;
+
+    // Beban Usaha
+    doc.setFont('helvetica', 'bold');
+    doc.text('Beban Usaha', colPos, y);
+    y += 5.5;
+
+    let totalBebanUsaha = 0;
     expenseAccounts.forEach((acc) => {
-      doc.setFontSize(10);
-      doc.text(`  ${acc.code} - ${acc.name}`, 20, y);
-      doc.text(formatCurrency(acc.net), 190, y, { align: 'right' });
-      y += 7;
+      addRow(`${acc.name}`, '', fmtNum(acc.net), '-', false, 4);
+      totalBebanUsaha += acc.net;
     });
-    doc.setFontSize(12);
-    doc.text(`Total Beban: ${formatCurrency(totalBeban)}`, 20, y + 3);
-    y += 15;
+    if (expenseAccounts.length === 0) {
+      addRow('Beban Umum dan Administrasi', '15', '-', '-', false, 4);
+      addRow('Beban Penjualan', '13', '-', '-', false, 4);
+    }
+    addRow('Total Beban Usaha', '', fmtNum(totalBebanUsaha), '-', true);
+    y += 2;
 
-    doc.setFontSize(14);
-    doc.text(`Laba/Rugi: ${formatCurrency(labaRugi)}`, 20, y);
+    // Beban/Pendapatan lain-lain
+    addRow('Beban/Pendapatan lain-lain', '14a.b.', '-', '-', false);
+    y += 1;
+
+    // Laba Rugi Operasi
+    addRow('LABA RUGI OPERASI', '', fmtNum(labaRugi), '-', true);
+    y += 2;
+
+    // Pajak
+    addRow('Taksiran Pajak Penghasilan', '', '-', '-', false);
+    y += 1;
+
+    // Laba Bersih
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 4;
+    addRow('LABA BERSIH', '', fmtNum(labaRugi), '-', true);
+
+    // Footer note
+    y += 8;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    const footer = 'Lihat catatan atas laporan keuangan terlampir yang merupakan bagian yang tidak terpisahkan dari laporan keuangan secara keseluruhan';
+    const footerLines = doc.splitTextToSize(footer, contentW);
+    doc.text(footerLines, marginL, y);
+
+    // Page number
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('1+1', pageW / 2, 285, { align: 'center' });
 
     const { from, to } = getDateRange(date, period);
-    doc.save(`Laporan_Keuangan_${from}_${to}.pdf`);
+    doc.save(`Laba_Rugi_${from}_${to}.pdf`);
   };
 
   return (
