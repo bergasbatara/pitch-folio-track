@@ -21,10 +21,10 @@ import { RefreshCw } from 'lucide-react';
 export default function Index() {
   const { company } = useCompanyProfile();
   const { sales } = useSales(company?.id);
-  const { purchases } = usePurchases();
-  const { categories } = usePurchaseCategories();
-  const { receivables } = useReceivables();
-  const { payables } = usePayables();
+  const { purchases } = usePurchases(company?.id);
+  const { categories } = usePurchaseCategories(company?.id);
+  const { receivables } = useReceivables(company?.id);
+  const { payables } = usePayables(company?.id);
 
   const getCategoryName = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId);

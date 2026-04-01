@@ -1,51 +1,73 @@
 import { useCallback, useEffect, useState } from 'react';
 import { JournalEntry, JournalFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function useJournals(companyId?: string) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
-    if (!companyId) return;
-    setIsLoading(true);
-    fetchJson<JournalEntry[]>(`/companies/${companyId}/journals`, {
-      method: 'GET',
-    })
-      .then(setEntries)
-      .finally(() => setIsLoading(false));
-  }, [companyId]);
+    const load = async () => {
+      if (!companyId) return;
+      await runLoad(async () => {
+        const data = await fetchJson<JournalEntry[]>(`/companies/${companyId}/journals`, {
+          method: 'GET',
+        });
+        setEntries(data);
+      });
+    };
+    load();
+  }, [companyId, runLoad]);
 
   const addEntry = useCallback(async (data: JournalFormData) => {
     if (!companyId) throw new Error('Missing company');
-    const created = await fetchJson<JournalEntry>(`/companies/${companyId}/journals`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const created = await runMutate(async () => {
+      return fetchJson<JournalEntry>(`/companies/${companyId}/journals`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     });
     setEntries((prev) => [created, ...prev]);
     return created;
-  }, [companyId]);
+  }, [companyId, runMutate]);
 
   const updateEntry = useCallback(async (id: string, data: JournalFormData) => {
     if (!companyId) throw new Error('Missing company');
-    const updated = await fetchJson<JournalEntry>(`/companies/${companyId}/journals/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    const previous = entries.find((e) => e.id === id);
+    const updated = await runMutate(async () => {
+      return fetchJson<JournalEntry>(`/companies/${companyId}/journals/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    }, {
+      apply: () => setEntries((prev) => prev.map((e) => (
+        e.id === id ? { ...e, ...data } as JournalEntry : e
+      ))),
+      rollback: () => {
+        if (!previous) return;
+        setEntries((prev) => prev.map((e) => (e.id === id ? previous : e)));
+      },
     });
     setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
     return updated;
-  }, [companyId]);
+  }, [companyId, entries, runMutate]);
 
   const deleteEntry = useCallback(async (id: string) => {
     if (!companyId) throw new Error('Missing company');
-    await fetchJson(`/companies/${companyId}/journals/${id}`, {
-      method: 'DELETE',
+    const previous = entries;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/journals/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setEntries((prev) => prev.filter((e) => e.id !== id)),
+      rollback: () => setEntries(previous),
     });
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-  }, [companyId]);
+  }, [companyId, entries, runMutate]);
 
-  return { entries, isLoading, addEntry, updateEntry, deleteEntry };
+  return { entries, isLoading, isMutating, error, addEntry, updateEntry, deleteEntry };
 }
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

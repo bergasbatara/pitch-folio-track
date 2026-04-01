@@ -8,12 +8,16 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { SaleFormData } from '../types';
 import { AddSaleModal } from '../components/AddSaleModal';
 import { SalesTable } from '../components/SalesTable';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { company } = useCompanyProfile();
-  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue } = useSales(company?.id);
-  const { products } = useProducts(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue, error: salesError } = useSales(company?.id);
+  const { products, error: productsError } = useProducts(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(salesError, 'Gagal memuat penjualan');
+  useErrorToast(productsError, 'Gagal memuat produk');
 
   const handleAddSale = async (data: SaleFormData) => {
     if (!company?.id) return;

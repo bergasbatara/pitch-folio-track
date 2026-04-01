@@ -7,12 +7,15 @@ import { Customer, CustomerFormData } from '../types';
 import { AddCustomerModal } from '../components/AddCustomerModal';
 import { CustomersTable } from '../components/CustomersTable';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Customers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const { company } = useCompanyProfile();
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { customers, addCustomer, updateCustomer, deleteCustomer, error: customersError } = useCustomers(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(customersError, 'Gagal memuat pelanggan');
 
   const handleSubmit = async (data: CustomerFormData) => {
     if (!company?.id) return;

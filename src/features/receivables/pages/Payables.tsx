@@ -12,10 +12,13 @@ import { usePayables } from '../hooks/useReceivables';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Payables() {
-  const { company } = useCompanyProfile();
-  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables, recordPayment } = usePayables(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { payables, addPayable, deletePayable, getTotalPayables, getPendingPayables, recordPayment, error: payablesError } = usePayables(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(payablesError, 'Gagal memuat hutang');
   const [isOpen, setIsOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');

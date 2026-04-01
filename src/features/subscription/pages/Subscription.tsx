@@ -7,11 +7,14 @@ import { Check, Crown, Sparkles, Building2 } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 import { useToast } from '@/components/ui/use-toast';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Subscription() {
-  const { company } = useCompanyProfile();
-  const { plans, subscription, subscribe, getCurrentPlan, isSubscribed } = useSubscription(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { plans, subscription, subscribe, getCurrentPlan, isSubscribed, error: subscriptionError } = useSubscription(company?.id);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(subscriptionError, 'Gagal memuat langganan');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   const currentPlan = getCurrentPlan();

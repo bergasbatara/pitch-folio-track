@@ -12,10 +12,13 @@ import { useReceivables } from '../hooks/useReceivables';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Receivables() {
-  const { company } = useCompanyProfile();
-  const { receivables, addReceivable, deleteReceivable, getTotalReceivables, getPendingReceivables, recordPayment } = useReceivables(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { receivables, addReceivable, deleteReceivable, getTotalReceivables, getPendingReceivables, recordPayment, error: receivablesError } = useReceivables(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(receivablesError, 'Gagal memuat piutang');
   const [isOpen, setIsOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');

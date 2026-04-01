@@ -10,11 +10,14 @@ import { AccountsTable } from '../components/AccountsTable';
 import { AccountModal } from '../components/AccountModal';
 import { Account, AccountFormData } from '../types';
 import { useToast } from '@/components/ui/use-toast';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Accounts() {
-  const { company } = useCompanyProfile();
-  const { accounts, isLoading, addAccount, updateAccount, deleteAccount } = useAccounts(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { accounts, isLoading, addAccount, updateAccount, deleteAccount, error: accountsError } = useAccounts(company?.id);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(accountsError, 'Gagal memuat akun');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);

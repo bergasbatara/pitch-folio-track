@@ -1,66 +1,93 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Purchase, PurchaseCategory, PurchaseFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function usePurchaseCategories(companyId?: string) {
   const [categories, setCategories] = useState<PurchaseCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<PurchaseCategory[]>(`/companies/${companyId}/purchase-categories`, {
           method: 'GET',
         });
         setCategories(data.map(hydrateCategory));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addCategory = useCallback(async (name: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories`, {
-      method: 'POST',
-      body: JSON.stringify({ name }),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic = hydrateCategory({
+      id: tempId,
+      name,
+      createdAt: new Date().toISOString(),
     });
-    const hydrated = hydrateCategory(created);
-    setCategories((prev) => [...prev, hydrated]);
-    return hydrated;
-  }, [companyId]);
+    const created = await runMutate(async () => {
+      const result = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories`, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      return hydrateCategory(result);
+    }, {
+      apply: () => setCategories((prev) => [...prev, optimistic]),
+      rollback: () => setCategories((prev) => prev.filter((cat) => cat.id !== tempId)),
+    });
+    setCategories((prev) => prev.map((cat) => (cat.id === tempId ? created : cat)));
+    return created;
+  }, [companyId, runMutate]);
 
   const updateCategory = useCallback(async (id: string, name: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const updated = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ name }),
+    const previous = categories.find((category) => category.id === id);
+    const updated = await runMutate(async () => {
+      const result = await fetchJson<PurchaseCategory>(`/companies/${companyId}/purchase-categories/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      });
+      return hydrateCategory(result);
+    }, {
+      apply: () => setCategories((prev) => prev.map((category) => (
+        category.id === id ? { ...category, name } : category
+      ))),
+      rollback: () => {
+        if (!previous) return;
+        setCategories((prev) => prev.map((category) => (category.id === id ? previous : category)));
+      },
     });
-    const hydrated = hydrateCategory(updated);
-    setCategories((prev) => prev.map((category) => (category.id === id ? hydrated : category)));
-  }, [companyId]);
+    setCategories((prev) => prev.map((category) => (category.id === id ? updated : category)));
+  }, [companyId, categories, runMutate]);
 
   const deleteCategory = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/purchase-categories/${id}`, {
-      method: 'DELETE',
+    const previous = categories;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/purchase-categories/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setCategories((prev) => prev.filter((category) => category.id !== id)),
+      rollback: () => setCategories(previous),
     });
-    setCategories((prev) => prev.filter((category) => category.id !== id));
-  }, [companyId]);
+  }, [companyId, categories, runMutate]);
 
   return {
     categories,
     isLoading,
+    isMutating,
+    error,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -69,58 +96,93 @@ export function usePurchaseCategories(companyId?: string) {
 
 export function usePurchases(companyId?: string) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<Purchase[]>(`/companies/${companyId}/purchases`, {
           method: 'GET',
         });
         setPurchases(data.map(hydratePurchase));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addPurchase = useCallback(async (data: PurchaseFormData) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<Purchase>(`/companies/${companyId}/purchases`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic = hydratePurchase({
+      id: tempId,
+      date: data.date,
+      categoryId: data.categoryId,
+      itemName: data.itemName,
+      supplier: data.supplier,
+      quantity: data.quantity,
+      unitCost: data.unitCost,
+      totalCost: data.unitCost * data.quantity,
+      notes: data.notes,
+      productId: data.productId ?? null,
+      productCode: data.productCode ?? null,
+      createdAt: new Date().toISOString(),
     });
-    const hydrated = hydratePurchase(created);
-    setPurchases((prev) => [hydrated, ...prev]);
-    return hydrated;
-  }, [companyId]);
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return hydratePurchase(result);
+    }, {
+      apply: () => setPurchases((prev) => [optimistic, ...prev]),
+      rollback: () => setPurchases((prev) => prev.filter((purchase) => purchase.id !== tempId)),
+    });
+    setPurchases((prev) => prev.map((purchase) => (purchase.id === tempId ? created : purchase)));
+    return created;
+  }, [companyId, runMutate]);
 
   const updatePurchase = useCallback(async (id: string, updates: Partial<PurchaseFormData>) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const updated = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
+    const previous = purchases.find((purchase) => purchase.id === id);
+    const updated = await runMutate(async () => {
+      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      return hydratePurchase(result);
+    }, {
+      apply: () => {
+        setPurchases((prev) => prev.map((purchase) => (
+          purchase.id === id ? { ...purchase, ...updates } as Purchase : purchase
+        )));
+      },
+      rollback: () => {
+        if (!previous) return;
+        setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? previous : purchase)));
+      },
     });
-    const hydrated = hydratePurchase(updated);
-    setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? hydrated : purchase)));
-  }, [companyId]);
+    setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? updated : purchase)));
+  }, [companyId, purchases, runMutate]);
 
   const deletePurchase = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/purchases/${id}`, {
-      method: 'DELETE',
+    const previous = purchases;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/purchases/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setPurchases((prev) => prev.filter((purchase) => purchase.id !== id)),
+      rollback: () => setPurchases(previous),
     });
-    setPurchases((prev) => prev.filter((purchase) => purchase.id !== id));
-  }, [companyId]);
+  }, [companyId, purchases, runMutate]);
 
   const getTotalSpend = useCallback(() => {
     return purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
@@ -135,6 +197,8 @@ export function usePurchases(companyId?: string) {
   return {
     purchases,
     isLoading,
+    isMutating,
+    error,
     addPurchase,
     updatePurchase,
     deletePurchase,

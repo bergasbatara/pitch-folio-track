@@ -7,12 +7,15 @@ import { Supplier, SupplierFormData } from '../types';
 import { AddSupplierModal } from '../components/AddSupplierModal';
 import { SuppliersTable } from '../components/SuppliersTable';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Suppliers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const { company } = useCompanyProfile();
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, error: suppliersError } = useSuppliers(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(suppliersError, 'Gagal memuat supplier');
 
   const handleSubmit = async (data: SupplierFormData) => {
     if (!company?.id) return;

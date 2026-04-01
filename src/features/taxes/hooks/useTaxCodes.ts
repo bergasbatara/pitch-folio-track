@@ -1,62 +1,87 @@
 import { useCallback, useEffect, useState } from 'react';
 import { TaxCode, TaxCodeFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function useTaxCodes(companyId?: string) {
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<TaxCode[]>(`/companies/${companyId}/tax-codes`, {
           method: 'GET',
         });
         setTaxCodes(data);
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addTaxCode = useCallback(async (data: TaxCodeFormData) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<TaxCode>(`/companies/${companyId}/tax-codes`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic: TaxCode = {
+      id: tempId,
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
+    const created = await runMutate(async () => {
+      return fetchJson<TaxCode>(`/companies/${companyId}/tax-codes`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    }, {
+      apply: () => setTaxCodes((prev) => [optimistic, ...prev]),
+      rollback: () => setTaxCodes((prev) => prev.filter((t) => t.id !== tempId)),
     });
-    setTaxCodes((prev) => [created, ...prev]);
+    setTaxCodes((prev) => prev.map((t) => (t.id === tempId ? created : t)));
     return created;
-  }, [companyId]);
+  }, [companyId, runMutate]);
 
   const updateTaxCode = useCallback(async (id: string, data: Partial<TaxCodeFormData>) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const updated = await fetchJson<TaxCode>(`/companies/${companyId}/tax-codes/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    const previous = taxCodes.find((tax) => tax.id === id);
+    const updated = await runMutate(async () => {
+      return fetchJson<TaxCode>(`/companies/${companyId}/tax-codes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    }, {
+      apply: () => setTaxCodes((prev) => prev.map((tax) => (
+        tax.id === id ? { ...tax, ...data } as TaxCode : tax
+      ))),
+      rollback: () => {
+        if (!previous) return;
+        setTaxCodes((prev) => prev.map((tax) => (tax.id === id ? previous : tax)));
+      },
     });
     setTaxCodes((prev) => prev.map((tax) => (tax.id === id ? updated : tax)));
-  }, [companyId]);
+  }, [companyId, taxCodes, runMutate]);
 
   const deleteTaxCode = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/tax-codes/${id}`, {
-      method: 'DELETE',
+    const previous = taxCodes;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/tax-codes/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setTaxCodes((prev) => prev.filter((tax) => tax.id !== id)),
+      rollback: () => setTaxCodes(previous),
     });
-    setTaxCodes((prev) => prev.filter((tax) => tax.id !== id));
-  }, [companyId]);
+  }, [companyId, taxCodes, runMutate]);
 
-  return { taxCodes, isLoading, addTaxCode, updateTaxCode, deleteTaxCode };
+  return { taxCodes, isLoading, isMutating, error, addTaxCode, updateTaxCode, deleteTaxCode };
 }
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

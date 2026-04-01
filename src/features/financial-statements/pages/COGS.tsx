@@ -13,13 +13,18 @@ import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import { useProducts } from '@/features/products/hooks/useProducts';
 import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function COGS() {
   const [date, setDate] = useState<Date>(new Date());
-  const { company } = useCompanyProfile();
-  const { sales } = useSales(company?.id);
-  const { purchases } = usePurchases();
-  const { products } = useProducts(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { sales, error: salesError } = useSales(company?.id);
+  const { purchases, error: purchasesError } = usePurchases(company?.id);
+  const { products, error: productsError } = useProducts(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(salesError, 'Gagal memuat penjualan');
+  useErrorToast(purchasesError, 'Gagal memuat pembelian');
+  useErrorToast(productsError, 'Gagal memuat produk');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

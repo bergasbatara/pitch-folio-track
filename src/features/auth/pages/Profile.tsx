@@ -10,12 +10,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Save, Camera, MapPin, Phone, Building2 } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { company, saveCompanyProfile } = useCompanyProfile();
+  const { company, saveCompanyProfile, error: companyError } = useCompanyProfile();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
   
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');

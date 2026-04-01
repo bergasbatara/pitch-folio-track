@@ -12,6 +12,7 @@ import { useTaxCodes } from '../hooks/useTaxCodes';
 import { TaxCode, TaxCodeFormData } from '../types';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useToast } from '@/components/ui/use-toast';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 const initial: TaxCodeFormData = { name: '', code: '', rate: 0, description: '' };
 
@@ -24,9 +25,11 @@ export default function Taxes() {
   const [settlementMemo, setSettlementMemo] = useState('');
   const [settlementTaxCodeId, setSettlementTaxCodeId] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  const { company } = useCompanyProfile();
-  const { taxCodes, addTaxCode, updateTaxCode, deleteTaxCode } = useTaxCodes(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { taxCodes, addTaxCode, updateTaxCode, deleteTaxCode, error: taxCodesError } = useTaxCodes(company?.id);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(taxCodesError, 'Gagal memuat kode pajak');
 
   const openEdit = (t: TaxCode) => {
     setEditing(t);

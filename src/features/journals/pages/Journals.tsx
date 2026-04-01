@@ -11,12 +11,16 @@ import { JournalModal } from '../components/JournalModal';
 import { JournalDetailModal } from '../components/JournalDetailModal';
 import { JournalEntry, JournalFormData } from '../types';
 import { useToast } from '@/components/ui/use-toast';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Journals() {
-  const { company } = useCompanyProfile();
-  const { entries, isLoading, addEntry, updateEntry, deleteEntry } = useJournals(company?.id);
-  const { accounts } = useAccounts(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { entries, isLoading, addEntry, updateEntry, deleteEntry, error: journalsError } = useJournals(company?.id);
+  const { accounts, error: accountsError } = useAccounts(company?.id);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(journalsError, 'Gagal memuat jurnal');
+  useErrorToast(accountsError, 'Gagal memuat akun');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);

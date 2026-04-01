@@ -7,14 +7,17 @@ import { FixedAsset, FixedAssetFormData, calculateDepreciation } from '../types'
 import { AddAssetModal } from '../components/AddAssetModal';
 import { AssetsTable } from '../components/AssetsTable';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 const fmt = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
 
 export default function FixedAssets() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<FixedAsset | null>(null);
-  const { company } = useCompanyProfile();
-  const { assets, addAsset, updateAsset, deleteAsset } = useFixedAssets(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { assets, addAsset, updateAsset, deleteAsset, error: assetsError } = useFixedAssets(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(assetsError, 'Gagal memuat aset');
 
   const handleSubmit = async (data: FixedAssetFormData) => {
     if (!company?.id) return;

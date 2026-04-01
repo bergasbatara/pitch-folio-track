@@ -18,6 +18,7 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import { useToast } from '@/components/ui/use-toast';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -60,10 +61,11 @@ function getPeriodLabel(date: Date, period: PeriodType): string {
 export default function NotesFS() {
   const [date, setDate] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodType>('monthly');
-  const { company } = useCompanyProfile();
+  const { company, error: companyError } = useCompanyProfile();
   const [report, setReport] = useState<{ totals: { revenue: number; expense: number; netProfit: number; inventoryValue: number } } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

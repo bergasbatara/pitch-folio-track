@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useCompanyProfile } from '../hooks/useCompanyProfile';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { Building2, ArrowLeft, Check } from 'lucide-react';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 const currencies = [
   { value: 'IDR', label: 'Rupiah Indonesia (IDR)' },
@@ -21,8 +22,9 @@ const currencies = [
 export function CompanySetupPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { company, saveCompanyProfile } = useCompanyProfile();
+  const { company, saveCompanyProfile, error: companyError } = useCompanyProfile();
   const { completeStep, completeOnboarding } = useOnboarding();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
 
   const [formData, setFormData] = useState({
     name: company?.name || '',

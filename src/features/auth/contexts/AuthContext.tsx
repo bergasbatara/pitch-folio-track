@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface User {
   id: string;
@@ -30,6 +31,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const init = async () => {
@@ -38,9 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(me);
       } catch {
         const refreshed = await tryRefresh();
-        if (refreshed) {
+        if (refreshed?.user) {
           setUser(refreshed.user);
         } else {
+          const err = refreshed?.error;
+          if (err && isNetworkError(err)) {
+            toast({
+              title: 'Tidak dapat terhubung',
+              description: 'Server sedang tidak tersedia. Coba lagi nanti.',
+              variant: 'destructive',
+            });
+          }
           clearAuth();
         }
       }
@@ -85,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const tryRefresh = async () => {
+  const tryRefresh = async (): Promise<{ user: User } | { error: Error } | null> => {
     try {
       await fetchJson<{ success: true }>('/auth/refresh', {
         method: 'POST',
@@ -94,9 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'GET',
       });
       return { user: me };
-    } catch {
-      return null;
+    } catch (err) {
+      if (err instanceof Error) {
+        return { error: err };
+      }
+      return { error: new Error('Request failed') };
     }
+  };
+
+  const isNetworkError = (err: Error) => {
+    return /failed to fetch|networkerror|net::err/i.test(err.message);
   };
 
   const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

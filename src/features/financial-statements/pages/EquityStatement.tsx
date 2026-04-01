@@ -12,12 +12,16 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import jsPDF from 'jspdf';
 import { cn } from '@/lib/utils';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function EquityStatement() {
   const [date, setDate] = useState<Date>(new Date());
-  const { company } = useCompanyProfile();
-  const { sales } = useSales(company?.id);
-  const { purchases } = usePurchases();
+  const { company, error: companyError } = useCompanyProfile();
+  const { sales, error: salesError } = useSales(company?.id);
+  const { purchases, error: purchasesError } = usePurchases(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(salesError, 'Gagal memuat penjualan');
+  useErrorToast(purchasesError, 'Gagal memuat pembelian');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);

@@ -1,62 +1,95 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Receivable, Payable, ReceivableFormData, PayableFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function useReceivables(companyId?: string) {
   const [receivables, setReceivables] = useState<Receivable[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<Receivable[]>(`/companies/${companyId}/receivables`, {
           method: 'GET',
         });
         setReceivables(data.map(hydrateReceivable));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addReceivable = useCallback(async (data: ReceivableFormData) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<Receivable>(`/companies/${companyId}/receivables`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic: Receivable = hydrateReceivable({
+      id: tempId,
+      customerName: data.customerName,
+      description: data.description,
+      amount: data.amount,
+      dueDate: data.dueDate,
+      paidAmount: data.paidAmount ?? 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
-    const hydrated = hydrateReceivable(created);
-    setReceivables((prev) => [...prev, hydrated]);
-    return hydrated;
-  }, [companyId]);
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Receivable>(`/companies/${companyId}/receivables`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return hydrateReceivable(result);
+    }, {
+      apply: () => setReceivables((prev) => [...prev, optimistic]),
+      rollback: () => setReceivables((prev) => prev.filter((r) => r.id !== tempId)),
+    });
+    setReceivables((prev) => prev.map((r) => (r.id === tempId ? created : r)));
+    return created;
+  }, [companyId, runMutate]);
 
   const updateReceivable = useCallback(async (id: string, data: Partial<Receivable>) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const updated = await fetchJson<Receivable>(`/companies/${companyId}/receivables/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    const previous = receivables.find((receivable) => receivable.id === id);
+    const updated = await runMutate(async () => {
+      const result = await fetchJson<Receivable>(`/companies/${companyId}/receivables/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+      return hydrateReceivable(result);
+    }, {
+      apply: () => {
+        setReceivables((prev) => prev.map((receivable) => (
+          receivable.id === id ? { ...receivable, ...data } as Receivable : receivable
+        )));
+      },
+      rollback: () => {
+        if (!previous) return;
+        setReceivables((prev) => prev.map((receivable) => (receivable.id === id ? previous : receivable)));
+      },
     });
-    const hydrated = hydrateReceivable(updated);
-    setReceivables((prev) => prev.map((receivable) => (receivable.id === id ? hydrated : receivable)));
-  }, [companyId]);
+    setReceivables((prev) => prev.map((receivable) => (receivable.id === id ? updated : receivable)));
+  }, [companyId, receivables, runMutate]);
 
   const deleteReceivable = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/receivables/${id}`, {
-      method: 'DELETE',
+    const previous = receivables;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/receivables/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setReceivables((prev) => prev.filter((receivable) => receivable.id !== id)),
+      rollback: () => setReceivables(previous),
     });
-    setReceivables((prev) => prev.filter((receivable) => receivable.id !== id));
-  }, [companyId]);
+  }, [companyId, receivables, runMutate]);
 
   const recordPayment = useCallback(async (id: string, amount: number) => {
     const receivable = receivables.find((r) => r.id === id);
@@ -71,6 +104,8 @@ export function useReceivables(companyId?: string) {
   return {
     receivables,
     isLoading,
+    isMutating,
+    error,
     addReceivable,
     updateReceivable,
     deleteReceivable,
@@ -82,58 +117,90 @@ export function useReceivables(companyId?: string) {
 
 export function usePayables(companyId?: string) {
   const [payables, setPayables] = useState<Payable[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<Payable[]>(`/companies/${companyId}/payables`, {
           method: 'GET',
         });
         setPayables(data.map(hydratePayable));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addPayable = useCallback(async (data: PayableFormData) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<Payable>(`/companies/${companyId}/payables`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic: Payable = hydratePayable({
+      id: tempId,
+      supplierName: data.supplierName,
+      description: data.description,
+      amount: data.amount,
+      dueDate: data.dueDate,
+      paidAmount: data.paidAmount ?? 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
-    const hydrated = hydratePayable(created);
-    setPayables((prev) => [...prev, hydrated]);
-    return hydrated;
-  }, [companyId]);
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Payable>(`/companies/${companyId}/payables`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return hydratePayable(result);
+    }, {
+      apply: () => setPayables((prev) => [...prev, optimistic]),
+      rollback: () => setPayables((prev) => prev.filter((p) => p.id !== tempId)),
+    });
+    setPayables((prev) => prev.map((p) => (p.id === tempId ? created : p)));
+    return created;
+  }, [companyId, runMutate]);
 
   const updatePayable = useCallback(async (id: string, data: Partial<Payable>) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const updated = await fetchJson<Payable>(`/companies/${companyId}/payables/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    const previous = payables.find((payable) => payable.id === id);
+    const updated = await runMutate(async () => {
+      const result = await fetchJson<Payable>(`/companies/${companyId}/payables/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+      return hydratePayable(result);
+    }, {
+      apply: () => {
+        setPayables((prev) => prev.map((payable) => (
+          payable.id === id ? { ...payable, ...data } as Payable : payable
+        )));
+      },
+      rollback: () => {
+        if (!previous) return;
+        setPayables((prev) => prev.map((payable) => (payable.id === id ? previous : payable)));
+      },
     });
-    const hydrated = hydratePayable(updated);
-    setPayables((prev) => prev.map((payable) => (payable.id === id ? hydrated : payable)));
-  }, [companyId]);
+    setPayables((prev) => prev.map((payable) => (payable.id === id ? updated : payable)));
+  }, [companyId, payables, runMutate]);
 
   const deletePayable = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/payables/${id}`, {
-      method: 'DELETE',
+    const previous = payables;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/payables/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setPayables((prev) => prev.filter((payable) => payable.id !== id)),
+      rollback: () => setPayables(previous),
     });
-    setPayables((prev) => prev.filter((payable) => payable.id !== id));
-  }, [companyId]);
+  }, [companyId, payables, runMutate]);
 
   const recordPayment = useCallback(async (id: string, amount: number) => {
     const payable = payables.find((p) => p.id === id);
@@ -148,6 +215,8 @@ export function usePayables(companyId?: string) {
   return {
     payables,
     isLoading,
+    isMutating,
+    error,
     addPayable,
     updatePayable,
     deletePayable,

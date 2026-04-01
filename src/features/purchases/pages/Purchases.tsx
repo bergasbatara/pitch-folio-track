@@ -6,14 +6,18 @@ import { usePurchases, usePurchaseCategories } from '../hooks/usePurchases';
 import { Purchase, PurchaseFormData } from '../types';
 import { Plus, TrendingDown } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Purchases() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
-  const { company } = useCompanyProfile();
+  const { company, error: companyError } = useCompanyProfile();
 
-  const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend } = usePurchases(company?.id);
-  const { categories, addCategory } = usePurchaseCategories(company?.id);
+  const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend, error: purchasesError } = usePurchases(company?.id);
+  const { categories, addCategory, error: categoriesError } = usePurchaseCategories(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(purchasesError, 'Gagal memuat pembelian');
+  useErrorToast(categoriesError, 'Gagal memuat kategori pembelian');
 
   const handleEdit = (purchase: Purchase) => {
     setEditingPurchase(purchase);

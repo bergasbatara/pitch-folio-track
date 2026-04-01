@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SubscriptionPlan, UserSubscription } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -16,44 +17,51 @@ interface SubscriptionResponse {
 export function useSubscription(companyId?: string) {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const loadPlans = async () => {
-      const data = await fetchJson<SubscriptionPlan[]>('/plans', {
-        method: 'GET',
+      await runLoad(async () => {
+        const data = await fetchJson<SubscriptionPlan[]>('/plans', {
+          method: 'GET',
+        });
+        setPlans(data);
       });
-      setPlans(data);
     };
     loadPlans();
-  }, []);
+  }, [runLoad]);
 
   useEffect(() => {
     const loadSubscription = async () => {
       if (!companyId) return;
-      const data = await fetchJson<SubscriptionResponse | null>(`/companies/${companyId}/subscription`, {
-        method: 'GET',
-      });
-      if (!data) {
-        setSubscription(null);
-        return;
-      }
-      setSubscription({
-        planId: data.planId,
-        status: data.status,
-        startDate: data.startsAt,
-        endDate: data.endsAt ?? undefined,
+      await runLoad(async () => {
+        const data = await fetchJson<SubscriptionResponse | null>(`/companies/${companyId}/subscription`, {
+          method: 'GET',
+        });
+        if (!data) {
+          setSubscription(null);
+          return;
+        }
+        setSubscription({
+          planId: data.planId,
+          status: data.status,
+          startDate: data.startsAt,
+          endDate: data.endsAt ?? undefined,
+        });
       });
     };
     loadSubscription();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const subscribe = useCallback(async (planId: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const data = await fetchJson<SubscriptionResponse>(`/companies/${companyId}/subscription`, {
-      method: 'POST',
-      body: JSON.stringify({ planId }),
+    const data = await runMutate(async () => {
+      return fetchJson<SubscriptionResponse>(`/companies/${companyId}/subscription`, {
+        method: 'POST',
+        body: JSON.stringify({ planId }),
+      });
     });
     setSubscription({
       planId: data.planId,
@@ -61,15 +69,17 @@ export function useSubscription(companyId?: string) {
       startDate: data.startsAt,
       endDate: data.endsAt ?? undefined,
     });
-  }, [companyId]);
+  }, [companyId, runMutate]);
 
   const cancelSubscription = useCallback(async () => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const data = await fetchJson<SubscriptionResponse>(`/companies/${companyId}/subscription`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'cancelled' }),
+    const data = await runMutate(async () => {
+      return fetchJson<SubscriptionResponse>(`/companies/${companyId}/subscription`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
     });
     setSubscription({
       planId: data.planId,
@@ -77,7 +87,7 @@ export function useSubscription(companyId?: string) {
       startDate: data.startsAt,
       endDate: data.endsAt ?? undefined,
     });
-  }, [companyId]);
+  }, [companyId, runMutate]);
 
   const getCurrentPlan = () => {
     if (!subscription) return null;
@@ -89,6 +99,9 @@ export function useSubscription(companyId?: string) {
   return {
     plans,
     subscription,
+    isLoading,
+    isMutating,
+    error,
     subscribe,
     cancelSubscription,
     getCurrentPlan,

@@ -1,50 +1,55 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sale, SaleFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function useSales(companyId?: string) {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<Sale[]>(`/companies/${companyId}/sales`, {
           method: 'GET',
         });
         setSales(data.map(hydrateSale));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addSale = useCallback(async (data: SaleFormData) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const created = await fetchJson<Sale>(`/companies/${companyId}/sales`, {
-      method: 'POST',
-      body: JSON.stringify(data),
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Sale>(`/companies/${companyId}/sales`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return hydrateSale(result);
     });
-    const hydrated = hydrateSale(created);
-    setSales((prev) => [hydrated, ...prev]);
-    return hydrated;
-  }, [companyId]);
+    setSales((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, runMutate]);
 
   const deleteSale = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/sales/${id}`, {
-      method: 'DELETE',
+    const previous = sales;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/sales/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setSales((prev) => prev.filter((sale) => sale.id !== id)),
+      rollback: () => setSales(previous),
     });
-    setSales((prev) => prev.filter((sale) => sale.id !== id));
-  }, [companyId]);
+  }, [companyId, sales, runMutate]);
 
   const totalRevenue = useMemo(() => {
     return sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
@@ -71,6 +76,8 @@ export function useSales(companyId?: string) {
   return {
     sales,
     isLoading,
+    isMutating,
+    error,
     addSale,
     deleteSale,
     totalRevenue,

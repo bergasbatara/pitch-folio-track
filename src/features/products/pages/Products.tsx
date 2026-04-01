@@ -7,12 +7,15 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { Product, ProductFormData } from '../types';
 import { AddProductModal } from '../components/AddProductModal';
 import { ProductsTable } from '../components/ProductsTable';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Products() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const { company } = useCompanyProfile();
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts(company?.id);
+  const { company, error: companyError } = useCompanyProfile();
+  const { products, addProduct, updateProduct, deleteProduct, error: productsError } = useProducts(company?.id);
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
+  useErrorToast(productsError, 'Gagal memuat produk');
 
   const handleSubmit = (data: ProductFormData) => {
     if (!company?.id) return;

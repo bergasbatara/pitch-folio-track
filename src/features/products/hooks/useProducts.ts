@@ -1,27 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Product, ProductFormData } from '../types';
+import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export function useProducts(companyId?: string) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
 
   useEffect(() => {
     const load = async () => {
       if (!companyId) return;
-      setIsLoading(true);
-      try {
+      await runLoad(async () => {
         const data = await fetchJson<Product[]>(`/companies/${companyId}/products`, {
           method: 'GET',
         });
         setProducts(data.map(hydrateProduct));
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     load();
-  }, [companyId]);
+  }, [companyId, runLoad]);
 
   const addProduct = useCallback(async (data: ProductFormData) => {
     if (!companyId) {
@@ -31,14 +29,32 @@ export function useProducts(companyId?: string) {
       ...data,
       code: data.code?.trim() || undefined,
     };
-    const created = await fetchJson<Product>(`/companies/${companyId}/products`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
+    const tempId = `temp-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+    const optimistic: Product = hydrateProduct({
+      id: tempId,
+      name: payload.name,
+      code: payload.code ?? null,
+      type: payload.type,
+      unit: payload.unit,
+      buyPrice: payload.buyPrice,
+      price: payload.price,
+      stock: payload.stock,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    const hydrated = hydrateProduct(created);
-    setProducts((prev) => [hydrated, ...prev]);
-    return hydrated;
-  }, [companyId]);
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Product>(`/companies/${companyId}/products`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return hydrateProduct(result);
+    }, {
+      apply: () => setProducts((prev) => [optimistic, ...prev]),
+      rollback: () => setProducts((prev) => prev.filter((p) => p.id !== tempId)),
+    });
+    setProducts((prev) => prev.map((p) => (p.id === tempId ? created : p)));
+    return created;
+  }, [companyId, runMutate]);
 
   const updateProduct = useCallback(async (id: string, data: Partial<ProductFormData>) => {
     if (!companyId) {
@@ -48,23 +64,41 @@ export function useProducts(companyId?: string) {
       ...data,
       code: data.code !== undefined ? data.code.trim() || undefined : undefined,
     };
-    const updated = await fetchJson<Product>(`/companies/${companyId}/products/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
+    const previous = products.find((product) => product.id === id);
+    const updated = await runMutate(async () => {
+      const result = await fetchJson<Product>(`/companies/${companyId}/products/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      return hydrateProduct(result);
+    }, {
+      apply: () => {
+        setProducts((prev) => prev.map((product) => (
+          product.id === id ? { ...product, ...payload } as Product : product
+        )));
+      },
+      rollback: () => {
+        if (!previous) return;
+        setProducts((prev) => prev.map((product) => (product.id === id ? previous : product)));
+      },
     });
-    const hydrated = hydrateProduct(updated);
-    setProducts((prev) => prev.map((product) => (product.id === id ? hydrated : product)));
-  }, [companyId]);
+    setProducts((prev) => prev.map((product) => (product.id === id ? updated : product)));
+  }, [companyId, products, runMutate]);
 
   const deleteProduct = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    await fetchJson(`/companies/${companyId}/products/${id}`, {
-      method: 'DELETE',
+    const previous = products;
+    await runMutate(async () => {
+      await fetchJson(`/companies/${companyId}/products/${id}`, {
+        method: 'DELETE',
+      });
+    }, {
+      apply: () => setProducts((prev) => prev.filter((product) => product.id !== id)),
+      rollback: () => setProducts(previous),
     });
-    setProducts((prev) => prev.filter((product) => product.id !== id));
-  }, [companyId]);
+  }, [companyId, products, runMutate]);
 
   const updateStock = useCallback(async (id: string, quantitySold: number) => {
     const current = products.find((product) => product.id === id);
@@ -80,6 +114,8 @@ export function useProducts(companyId?: string) {
   return {
     products,
     isLoading,
+    isMutating,
+    error,
     addProduct,
     updateProduct,
     deleteProduct,

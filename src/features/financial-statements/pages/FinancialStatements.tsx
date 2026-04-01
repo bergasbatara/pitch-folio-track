@@ -12,6 +12,7 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import { useToast } from '@/components/ui/use-toast';
+import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 const formatCurrency = (value: number) => {
   return `Rp ${value.toLocaleString('id-ID')}`;
@@ -85,10 +86,11 @@ const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
 export default function FinancialStatements() {
   const [date, setDate] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodType>('daily');
-  const { company } = useCompanyProfile();
+  const { company, error: companyError } = useCompanyProfile();
   const [report, setReport] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  useErrorToast(companyError, 'Gagal memuat perusahaan');
 
   useEffect(() => {
     const load = async () => {
