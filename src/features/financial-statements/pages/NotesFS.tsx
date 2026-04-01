@@ -108,32 +108,288 @@ export default function NotesFS() {
   const periodLabel = getPeriodLabel(date, period);
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('CATATAN ATAS LAPORAN KEUANGAN', 105, 20, { align: 'center' });
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210;
+    const marginL = 20;
+    const marginR = 20;
+    const contentW = pageW - marginL - marginR;
+    const totalPages = 5;
+    let pageNum = 1;
+
+    const addPageNumber = () => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${pageNum}+${totalPages}`, pageW / 2, 285, { align: 'center' });
+    };
+
+    const addHeader = () => {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(company?.name || '[Nama Perusahaan]', marginL, 20);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Catatan atas laporan keuangan', marginL, 26);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Per ${periodLabel}`, marginL, 32);
+      doc.setFontSize(9);
+      doc.text('(Dinyatakan dalam Rupiah, kecuali dinyatakan lain)', marginL, 38);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.8);
+      doc.line(marginL, 41, pageW - marginR, 41);
+    };
+
+    const addContinuationHeader = (section: string) => {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(section, marginL, 20);
+      doc.setLineWidth(0.3);
+    };
+
+    // ── PAGE 1: UMUM ──
+    addHeader();
+    let y = 52;
+
     doc.setFontSize(11);
-    doc.text(company?.name || 'Perusahaan', 105, 30, { align: 'center' });
-    doc.text(`Periode: ${periodLabel}`, 105, 38, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text('1.', marginL, y);
+    doc.text('UMUM', marginL + 10, y);
+    y += 12;
 
-    doc.setFontSize(12);
-    doc.text('1. GAMBARAN UMUM PERUSAHAAN', 20, 55);
     doc.setFontSize(10);
-    doc.text(`Nama: ${company?.name || '-'}`, 25, 65);
-    doc.text(`Alamat: ${company?.address || '-'}`, 25, 73);
-    doc.text(`Telepon: ${company?.phone || '-'}`, 25, 81);
+    doc.setFont('helvetica', 'normal');
+    const umumText1 = `${company?.name || '[Nama Perusahaan]'} (Perusahaan) didirikan berdasarkan Akta Notaris. Anggaran dasar pendirian perusahaan telah memperoleh pengesahan oleh Menteri Hukum dan Hak Asasi Manusia Republik Indonesia.`;
+    const lines1 = doc.splitTextToSize(umumText1, contentW - 10);
+    doc.text(lines1, marginL + 10, y);
+    y += lines1.length * 5 + 10;
 
-    doc.setFontSize(12);
-    doc.text('2. KEBIJAKAN AKUNTANSI', 20, 100);
-    doc.setFontSize(10);
-    doc.text('Pencatatan menggunakan basis kas.', 25, 110);
-    doc.text('Persediaan dicatat dengan metode FIFO.', 25, 118);
+    const umumText2 = `Susunan Direksi dan Komisaris Perusahaan per ${periodLabel} adalah sebagai berikut :`;
+    const lines2 = doc.splitTextToSize(umumText2, contentW - 10);
+    doc.text(lines2, marginL + 10, y);
+    y += lines2.length * 5 + 8;
 
-    doc.setFontSize(12);
-    doc.text('3. RINGKASAN', 20, 135);
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text(`Total Penjualan: ${formatCurrency(totalSales)}`, 25, 145);
-    doc.text(`Total Pembelian: ${formatCurrency(totalPurchases)}`, 25, 153);
-    doc.text(`Nilai Persediaan: ${formatCurrency(inventoryValue)}`, 25, 161);
+    doc.text(`Tahun ${format(date, 'yyyy')}`, marginL + 10, y);
+    doc.line(marginL + 10, y + 1, marginL + 50, y + 1);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Komisaris', marginL + 10, y);
+    doc.text(':', marginL + 55, y);
+    doc.text('-', marginL + 60, y);
+    y += 6;
+    doc.text('Direktur', marginL + 10, y);
+    doc.text(':', marginL + 55, y);
+    doc.text('-', marginL + 60, y);
+    y += 14;
+
+    doc.text('Dalam menjalankan usahanya, Perusahaan memiliki perijinan-perijinan yang terdiri dari :', marginL + 10, y);
+    y += 8;
+    doc.text('a.  Nomor Induk Berusaha (NIB) :', marginL + 10, y);
+    y += 6;
+    doc.text(`b.  Nomor Pokok Wajib Pajak (NPWP) dengan No. : ${company?.taxId || '-'}`, marginL + 10, y);
+    y += 6;
+    doc.text('c.  Pengusaha Kena Pajak (PKP) No. :', marginL + 10, y);
+
+    addPageNumber();
+
+    // ── PAGE 2: KEBIJAKAN AKUNTANSI ──
+    doc.addPage();
+    pageNum = 2;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    y = 20;
+    doc.text('2.', marginL, y);
+    doc.text('KEBIJAKAN AKUNTANSI', marginL + 10, y);
+    y += 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('a.  Dasar Penyusunan Laporan Keuangan', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanA = 'Laporan keuangan disusun sesuai dengan Standar Akuntansi Keuangan Entitas Tanpa Akuntabilitas Publik (SAK ETAP). Laporan arus kas menyajikan informasi perubahan historis atas kas dan setara kas entitas, yang menunjukkan secara terpisah perubahan yang terjadi selama satu periode dari aktivitas operasi, investasi, dan pendanaan.';
+    const linesA = doc.splitTextToSize(kebijakanA, contentW - 15);
+    doc.text(linesA, marginL + 15, y);
+    y += linesA.length * 5 + 14;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('b.  Transaksi dan Saldo dalam Mata Uang Asing', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanB = 'Transaksi dalam mata uang asing dijabarkan ke dalam Rupiah dengan kurs yang berlaku pada saat terjadinya transaksi. Pada tanggal neraca, aset dan kewajiban moneter dalam mata uang asing dijabarkan ke dalam Rupiah dengan menggunakan kurs tengah Bank Indonesia.';
+    const linesB = doc.splitTextToSize(kebijakanB, contentW - 15);
+    doc.text(linesB, marginL + 15, y);
+    y += linesB.length * 5 + 14;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('c.  Kas dan Setara Kas', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanC = 'Kas dan setara kas terdiri dari saldo kas, bank dan semua investasi yang jatuh tempo dalam waktu tiga bulan atau kurang dari tanggal perolehannya dan yang tidak dijaminkan serta tidak dibatasi penggunaannya.';
+    const linesC = doc.splitTextToSize(kebijakanC, contentW - 15);
+    doc.text(linesC, marginL + 15, y);
+
+    addPageNumber();
+
+    // ── PAGE 3: KEBIJAKAN AKUNTANSI - Lanjutan ──
+    doc.addPage();
+    pageNum = 3;
+
+    addContinuationHeader('2.  KEBIJAKAN AKUNTANSI - Lanjutan');
+    y = 30;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('d.  Piutang dan Penyisihan Piutang Tak Tertagih', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanD = 'Piutang disajikan sebesar jumlah neto setelah dikurangi dengan penyisihan piutang tak tertagih. Penyisihan piutang tak tertagih ditentukan berdasarkan hasil penelaahan terhadap keadaan akun piutang masing-masing pelanggan pada akhir tahun.';
+    const linesD = doc.splitTextToSize(kebijakanD, contentW - 15);
+    doc.text(linesD, marginL + 15, y);
+    y += linesD.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('e.  Transaksi dengan Pihak-pihak yang Mempunyai Hubungan Istimewa', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanE = 'Perusahaan melakukan transasksi dengan pihak-pihak tertentu sebagai transaksi hubungan istimewa sebagaimana dimaksud SAK ETAP Bab 28 "Pengungkapan Pihak-pihak yang Mempunyai Hubungan Istimewa".';
+    const linesE = doc.splitTextToSize(kebijakanE, contentW - 15);
+    doc.text(linesE, marginL + 15, y);
+    y += linesE.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('f.  Persediaan', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanF = 'Persediaan dinyatakan dengan biaya atau realisasi bersih mana yang lebih rendah. Penilaian biaya ditentukan berdasarkan metode [ Masuk Pertama Keluar Pertama (MPKP)/Berdasarkan Expired Date/ Masuk Terakhir Keluar Pertama (MTKP)].';
+    const linesF = doc.splitTextToSize(kebijakanF, contentW - 15);
+    doc.text(linesF, marginL + 15, y);
+    y += linesF.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('g.  Aset Tetap', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanG = 'Aset tetap dibukukan berdasarkan biaya perolehan setelah dikurangi akumulasi penyusutan. Kecuali tanah yang tidak disusutkan. Penyusutan dihitung dengan menggunakan metode garis lurus (straight-line method) berdasarkan taksiran masa manfaat ekonomis aset tetap.';
+    const linesG = doc.splitTextToSize(kebijakanG, contentW - 15);
+    doc.text(linesG, marginL + 15, y);
+    y += linesG.length * 5 + 8;
+
+    // Asset table
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const col1X = marginL + 15;
+    const col2X = marginL + 80;
+    doc.text('Jenis aset tetap', col1X, y);
+    doc.text('Masa manfaat', col2X, y);
+    doc.line(col1X, y + 1, col1X + 40, y + 1);
+    doc.line(col2X, y + 1, col2X + 35, y + 1);
+    y += 6;
+    doc.text('Inventaris Kantor', col1X, y);
+    doc.text('4 Tahun', col2X, y);
+    y += 10;
+
+    const kebijakanG2 = 'Pengeluaran untuk perbaikan dan pemeliharaan dibebankan pada laporan laba rugi pada saat terjadinya. Pengeluaran yang memperpanjang masa manfaat atau memberi manfaat ekonomis di masa yang akan datang dikapitalisasi.';
+    const linesG2 = doc.splitTextToSize(kebijakanG2, contentW - 15);
+    doc.text(linesG2, marginL + 15, y);
+
+    addPageNumber();
+
+    // ── PAGE 4: KEBIJAKAN AKUNTANSI - Lanjutan 2 ──
+    doc.addPage();
+    pageNum = 4;
+
+    addContinuationHeader('2.  KEBIJAKAN AKUNTANSI - Lanjutan');
+    y = 30;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('h.  Kewajiban Imbalan Kerja', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanH = 'Perusahaan belum mengakui kewajiban imbalan pasca kerja sebagaimana diatur dalam SAK ETAP Bab 23 "Imbalan Kerja".';
+    const linesH = doc.splitTextToSize(kebijakanH, contentW - 15);
+    doc.text(linesH, marginL + 15, y);
+    y += linesH.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('i.  Pengakuan Pendapatan dan Beban', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanI = 'Pendapatan diakui pada saat penyerahan barang dan pemberian jasa kepada pelanggan. Beban diakui pada saat terjadinya (basis akrual).';
+    const linesI = doc.splitTextToSize(kebijakanI, contentW - 15);
+    doc.text(linesI, marginL + 15, y);
+    y += linesI.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('j.  Pajak Penghasilan', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanJ1 = 'Pajak penghasilan pada laba rugi ditentukan berdasarkan taksiran laba kena pajak dalam tahun berjalan sesuai dengan peraturan perpajakan yang berlaku.';
+    const linesJ1 = doc.splitTextToSize(kebijakanJ1, contentW - 15);
+    doc.text(linesJ1, marginL + 15, y);
+    y += linesJ1.length * 5 + 6;
+    const kebijakanJ2 = 'Perusahaan mengakui kewajiban atas seluruh pajak penghasilan periode berjalan dan periode sebelumnya yang belum dibayar.';
+    const linesJ2 = doc.splitTextToSize(kebijakanJ2, contentW - 15);
+    doc.text(linesJ2, marginL + 15, y);
+    y += linesJ2.length * 5 + 6;
+    const kebijakanJ3 = 'Perubahan terhadap kewajiban perpajakan diakui pada saat Surat Ketetapan Pajak (SKP) diterima atau jika Perusahaan mengajukan keberatan, pada saat keputusan atas keberatan tersebut telah ditetapkan.';
+    const linesJ3 = doc.splitTextToSize(kebijakanJ3, contentW - 15);
+    doc.text(linesJ3, marginL + 15, y);
+    y += linesJ3.length * 5 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('k.  Penggunaan Estimasi', marginL + 10, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    const kebijakanK = 'Penyusunan laporan keuangan yang sesuai dengan prinsip akuntansi yang berlaku umum mengharuskan manajemen membuat estimasi dan asumsi yang mempengaruhi jumlah aset dan kewajiban yang dilaporkan.';
+    const linesK = doc.splitTextToSize(kebijakanK, contentW - 15);
+    doc.text(linesK, marginL + 15, y);
+
+    addPageNumber();
+
+    // ── PAGE 5: RINGKASAN TRANSAKSI ──
+    doc.addPage();
+    pageNum = 5;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    y = 20;
+    doc.text('3.', marginL, y);
+    doc.text('RINGKASAN TRANSAKSI', marginL + 10, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Periode: ${periodLabel}`, marginL + 10, y);
+    y += 12;
+
+    doc.setFontSize(10);
+    // Table header
+    const tCol1 = marginL + 10;
+    const tCol2 = pageW - marginR - 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Keterangan', tCol1, y);
+    doc.text('Jumlah (Rp)', tCol2, y, { align: 'right' });
+    doc.setLineWidth(0.5);
+    doc.line(tCol1, y + 2, tCol2, y + 2);
+    y += 9;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Total Penjualan', tCol1, y);
+    doc.text(formatCurrency(totalSales), tCol2, y, { align: 'right' });
+    y += 7;
+    doc.text('Total Pembelian', tCol1, y);
+    doc.text(formatCurrency(totalPurchases), tCol2, y, { align: 'right' });
+    y += 7;
+    doc.text('Nilai Persediaan', tCol1, y);
+    doc.text(formatCurrency(inventoryValue), tCol2, y, { align: 'right' });
+    y += 3;
+    doc.setLineWidth(0.5);
+    doc.line(tCol1, y, tCol2, y);
+
+    addPageNumber();
 
     doc.save(`Catatan_Laporan_Keuangan_${format(start, 'yyyy-MM-dd')}.pdf`);
   };
