@@ -8,6 +8,7 @@ import { csrfMiddleware } from "./common/middleware/csrf.middleware";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().disable("etag");
   const rawOrigins = process.env.FRONTEND_URL ?? "http://localhost:8080";
   const allowedOrigins = rawOrigins.split(",").map((o) => o.trim()).filter(Boolean);
   app.enableCors({
