@@ -16,7 +16,19 @@ type AuditInput = {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly retentionDays: number;
+  constructor(private readonly prisma: PrismaService) {
+    const raw = process.env.AUDIT_LOG_RETENTION_DAYS;
+    const parsed = Number(raw);
+    this.retentionDays = Number.isFinite(parsed) && parsed > 0 ? parsed : 90;
+    if (this.retentionDays > 0) {
+      const dayMs = 24 * 60 * 60 * 1000;
+      setInterval(() => {
+        this.pruneOldLogs().catch(() => undefined);
+      }, dayMs).unref?.();
+      this.pruneOldLogs().catch(() => undefined);
+    }
+  }
 
   async log(entry: AuditInput) {
     return this.prisma.auditLog.create({
@@ -53,5 +65,13 @@ export class AuditService {
     if (!membership) {
       throw new ForbiddenException("Not a member of this company");
     }
+  }
+
+  private async pruneOldLogs() {
+    if (this.retentionDays <= 0) return;
+    const cutoff = new Date(Date.now() - this.retentionDays * 24 * 60 * 60 * 1000);
+    await this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
   }
 }

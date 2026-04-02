@@ -8,6 +8,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller("auth")
@@ -74,6 +75,12 @@ export class AuthController {
   @Patch("profile")
   updateProfile(@Req() req: { user: { sub: string } }, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("password")
+  changePassword(@Req() req: { user: { sub: string } }, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.sub, dto);
   }
 
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {

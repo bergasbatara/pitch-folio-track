@@ -99,20 +99,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const tryRefresh = async (): Promise<{ user: User } | { error: Error } | null> => {
     try {
-      await fetchJson<{ success: true }>('/auth/refresh', {
-        method: 'POST',
-      });
-      const me = await fetchJson<User>('/auth/me', {
-        method: 'GET',
-      });
-      return { user: me };
-    } catch (err) {
-      if (err instanceof Error) {
-        return { error: err };
+        await fetchJson<{ success: true }>('/auth/refresh', {
+          method: 'POST',
+        });
+        const me = await fetchJson<User>('/auth/me', {
+          method: 'GET',
+        });
+        return { user: me };
+      } catch (err) {
+        if (err instanceof Error) {
+          if ((err as Error & { status?: number }).status === 401) {
+            clearAuth();
+            window.location.href = '/login';
+          }
+          return { error: err };
+        }
+        return { error: new Error('Request failed') };
       }
-      return { error: new Error('Request failed') };
-    }
-  };
+    };
 
   const isNetworkError = (err: Error) => {
     return /failed to fetch|networkerror|net::err/i.test(err.message);
@@ -138,7 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // ignore parsing errors
       }
-      throw new Error(message);
+      const error = new Error(message) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
     }
     return response.json() as Promise<T>;
   };

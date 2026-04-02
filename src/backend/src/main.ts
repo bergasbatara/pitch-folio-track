@@ -3,6 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { json, urlencoded } from "express";
 import { TrimPipe } from "./common/pipes/trim.pipe";
 import { csrfMiddleware } from "./common/middleware/csrf.middleware";
 
@@ -43,6 +44,9 @@ async function bootstrap() {
         : false,
     }),
   );
+  const bodyLimit = process.env.REQUEST_BODY_LIMIT ?? "1mb";
+  app.use(json({ limit: bodyLimit }));
+  app.use(urlencoded({ extended: true, limit: bodyLimit }));
   app.use(cookieParser());
   app.use(csrfMiddleware);
   app.useGlobalPipes(
