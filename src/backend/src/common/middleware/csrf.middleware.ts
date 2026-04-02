@@ -14,6 +14,10 @@ export function csrfMiddleware(req: Request, res: Response, next: NextFunction) 
   if (EXEMPT_PATHS.some((path) => req.path?.startsWith(path))) {
     return next();
   }
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    return next();
+  }
   const cookieToken = req.cookies?.csrf_token;
   const headerToken =
     (req.headers["x-csrf-token"] as string | undefined) ??
