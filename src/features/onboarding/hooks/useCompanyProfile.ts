@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CompanyProfile } from '../types';
 import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
+import { withCsrf } from '@/shared/lib/csrf';
 
 const DEFAULT_COMPANY: CompanyProfile = {
   id: '',
@@ -97,8 +98,7 @@ export function useCompanyProfile() {
       ...(options.headers ?? {}),
     };
     const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      headers,
+      ...withCsrf({ ...options, headers }),
       credentials: 'include',
     });
     if (!response.ok) {

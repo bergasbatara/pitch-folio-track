@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Account, AccountFormData } from '../types';
 import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
+import { withCsrf } from '@/shared/lib/csrf';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -86,8 +87,10 @@ export function useAccounts(companyId?: string) {
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
   const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    ...withCsrf({
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    }),
     credentials: 'include',
   });
   if (!response.ok) {

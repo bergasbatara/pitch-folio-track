@@ -35,4 +35,13 @@ export class ReportsController {
   ) {
     return this.reportsService.getNotesSummary(req.user.sub, companyId, from, to);
   }
+
+  @Get("balance")
+  getBalance(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Query("asOf") asOf?: string,
+  ) {
+    return this.reportsService.getBalanceSnapshot(req.user.sub, companyId, asOf);
+  }
 }

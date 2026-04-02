@@ -19,6 +19,7 @@ import { AccountsPage } from "@/features/accounts";
 import { JournalsPage } from "@/features/journals";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import SecurityCheck from "./pages/SecurityCheck";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/akun" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
             <Route path="/jurnal" element={<ProtectedRoute><JournalsPage /></ProtectedRoute>} />
             <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SecurityCheck /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

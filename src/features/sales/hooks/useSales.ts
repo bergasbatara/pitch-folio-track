@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sale, SaleFormData } from '../types';
 import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
+import { withCsrf } from '@/shared/lib/csrf';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -99,8 +100,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
     ...(options.headers ?? {}),
   };
   const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
+    ...withCsrf({ ...options, headers }),
     credentials: 'include',
   });
   if (!response.ok) {

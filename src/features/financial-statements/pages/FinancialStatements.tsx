@@ -60,6 +60,16 @@ function getDateRange(date: Date, period: PeriodType): { from: string; to: strin
   }
 }
 
+function getPreviousRange(fromStr: string, toStr: string): { from: string; to: string } {
+  const from = new Date(fromStr);
+  const to = new Date(toStr);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const lengthDays = Math.round((to.getTime() - from.getTime()) / dayMs) + 1;
+  const prevEnd = new Date(from.getTime() - dayMs);
+  const prevStart = new Date(prevEnd.getTime() - (lengthDays - 1) * dayMs);
+  return { from: format(prevStart, 'yyyy-MM-dd'), to: format(prevEnd, 'yyyy-MM-dd') };
+}
+
 function getPeriodLabel(date: Date, period: PeriodType): string {
   switch (period) {
     case 'daily':
@@ -88,6 +98,7 @@ export default function FinancialStatements() {
   const [period, setPeriod] = useState<PeriodType>('daily');
   const { company, error: companyError } = useCompanyProfile();
   const [report, setReport] = useState<ReportData | null>(null);
+  const [prevReport, setPrevReport] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
@@ -98,28 +109,44 @@ export default function FinancialStatements() {
       setIsLoading(true);
       try {
         const { from, to } = getDateRange(date, period);
-        const url = period === 'daily'
-          ? `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${from}&ts=${Date.now()}`
-          : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${from}&to=${to}&ts=${Date.now()}`;
-        const res = await fetch(url, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
-          cache: 'no-store',
-          credentials: 'include',
-        });
-        if (res.status === 304) {
-          return;
+        const prev = getPreviousRange(from, to);
+
+        const fetchReport = async (rangeFrom: string, rangeTo: string) => {
+          const url = period === 'daily'
+            ? `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${rangeFrom}&ts=${Date.now()}`
+            : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${rangeFrom}&to=${rangeTo}&ts=${Date.now()}`;
+          const res = await fetch(url, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (res.status === 304) {
+            return null;
+          }
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat laporan');
+          }
+          return res.json();
+        };
+
+        const [currentData, prevData] = await Promise.all([
+          fetchReport(from, to),
+          fetchReport(prev.from, prev.to),
+        ]);
+
+        if (currentData) {
+          setReport(currentData);
         }
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.message ?? 'Gagal memuat laporan');
+        if (prevData) {
+          setPrevReport(prevData);
         }
-        const data = await res.json();
-        setReport(data);
       } catch (err: any) {
         setReport(null);
+        setPrevReport(null);
         toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
       } finally {
         setIsLoading(false);
@@ -134,12 +161,21 @@ export default function FinancialStatements() {
   const expenseAccounts = report?.accounts
     .filter((acc) => acc.type === 'expense' && acc.net !== 0)
     .sort((a, b) => b.net - a.net) ?? [];
+  const prevExpenseAccounts = prevReport?.accounts
+    .filter((acc) => acc.type === 'expense' && acc.net !== 0)
+    .sort((a, b) => b.net - a.net) ?? [];
 
   const totalPendapatan = report?.totals.revenue ?? 0;
   const totalBeban = report?.totals.expense ?? 0;
   const labaRugi = report?.totals.netProfit ?? 0;
+  const prevTotalPendapatan = prevReport?.totals.revenue ?? 0;
+  const prevTotalBeban = prevReport?.totals.expense ?? 0;
+  const prevLabaRugi = prevReport?.totals.netProfit ?? 0;
 
   const periodLabel = getPeriodLabel(date, period);
+  const { from: periodFrom, to: periodTo } = getDateRange(date, period);
+  const prevRange = getPreviousRange(periodFrom, periodTo);
+  const prevPeriodLabel = getPeriodLabel(new Date(prevRange.from), period);
   const periodTitle = PERIOD_OPTIONS.find(p => p.value === period)?.label ?? '';
 
   const exportToPDF = () => {
@@ -183,7 +219,7 @@ export default function FinancialStatements() {
     doc.text('Pos', colPos, y);
     doc.text('Catatan', colCat, y, { align: 'right' });
     doc.text(periodLabel, colP2 + 10, y, { align: 'right' });
-    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.text(prevPeriodLabel, colP1, y, { align: 'right' });
     doc.setLineWidth(0.5);
     doc.line(marginL, y + 2, pageW - marginR, y + 2);
     y += 7;
@@ -197,13 +233,30 @@ export default function FinancialStatements() {
       y += 5.5;
     };
 
+    const prevAccountMap = new Map(prevReport?.accounts.map((acc) => [acc.id, acc]) ?? []);
+
+    const sumByKeywords = (items: typeof revenueAccounts, keywords: string[]) => {
+      const lower = (value: string) => value.toLowerCase();
+      return items
+        .filter((acc) => keywords.some((kw) => lower(acc.name).includes(kw)))
+        .reduce((sum, acc) => sum + acc.net, 0);
+    };
+
+    const otherExpense = sumByKeywords(expenseAccounts, ['lain', 'bunga', 'administrasi bank']);
+    const prevOtherExpense = sumByKeywords(prevExpenseAccounts, ['lain', 'bunga', 'administrasi bank']);
+    const otherIncome = sumByKeywords(revenueAccounts, ['lain', 'bunga']);
+    const prevOtherIncome = sumByKeywords(prevReport?.accounts?.filter((acc) => acc.type === 'revenue') ?? [], ['lain', 'bunga']);
+    const taxEstimate = sumByKeywords(expenseAccounts, ['pajak']);
+    const prevTaxEstimate = sumByKeywords(prevExpenseAccounts, ['pajak']);
+
     // Pendapatan
-    addRow('Pendapatan', '11', fmtNum(totalPendapatan), '-', false);
+    addRow('Pendapatan', '11', fmtNum(totalPendapatan), fmtNum(prevTotalPendapatan), false);
     // HPP
-    addRow('Harga Pokok Penjualan', '12', fmtNum(totalBeban), '-', false);
+    addRow('Harga Pokok Penjualan', '12', fmtNum(totalBeban), fmtNum(prevTotalBeban), false);
     y += 1;
     const labaKotor = totalPendapatan - totalBeban;
-    addRow('LABA KOTOR', '', fmtNum(labaKotor), '-', true);
+    const labaKotorPrev = prevTotalPendapatan - prevTotalBeban;
+    addRow('LABA KOTOR', '', fmtNum(labaKotor), fmtNum(labaKotorPrev), true);
     y += 3;
 
     // Beban Usaha
@@ -212,34 +265,39 @@ export default function FinancialStatements() {
     y += 5.5;
 
     let totalBebanUsaha = 0;
+    let prevTotalBebanUsaha = 0;
     expenseAccounts.forEach((acc) => {
-      addRow(`${acc.name}`, '', fmtNum(acc.net), '-', false, 4);
+      const prevNet = prevAccountMap.get(acc.id)?.net ?? 0;
+      addRow(`${acc.name}`, '', fmtNum(acc.net), fmtNum(prevNet), false, 4);
       totalBebanUsaha += acc.net;
+      prevTotalBebanUsaha += prevNet;
     });
     if (expenseAccounts.length === 0) {
-      addRow('Beban Umum dan Administrasi', '15', '-', '-', false, 4);
-      addRow('Beban Penjualan', '13', '-', '-', false, 4);
+      addRow('Beban Umum dan Administrasi', '15', fmtNum(0), fmtNum(0), false, 4);
+      addRow('Beban Penjualan', '13', fmtNum(0), fmtNum(0), false, 4);
     }
-    addRow('Total Beban Usaha', '', fmtNum(totalBebanUsaha), '-', true);
+    addRow('Total Beban Usaha', '', fmtNum(totalBebanUsaha), fmtNum(prevTotalBebanUsaha), true);
     y += 2;
 
     // Beban/Pendapatan lain-lain
-    addRow('Beban/Pendapatan lain-lain', '14a.b.', '-', '-', false);
+    const otherNet = otherIncome - otherExpense;
+    const prevOtherNet = prevOtherIncome - prevOtherExpense;
+    addRow('Beban/Pendapatan lain-lain', '14a.b.', fmtNum(otherNet), fmtNum(prevOtherNet), false);
     y += 1;
 
     // Laba Rugi Operasi
-    addRow('LABA RUGI OPERASI', '', fmtNum(labaRugi), '-', true);
+    addRow('LABA RUGI OPERASI', '', fmtNum(labaRugi), fmtNum(prevLabaRugi), true);
     y += 2;
 
     // Pajak
-    addRow('Taksiran Pajak Penghasilan', '', '-', '-', false);
+    addRow('Taksiran Pajak Penghasilan', '', fmtNum(taxEstimate), fmtNum(prevTaxEstimate), false);
     y += 1;
 
     // Laba Bersih
     doc.setLineWidth(0.3);
     doc.line(marginL, y, pageW - marginR, y);
     y += 4;
-    addRow('LABA BERSIH', '', fmtNum(labaRugi), '-', true);
+    addRow('LABA BERSIH', '', fmtNum(labaRugi), fmtNum(prevLabaRugi), true);
 
     // Footer note
     y += 8;

@@ -4,50 +4,149 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Download, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { useSales } from '@/features/sales/hooks/useSales';
-import { usePurchases } from '@/features/purchases/hooks/usePurchases';
-import { useReceivables, usePayables } from '@/features/receivables/hooks/useReceivables';
-import { useProducts } from '@/features/products/hooks/useProducts';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { useToast } from '@/components/ui/use-toast';
+
+type BalanceSnapshot = {
+  asOf: string;
+  categories: {
+    cash: number;
+    receivable: number;
+    inventory: number;
+    prepaid: number;
+    prepaidTax: number;
+    otherCurrentAssets: number;
+    fixedAssetsGross: number;
+    accumulatedDepreciation: number;
+    fixedAssetsNet: number;
+    payables: number;
+    bankDebtShort: number;
+    otherCurrentLiabilities: number;
+    bankDebtLong: number;
+    financingDebt: number;
+    equityCapital: number;
+    retainedEarnings: number;
+    totalCurrentAssets: number;
+    totalNonCurrentAssets: number;
+    totalAssets: number;
+    totalCurrentLiabilities: number;
+    totalLongTermLiabilities: number;
+    totalLiabilities: number;
+    totalEquity: number;
+  };
+};
 
 export default function BalanceSheet() {
   const [date, setDate] = useState<Date>(new Date());
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, error: salesError } = useSales(company?.id);
-  const { purchases, error: purchasesError } = usePurchases(company?.id);
-  const { getTotalReceivables, error: receivablesError } = useReceivables(company?.id);
-  const { getTotalPayables, error: payablesError } = usePayables(company?.id);
-  const { products, error: productsError } = useProducts(company?.id);
+  const [balance, setBalance] = useState<BalanceSnapshot | null>(null);
+  const [prevBalance, setPrevBalance] = useState<BalanceSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
-  useErrorToast(salesError, 'Gagal memuat penjualan');
-  useErrorToast(purchasesError, 'Gagal memuat pembelian');
-  useErrorToast(receivablesError, 'Gagal memuat piutang');
-  useErrorToast(payablesError, 'Gagal memuat hutang');
-  useErrorToast(productsError, 'Gagal memuat produk');
+  useErrorToast(loadError, 'Gagal memuat neraca');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
   };
 
-  // Calculate assets
-  const totalSales = sales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const totalPurchases = purchases.reduce((sum, p) => sum + p.totalCost, 0);
-  const cashBalance = totalSales - totalPurchases;
-  const inventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
-  const accountsReceivable = getTotalReceivables();
-  const totalCurrentAssets = cashBalance + inventoryValue + accountsReceivable;
-  
-  // Calculate liabilities
-  const accountsPayable = getTotalPayables();
-  const totalLiabilities = accountsPayable;
-  
-  // Calculate equity
-  const totalEquity = totalCurrentAssets - totalLiabilities;
+  const emptyCategories: BalanceSnapshot['categories'] = useMemo(() => ({
+    cash: 0,
+    receivable: 0,
+    inventory: 0,
+    prepaid: 0,
+    prepaidTax: 0,
+    otherCurrentAssets: 0,
+    fixedAssetsGross: 0,
+    accumulatedDepreciation: 0,
+    fixedAssetsNet: 0,
+    payables: 0,
+    bankDebtShort: 0,
+    otherCurrentLiabilities: 0,
+    bankDebtLong: 0,
+    financingDebt: 0,
+    equityCapital: 0,
+    retainedEarnings: 0,
+    totalCurrentAssets: 0,
+    totalNonCurrentAssets: 0,
+    totalAssets: 0,
+    totalCurrentLiabilities: 0,
+    totalLongTermLiabilities: 0,
+    totalLiabilities: 0,
+    totalEquity: 0,
+  }), []);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id) return;
+      setLoadError(null);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const asOf = format(date, 'yyyy-MM-dd');
+        const prevDate = subMonths(date, 1);
+        const prevAsOf = format(prevDate, 'yyyy-MM-dd');
+
+        const fetchBalance = async (value: string) => {
+          const res = await fetch(`${apiBase}/companies/${company.id}/reports/balance?asOf=${value}&ts=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat neraca');
+          }
+          return res.json();
+        };
+
+        const [currentData, prevData] = await Promise.all([
+          fetchBalance(asOf),
+          fetchBalance(prevAsOf),
+        ]);
+        setBalance(currentData);
+        setPrevBalance(prevData);
+      } catch (err: any) {
+        setBalance(null);
+        setPrevBalance(null);
+        setLoadError(err.message ?? 'Gagal memuat neraca');
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      }
+    };
+    load();
+  }, [company?.id, date, toast]);
+
+  const categories = balance?.categories ?? emptyCategories;
+  const prevCategories = prevBalance?.categories ?? emptyCategories;
+
+  const cashBalance = categories.cash;
+  const accountsReceivable = categories.receivable;
+  const inventoryValue = categories.inventory;
+  const prepaidValue = categories.prepaid;
+  const otherCurrentAssets = categories.otherCurrentAssets;
+  const fixedAssetsGross = categories.fixedAssetsGross;
+  const fixedAssetsNet = categories.fixedAssetsNet;
+
+  const totalCurrentAssets = categories.totalCurrentAssets;
+  const totalAssets = categories.totalAssets;
+
+  const accountsPayable = categories.payables;
+  const bankDebtShort = categories.bankDebtShort;
+  const otherCurrentLiabilities = categories.otherCurrentLiabilities;
+  const bankDebtLong = categories.bankDebtLong;
+  const financingDebt = categories.financingDebt;
+
+  const totalLiabilities = categories.totalLiabilities;
+  const totalEquity = categories.totalEquity;
+  const equityCapital = categories.equityCapital;
+  const retainedEarnings = categories.retainedEarnings;
 
   const exportToPDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -56,6 +155,7 @@ export default function BalanceSheet() {
     const marginR = 15;
     const contentW = pageW - marginL - marginR;
     const periodLabel = format(date, 'dd MMMM yyyy', { locale: id });
+    const prevPeriodLabel = format(subMonths(date, 1), 'dd MMMM yyyy', { locale: id });
 
     const fmtNum = (v: number) => {
       if (v === 0) return '-';
@@ -91,7 +191,7 @@ export default function BalanceSheet() {
     doc.text('Pos', colPos, y);
     doc.text('Catatan', colCat, y, { align: 'right' });
     doc.text(periodLabel, colP2 + 15, y, { align: 'right' });
-    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.text(prevPeriodLabel, colP1, y, { align: 'right' });
     doc.setLineWidth(0.5);
     doc.line(marginL, y + 2, pageW - marginR, y + 2);
     y += 7;
@@ -114,19 +214,19 @@ export default function BalanceSheet() {
     // ASET
     addSectionHeader('Aset');
     addSectionHeader('Aset Lancar');
-    addRow('Kas', '3', fmtNum(cashBalance), '-', false, 4);
-    addRow('Piutang Usaha', '4', fmtNum(accountsReceivable), '-', false, 4);
-    addRow('Persediaan', '5', fmtNum(inventoryValue), '-', false, 4);
-    addRow('Biaya Dibayar Dimuka (Down Payment)', '6', '-', '-', false, 4);
-    addRow('Aset Lancar Lainnya', '7', '-', '-', false, 4);
-    addRow('Total Aset Lancar', '', fmtNum(totalCurrentAssets), '-', true);
+    addRow('Kas', '3', fmtNum(cashBalance), fmtNum(prevCategories.cash), false, 4);
+    addRow('Piutang Usaha', '4', fmtNum(accountsReceivable), fmtNum(prevCategories.receivable), false, 4);
+    addRow('Persediaan', '5', fmtNum(inventoryValue), fmtNum(prevCategories.inventory), false, 4);
+    addRow('Biaya Dibayar Dimuka (Down Payment)', '6', fmtNum(prepaidValue), fmtNum(prevCategories.prepaid), false, 4);
+    addRow('Aset Lancar Lainnya', '7', fmtNum(otherCurrentAssets), fmtNum(prevCategories.otherCurrentAssets), false, 4);
+    addRow('Total Aset Lancar', '', fmtNum(totalCurrentAssets), fmtNum(prevCategories.totalCurrentAssets), true);
     y += 2;
 
     addSectionHeader('Aset Tetap (Tidak Lancar)');
-    addRow('Peralatan', '8', '-', '-', false, 4);
-    addRow('Total Aset Tidak Lancar', '', '-', '-', true);
+    addRow('Peralatan', '8', fmtNum(fixedAssetsGross), fmtNum(prevCategories.fixedAssetsGross), false, 4);
+    addRow('Total Aset Tidak Lancar', '', fmtNum(fixedAssetsNet), fmtNum(prevCategories.fixedAssetsNet), true);
     y += 2;
-    addRow('Total Aset', '', fmtNum(totalCurrentAssets), '-', true);
+    addRow('Total Aset', '', fmtNum(totalAssets), fmtNum(prevCategories.totalAssets), true);
 
     y += 4;
     doc.setLineWidth(0.3);
@@ -136,18 +236,18 @@ export default function BalanceSheet() {
     // LIABILITAS
     addSectionHeader('Liabilitas');
     addSectionHeader('Liabilitas Jangka Pendek');
-    addRow('Utang Usaha', '9a.', fmtNum(accountsPayable), '-', false, 4);
-    addRow('Utang Bank dan Lembaga Keuangan Lainnya', '9b.', '-', '-', false, 4);
-    addRow('Kewajiban Jangka Pendek Lainnya', '9c.', '-', '-', false, 4);
-    addRow('Total Liabilitas Jangka Pendek', '', fmtNum(totalLiabilities), '-', true);
+    addRow('Utang Usaha', '9a.', fmtNum(accountsPayable), fmtNum(prevCategories.payables), false, 4);
+    addRow('Utang Bank dan Lembaga Keuangan Lainnya', '9b.', fmtNum(bankDebtShort), fmtNum(prevCategories.bankDebtShort), false, 4);
+    addRow('Kewajiban Jangka Pendek Lainnya', '9c.', fmtNum(otherCurrentLiabilities), fmtNum(prevCategories.otherCurrentLiabilities), false, 4);
+    addRow('Total Liabilitas Jangka Pendek', '', fmtNum(categories.totalCurrentLiabilities), fmtNum(prevCategories.totalCurrentLiabilities), true);
     y += 2;
 
     addSectionHeader('Liabilitas Jangka Panjang');
-    addRow('Utang Bank (Jth Tempo Lebih dari 1 Tahun)', '10a.', '-', '-', false, 4);
-    addRow('Utang Pembiayaan dan Utang Lainnya', '10b.', '-', '-', false, 4);
-    addRow('Total Liabilitas Jangka Panjang', '', '-', '-', true);
+    addRow('Utang Bank (Jth Tempo Lebih dari 1 Tahun)', '10a.', fmtNum(bankDebtLong), fmtNum(prevCategories.bankDebtLong), false, 4);
+    addRow('Utang Pembiayaan dan Utang Lainnya', '10b.', fmtNum(financingDebt), fmtNum(prevCategories.financingDebt), false, 4);
+    addRow('Total Liabilitas Jangka Panjang', '', fmtNum(categories.totalLongTermLiabilities), fmtNum(prevCategories.totalLongTermLiabilities), true);
     y += 2;
-    addRow('Total Liabilitas', '', fmtNum(totalLiabilities), '-', true);
+    addRow('Total Liabilitas', '', fmtNum(totalLiabilities), fmtNum(prevCategories.totalLiabilities), true);
 
     y += 4;
     doc.setLineWidth(0.3);
@@ -156,11 +256,11 @@ export default function BalanceSheet() {
 
     // EKUITAS
     addSectionHeader('Ekuitas');
-    addRow('Modal Pemilik', '11', fmtNum(totalEquity), '-', false, 4);
-    addRow('Saldo Laba', '', '-', '-', false, 4);
-    addRow('Total Modal', '', fmtNum(totalEquity), '-', true);
+    addRow('Modal Pemilik', '11', fmtNum(equityCapital), fmtNum(prevCategories.equityCapital), false, 4);
+    addRow('Saldo Laba', '', fmtNum(retainedEarnings), fmtNum(prevCategories.retainedEarnings), false, 4);
+    addRow('Total Modal', '', fmtNum(totalEquity), fmtNum(prevCategories.totalEquity), true);
     y += 2;
-    addRow('Total Kewajiban dan Modal', '', fmtNum(totalCurrentAssets), '-', true);
+    addRow('Total Kewajiban dan Modal', '', fmtNum(totalAssets), fmtNum(prevCategories.totalAssets), true);
 
     y += 6;
     doc.setFontSize(8);
@@ -225,7 +325,7 @@ export default function BalanceSheet() {
               <div className="border-t pt-4">
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Aset</span>
-                  <span className="text-primary">{formatCurrency(totalCurrentAssets)}</span>
+                  <span className="text-primary">{formatCurrency(totalAssets)}</span>
                 </div>
               </div>
             </CardContent>
@@ -250,13 +350,14 @@ export default function BalanceSheet() {
               <div>
                 <h3 className="font-semibold mb-2">Ekuitas</h3>
                 <div className="space-y-2 pl-4">
-                  <div className="flex justify-between"><span>Modal Pemilik</span><span>{formatCurrency(totalEquity)}</span></div>
+                  <div className="flex justify-between"><span>Modal Pemilik</span><span>{formatCurrency(equityCapital)}</span></div>
+                  <div className="flex justify-between"><span>Saldo Laba</span><span>{formatCurrency(retainedEarnings)}</span></div>
                 </div>
               </div>
               <div className="border-t pt-4">
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Kewajiban & Ekuitas</span>
-                  <span className="text-primary">{formatCurrency(totalCurrentAssets)}</span>
+                  <span className="text-primary">{formatCurrency(totalAssets)}</span>
                 </div>
               </div>
             </CardContent>

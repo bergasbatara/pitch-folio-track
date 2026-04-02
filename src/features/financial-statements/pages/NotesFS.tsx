@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useCompanyProfile } from '@/features/onboarding';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,40 @@ import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 type PeriodType = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+type NotesReport = {
+  totals: { revenue: number; expense: number; netProfit: number; inventoryValue: number };
+  accounts: Array<{ id: string; name: string; type: string; net: number }>;
+};
+
+type BalanceSnapshot = {
+  asOf: string;
+  categories: {
+    cash: number;
+    receivable: number;
+    inventory: number;
+    prepaid: number;
+    prepaidTax: number;
+    otherCurrentAssets: number;
+    fixedAssetsGross: number;
+    accumulatedDepreciation: number;
+    fixedAssetsNet: number;
+    payables: number;
+    bankDebtShort: number;
+    otherCurrentLiabilities: number;
+    bankDebtLong: number;
+    financingDebt: number;
+    equityCapital: number;
+    retainedEarnings: number;
+    totalCurrentAssets: number;
+    totalNonCurrentAssets: number;
+    totalAssets: number;
+    totalCurrentLiabilities: number;
+    totalLongTermLiabilities: number;
+    totalLiabilities: number;
+    totalEquity: number;
+  };
+};
 
 const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
   { value: 'daily', label: 'Harian' },
@@ -40,6 +74,14 @@ function getDateRange(date: Date, period: PeriodType): { start: Date; end: Date 
     case 'yearly':
       return { start: startOfYear(date), end: endOfYear(date) };
   }
+}
+
+function getPreviousRange(start: Date, end: Date): { start: Date; end: Date } {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const lengthDays = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+  const prevEnd = new Date(start.getTime() - dayMs);
+  const prevStart = new Date(prevEnd.getTime() - (lengthDays - 1) * dayMs);
+  return { start: prevStart, end: prevEnd };
 }
 
 function getPeriodLabel(date: Date, period: PeriodType): string {
@@ -62,7 +104,12 @@ export default function NotesFS() {
   const [date, setDate] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodType>('monthly');
   const { company, error: companyError } = useCompanyProfile();
-  const [report, setReport] = useState<{ totals: { revenue: number; expense: number; netProfit: number; inventoryValue: number } } | null>(null);
+  const [report, setReport] = useState<NotesReport | null>(null);
+  const [prevReport, setPrevReport] = useState<NotesReport | null>(null);
+  const [endBalance, setEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [prevEndBalance, setPrevEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [startBalance, setStartBalance] = useState<BalanceSnapshot | null>(null);
+  const [prevStartBalance, setPrevStartBalance] = useState<BalanceSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
@@ -74,45 +121,152 @@ export default function NotesFS() {
   const { start, end } = useMemo(() => getDateRange(date, period), [date, period]);
   const from = useMemo(() => format(start, 'yyyy-MM-dd'), [start]);
   const to = useMemo(() => format(end, 'yyyy-MM-dd'), [end]);
+  const prevRange = useMemo(() => getPreviousRange(start, end), [start, end]);
+  const prevFrom = useMemo(() => format(prevRange.start, 'yyyy-MM-dd'), [prevRange.start]);
+  const prevTo = useMemo(() => format(prevRange.end, 'yyyy-MM-dd'), [prevRange.end]);
 
   useEffect(() => {
     const load = async () => {
       if (!company?.id) return;
       setIsLoading(true);
       try {
-        const url = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/notes?from=${from}&to=${to}&ts=${Date.now()}`;
-        const res = await fetch(url, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
-          cache: 'no-store',
-          credentials: 'include',
-        });
-        if (res.status === 304) {
-          return;
-        }
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.message ?? 'Gagal memuat catatan keuangan');
-        }
-        const data = await res.json();
-        setReport(data);
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const fetchNotes = async (rangeFrom: string, rangeTo: string) => {
+          const res = await fetch(`${apiBase}/companies/${company.id}/reports/notes?from=${rangeFrom}&to=${rangeTo}&ts=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (res.status === 304) {
+            return null;
+          }
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat catatan keuangan');
+          }
+          return res.json();
+        };
+
+        const fetchBalance = async (asOf: string) => {
+          const res = await fetch(`${apiBase}/companies/${company.id}/reports/balance?asOf=${asOf}&ts=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat catatan keuangan');
+          }
+          return res.json();
+        };
+
+        const [currentNotes, prevNotes, currentEnd, prevEnd, currentStart, prevStart] = await Promise.all([
+          fetchNotes(from, to),
+          fetchNotes(prevFrom, prevTo),
+          fetchBalance(to),
+          fetchBalance(prevTo),
+          fetchBalance(format(subDays(start, 1), 'yyyy-MM-dd')),
+          fetchBalance(format(subDays(prevRange.start, 1), 'yyyy-MM-dd')),
+        ]);
+
+        if (currentNotes) setReport(currentNotes);
+        if (prevNotes) setPrevReport(prevNotes);
+        setEndBalance(currentEnd);
+        setPrevEndBalance(prevEnd);
+        setStartBalance(currentStart);
+        setPrevStartBalance(prevStart);
       } catch (err: any) {
         setReport(null);
+        setPrevReport(null);
+        setEndBalance(null);
+        setPrevEndBalance(null);
+        setStartBalance(null);
+        setPrevStartBalance(null);
         toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [company?.id, from, to, toast]);
+  }, [company?.id, from, to, prevFrom, prevTo, start, prevRange.start, toast]);
 
   const totalSales = report?.totals.revenue ?? 0;
   const totalPurchases = report?.totals.expense ?? 0;
-  const inventoryValue = report?.totals.inventoryValue ?? 0;
+  const inventoryValue = endBalance?.categories.inventory ?? report?.totals.inventoryValue ?? 0;
+  const prevTotalSales = prevReport?.totals.revenue ?? 0;
+  const prevTotalPurchases = prevReport?.totals.expense ?? 0;
 
   const periodLabel = getPeriodLabel(date, period);
+  const prevPeriodLabel = getPeriodLabel(prevRange.end, period);
+
+  const emptyCategories: BalanceSnapshot['categories'] = useMemo(() => ({
+    cash: 0,
+    receivable: 0,
+    inventory: 0,
+    prepaid: 0,
+    prepaidTax: 0,
+    otherCurrentAssets: 0,
+    fixedAssetsGross: 0,
+    accumulatedDepreciation: 0,
+    fixedAssetsNet: 0,
+    payables: 0,
+    bankDebtShort: 0,
+    otherCurrentLiabilities: 0,
+    bankDebtLong: 0,
+    financingDebt: 0,
+    equityCapital: 0,
+    retainedEarnings: 0,
+    totalCurrentAssets: 0,
+    totalNonCurrentAssets: 0,
+    totalAssets: 0,
+    totalCurrentLiabilities: 0,
+    totalLongTermLiabilities: 0,
+    totalLiabilities: 0,
+    totalEquity: 0,
+  }), []);
+
+  const categories = endBalance?.categories ?? emptyCategories;
+  const prevCategories = prevEndBalance?.categories ?? emptyCategories;
+  const startCategories = startBalance?.categories ?? emptyCategories;
+  const prevStartCategories = prevStartBalance?.categories ?? emptyCategories;
+
+  const expenseAccounts = report?.accounts?.filter((acc) => acc.type === 'expense') ?? [];
+  const prevExpenseAccounts = prevReport?.accounts?.filter((acc) => acc.type === 'expense') ?? [];
+  const revenueAccounts = report?.accounts?.filter((acc) => acc.type === 'revenue') ?? [];
+  const prevRevenueAccounts = prevReport?.accounts?.filter((acc) => acc.type === 'revenue') ?? [];
+
+  const sumByKeywords = (items: typeof expenseAccounts, keywords: string[]) => {
+    const lower = (value: string) => value.toLowerCase();
+    return items
+      .filter((acc) => keywords.some((kw) => lower(acc.name).includes(kw)))
+      .reduce((sum, acc) => sum + acc.net, 0);
+  };
+
+  const cogsExpense = sumByKeywords(expenseAccounts, ['hpp', 'pembelian']);
+  const prevCogsExpense = sumByKeywords(prevExpenseAccounts, ['hpp', 'pembelian']);
+
+  const salesExpense = sumByKeywords(expenseAccounts, ['penjualan', 'iklan', 'promosi', 'marketing']);
+  const prevSalesExpense = sumByKeywords(prevExpenseAccounts, ['penjualan', 'iklan', 'promosi', 'marketing']);
+
+  const otherExpense = sumByKeywords(expenseAccounts, ['lain', 'bunga', 'administrasi bank']);
+  const prevOtherExpense = sumByKeywords(prevExpenseAccounts, ['lain', 'bunga', 'administrasi bank']);
+
+  const otherIncome = sumByKeywords(revenueAccounts, ['lain', 'bunga']);
+  const prevOtherIncome = sumByKeywords(prevRevenueAccounts, ['lain', 'bunga']);
+
+  const taxExpense = sumByKeywords(expenseAccounts, ['pajak']);
+  const prevTaxExpense = sumByKeywords(prevExpenseAccounts, ['pajak']);
+
+  const totalExpense = report?.totals.expense ?? 0;
+  const prevTotalExpense = prevReport?.totals.expense ?? 0;
+  const adminExpense = Math.max(totalExpense - cogsExpense - salesExpense - otherExpense, 0);
+  const prevAdminExpense = Math.max(prevTotalExpense - prevCogsExpense - prevSalesExpense - prevOtherExpense, 0);
 
   const exportToPDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -415,6 +569,19 @@ export default function NotesFS() {
       return `( ${new Intl.NumberFormat('id-ID').format(Math.abs(v))})`;
     };
 
+    const fixedStart = startCategories.fixedAssetsGross;
+    const fixedEnd = categories.fixedAssetsGross;
+    const fixedAdd = fixedEnd > fixedStart ? fixedEnd - fixedStart : 0;
+    const fixedReduce = fixedStart > fixedEnd ? fixedStart - fixedEnd : 0;
+
+    const accStart = startCategories.accumulatedDepreciation;
+    const accEnd = categories.accumulatedDepreciation;
+    const accAdd = accEnd > accStart ? accEnd - accStart : 0;
+    const accReduce = accStart > accEnd ? accStart - accEnd : 0;
+
+    const bookStart = fixedStart - accStart;
+    const bookEnd = fixedEnd - accEnd;
+
     const addFooter = () => {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
@@ -456,7 +623,7 @@ export default function NotesFS() {
       doc.setFont('helvetica', 'bold');
       doc.text('', col1, y);
       doc.text(periodLabel, col2, y, { align: 'right' });
-      doc.text('[Periode 1]', col3, y, { align: 'right' });
+      doc.text(prevPeriodLabel, col3, y, { align: 'right' });
       doc.setLineWidth(0.3);
       doc.line(col1, y + 1.5, col3, y + 1.5);
       y += 6;
@@ -485,23 +652,23 @@ export default function NotesFS() {
 
     y = drawTable2Col(y, '3. KAS DAN SETARA KAS',
       `Akun tersebut merupakan saldo kas dan setara kas per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['Kas', fmtCur(0), fmtCur(0)]],
-      ['Jumlah Kas', fmtCur(0), fmtCur(0)]);
+      [['Kas', fmtCur(categories.cash), fmtCur(prevCategories.cash)]],
+      ['Jumlah Kas', fmtCur(categories.cash), fmtCur(prevCategories.cash)]);
 
     y = drawTable2Col(y, '4. PIUTANG USAHA',
       `Akun tersebut merupakan saldo piutang usaha per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['Piutang Usaha', fmtCur(0), fmtCur(0)]],
-      ['Jumlah Piutang Usaha', fmtCur(0), fmtCur(0)]);
+      [['Piutang Usaha', fmtCur(categories.receivable), fmtCur(prevCategories.receivable)]],
+      ['Jumlah Piutang Usaha', fmtCur(categories.receivable), fmtCur(prevCategories.receivable)]);
 
     y = drawTable2Col(y, '5. PERSEDIAAN',
       `Akun tersebut merupakan saldo persediaan per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['- [List Item Persediaan]', fmtCur(0), fmtCur(0)]],
-      ['Jumlah Persediaan', fmtCur(inventoryValue), fmtCur(0)]);
+      [['- [List Item Persediaan]', fmtCur(inventoryValue), fmtCur(prevCategories.inventory)]],
+      ['Jumlah Persediaan', fmtCur(inventoryValue), fmtCur(prevCategories.inventory)]);
 
     y = drawTable2Col(y, '6. BIAYA DIBAYAR DIMUKA',
       `Akun tersebut merupakan saldo biaya dibayar dimuka per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['Biaya Dibayar Dimuka', fmtCur(0), fmtCur(0)]],
-      ['Jumlah Biaya Dibayar Dimuka', fmtCur(0), fmtCur(0)]);
+      [['Biaya Dibayar Dimuka', fmtCur(categories.prepaid), fmtCur(prevCategories.prepaid)]],
+      ['Jumlah Biaya Dibayar Dimuka', fmtCur(categories.prepaid), fmtCur(prevCategories.prepaid)]);
 
     addFooter();
 
@@ -512,8 +679,8 @@ export default function NotesFS() {
 
     y = drawTable2Col(y, '7. PAJAK DIBAYAR DIMUKA',
       `Akun tersebut merupakan saldo pajak dibayar dimuka per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['Pajak Dibayar Dimuka', fmtCur(0), fmtCur(0)]],
-      ['Jumlah Pajak Dibayar Dimuka', fmtCur(0), fmtCur(0)]);
+      [['Pajak Dibayar Dimuka', fmtCur(categories.prepaidTax), fmtCur(prevCategories.prepaidTax)]],
+      ['Jumlah Pajak Dibayar Dimuka', fmtCur(categories.prepaidTax), fmtCur(prevCategories.prepaidTax)]);
 
     // 8. ASET TETAP
     doc.setFontSize(11);
@@ -544,32 +711,32 @@ export default function NotesFS() {
     y += 5.5;
     doc.setFont('helvetica', 'normal');
     doc.text('Harga perolehan :', ac1 + 2, y);
-    doc.text(fmtCur(0), ac2, y, { align: 'right' });
-    doc.text(fmtCur(0), ac3, y, { align: 'right' });
-    doc.text(fmtCur(0), ac4, y, { align: 'right' });
-    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    doc.text(fmtCur(fixedStart), ac2, y, { align: 'right' });
+    doc.text(fmtCur(fixedAdd), ac3, y, { align: 'right' });
+    doc.text(fmtCur(fixedReduce), ac4, y, { align: 'right' });
+    doc.text(fmtCur(fixedEnd), ac5, y, { align: 'right' });
     y += 5;
     doc.text('Akumulasi penyusutan :', ac1 + 2, y);
-    doc.text(fmtCur(0), ac2, y, { align: 'right' });
-    doc.text(fmtCur(0), ac3, y, { align: 'right' });
-    doc.text(fmtCur(0), ac4, y, { align: 'right' });
-    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    doc.text(fmtCur(accStart), ac2, y, { align: 'right' });
+    doc.text(fmtCur(accAdd), ac3, y, { align: 'right' });
+    doc.text(fmtCur(accReduce), ac4, y, { align: 'right' });
+    doc.text(fmtCur(accEnd), ac5, y, { align: 'right' });
     y += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Nilai Buku', ac1 + 2, y);
-    doc.text(fmtCur(0), ac2, y, { align: 'right' });
-    doc.text(fmtCur(0), ac5, y, { align: 'right' });
+    doc.text(fmtCur(bookStart), ac2, y, { align: 'right' });
+    doc.text(fmtCur(bookEnd), ac5, y, { align: 'right' });
     doc.line(ac1, y + 1.5, ac5, y + 1.5);
     y += 10;
 
     y = drawTable2Col(y, '9. KEWAJIBAN JANGKA PENDEK',
       `Akun tersebut merupakan saldo kewajiban per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
-        ['a. Utang Usaha', fmtCur(0), fmtCur(0)],
-        ['b. Utang Bank', fmtCur(0), fmtCur(0)],
-        ['c. Kewajiban Jangka Pendek Lainnya', fmtCur(0), fmtCur(0)],
+        ['a. Utang Usaha', fmtCur(categories.payables), fmtCur(prevCategories.payables)],
+        ['b. Utang Bank', fmtCur(categories.bankDebtShort), fmtCur(prevCategories.bankDebtShort)],
+        ['c. Kewajiban Jangka Pendek Lainnya', fmtCur(categories.otherCurrentLiabilities), fmtCur(prevCategories.otherCurrentLiabilities)],
       ],
-      ['Jumlah Kewajiban Jangka Pendek', fmtCur(0), fmtCur(0)]);
+      ['Jumlah Kewajiban Jangka Pendek', fmtCur(categories.totalCurrentLiabilities), fmtCur(prevCategories.totalCurrentLiabilities)]);
 
     addFooter();
 
@@ -581,10 +748,10 @@ export default function NotesFS() {
     y = drawTable2Col(y, '10. KEWAJIBAN JANGKA PANJANG',
       `Akun tersebut merupakan saldo kewajiban jangka panjang per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
-        ['a. Utang Bank', fmtCur(0), fmtCur(0)],
-        ['b. Utang Pembiayaan dan Utang Lainnya', fmtCur(0), fmtCur(0)],
+        ['a. Utang Bank', fmtCur(categories.bankDebtLong), fmtCur(prevCategories.bankDebtLong)],
+        ['b. Utang Pembiayaan dan Utang Lainnya', fmtCur(categories.financingDebt), fmtCur(prevCategories.financingDebt)],
       ],
-      ['Jumlah Kewajiban Jangka Panjang', fmtCur(0), fmtCur(0)]);
+      ['Jumlah Kewajiban Jangka Panjang', fmtCur(categories.totalLongTermLiabilities), fmtCur(prevCategories.totalLongTermLiabilities)]);
 
     // 11. MODAL SAHAM
     doc.setFontSize(11);
@@ -614,35 +781,35 @@ export default function NotesFS() {
     doc.text('[Nama Pemegang Saham]', mc1 + 2, y);
     doc.text('-', mc2, y, { align: 'right' });
     doc.text('-', mc3, y, { align: 'right' });
-    doc.text(fmtCur(0), mc4, y, { align: 'right' });
+    doc.text(fmtCur(categories.equityCapital), mc4, y, { align: 'right' });
     y += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Jumlah', mc1 + 2, y);
     doc.text('-', mc2, y, { align: 'right' });
     doc.text('100%', mc3, y, { align: 'right' });
-    doc.text(fmtCur(0), mc4, y, { align: 'right' });
+    doc.text(fmtCur(categories.equityCapital), mc4, y, { align: 'right' });
     doc.line(mc1, y + 1.5, mc4, y + 1.5);
     y += 10;
 
     y = drawTable2Col(y, '11. PENDAPATAN',
       `Akun tersebut merupakan saldo pendapatan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
-        ['a. Penjualan', fmtCur(totalSales), fmtCur(0)],
+        ['a. Penjualan', fmtCur(totalSales), fmtCur(prevTotalSales)],
       ],
-      ['Jumlah Pendapatan', fmtCur(totalSales), fmtCur(0)]);
+      ['Jumlah Pendapatan', fmtCur(totalSales), fmtCur(prevTotalSales)]);
 
     y = drawTable2Col(y, '12. BEBAN POKOK PENDAPATAN',
       `Akun tersebut merupakan saldo beban pokok pendapatan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
-      [['Beban Pokok Pendapatan', fmtCur(totalPurchases), fmtCur(0)]],
-      ['Jumlah Beban Pokok Pendapatan', fmtCur(totalPurchases), fmtCur(0)]);
+      [['Beban Pokok Pendapatan', fmtCur(cogsExpense), fmtCur(prevCogsExpense)]],
+      ['Jumlah Beban Pokok Pendapatan', fmtCur(cogsExpense), fmtCur(prevCogsExpense)]);
 
     y = drawTable2Col(y, '13. BEBAN PENJUALAN',
       `Akun tersebut merupakan saldo beban penjualan untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
-        ['Iklan dan Promosi', fmtCur(0), fmtCur(0)],
+        ['Iklan dan Promosi', fmtCur(salesExpense), fmtCur(prevSalesExpense)],
         ['Entertainment', fmtCur(0), fmtCur(0)],
       ],
-      ['Jumlah Beban Penjualan', fmtCur(0), fmtCur(0)]);
+      ['Jumlah Beban Penjualan', fmtCur(salesExpense), fmtCur(prevSalesExpense)]);
 
     addFooter();
 
@@ -655,28 +822,28 @@ export default function NotesFS() {
       `Akun tersebut merupakan saldo beban lain-lain dan pendapatan lain-lain untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
         ['a. Beban Lain-Lain:', '', ''],
-        ['   - Beban Bunga', fmtCur(0), fmtCur(0)],
+        ['   - Beban Bunga', fmtCur(otherExpense), fmtCur(prevOtherExpense)],
         ['   - Beban Administrasi Bank', fmtCur(0), fmtCur(0)],
-        ['Total Beban Lain-Lain', fmtCur(0), fmtCur(0)],
+        ['Total Beban Lain-Lain', fmtCur(otherExpense), fmtCur(prevOtherExpense)],
         ['b. Pendapatan Lain-Lain:', '', ''],
-        ['   - Pendapatan Bunga Bank', fmtCur(0), fmtCur(0)],
-        ['Total Pendapatan Lain-Lain', fmtCur(0), fmtCur(0)],
+        ['   - Pendapatan Bunga Bank', fmtCur(otherIncome), fmtCur(prevOtherIncome)],
+        ['Total Pendapatan Lain-Lain', fmtCur(otherIncome), fmtCur(prevOtherIncome)],
       ],
-      ['Jumlah Beban(Pendapatan) Lain-Lain', fmtCur(0), fmtCur(0)]);
+      ['Jumlah Beban(Pendapatan) Lain-Lain', fmtCur(otherIncome - otherExpense), fmtCur(prevOtherIncome - prevOtherExpense)]);
 
     y = drawTable2Col(y, '15. BEBAN UMUM DAN ADMINISTRASI',
       `Akun tersebut merupakan beban umum dan administrasi untuk periode per ${periodLabel}, dengan rincian sebagai berikut :`,
       [
-        ['Beban Gaji Karyawan', fmtCur(0), fmtCur(0)],
+        ['Beban Gaji Karyawan', fmtCur(adminExpense), fmtCur(prevAdminExpense)],
         ['Beban Listrik', fmtCur(0), fmtCur(0)],
         ['Beban Perlengkapan', fmtCur(0), fmtCur(0)],
         ['Beban Transportasi', fmtCur(0), fmtCur(0)],
         ['Beban Pemeliharaan', fmtCur(0), fmtCur(0)],
         ['Beban ATK', fmtCur(0), fmtCur(0)],
-        ['Penyusutan', fmtCur(0), fmtCur(0)],
+        ['Penyusutan', fmtCur(sumByKeywords(expenseAccounts, ['penyusutan'])), fmtCur(sumByKeywords(prevExpenseAccounts, ['penyusutan']))],
         ['Lain-lain', fmtCur(0), fmtCur(0)],
       ],
-      ['Jumlah Beban Umum dan Administrasi', fmtCur(0), fmtCur(0)]);
+      ['Jumlah Beban Umum dan Administrasi', fmtCur(adminExpense), fmtCur(prevAdminExpense)]);
 
     // 16. PENYELESAIAN
     doc.setFontSize(11);

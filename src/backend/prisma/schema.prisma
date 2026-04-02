@@ -326,3 +326,20 @@ model FixedAsset {
 
   @@index([companyId])
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  companyId String?
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  route     String?
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+}

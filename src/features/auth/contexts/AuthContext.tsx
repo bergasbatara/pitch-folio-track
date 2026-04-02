@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { withCsrf } from '@/shared/lib/csrf';
 
 interface User {
   id: string;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const init = async () => {
       try {
+        await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
         const me = await fetchJson<User>('/auth/me', { method: 'GET' });
         setUser(me);
       } catch {
@@ -122,8 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...(options.headers ?? {}),
     };
     const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      headers,
+      ...withCsrf({
+        ...options,
+        headers,
+      }),
       credentials: 'include',
     });
     if (!response.ok) {

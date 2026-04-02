@@ -1,8 +1,12 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
+import { AuditModule } from "./audit/audit.module";
+import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuthModule } from "./auth/auth.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { ProductsModule } from "./products/products.module";
@@ -22,8 +26,33 @@ import { ReportsModule } from "./reports/reports.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: (env) => {
+        const required = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+        for (const key of required) {
+          if (!env[key]) {
+            throw new Error(`Missing required env: ${key}`);
+          }
+        }
+        if ((env.NODE_ENV ?? "development") === "production") {
+          if (env.JWT_ACCESS_SECRET?.startsWith("dev_") || env.JWT_REFRESH_SECRET?.startsWith("dev_")) {
+            throw new Error("JWT secrets must be rotated for production.");
+          }
+        }
+        return env;
+      },
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: Number(process.env.RATE_LIMIT_TTL ?? 60),
+          limit: Number(process.env.RATE_LIMIT_LIMIT ?? 120),
+        },
+      ],
+    }),
     PrismaModule,
+    AuditModule,
     AuthModule,
     CompaniesModule,
     ProductsModule,
@@ -42,6 +71,10 @@ import { ReportsModule } from "./reports/reports.module";
     ReportsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+  ],
 })
 export class AppModule {}

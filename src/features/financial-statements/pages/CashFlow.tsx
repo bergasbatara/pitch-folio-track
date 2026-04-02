@@ -4,24 +4,65 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Download, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSales } from '@/features/sales/hooks/useSales';
 import { useCompanyProfile } from '@/features/onboarding';
 import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import jsPDF from 'jspdf';
 import { cn } from '@/lib/utils';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { useToast } from '@/components/ui/use-toast';
+
+type ReportData = {
+  totals: {
+    revenue: number;
+    expense: number;
+    netProfit: number;
+  };
+  accounts: Array<{
+    id: string;
+    name: string;
+    type: string;
+    net: number;
+  }>;
+};
+
+type BalanceSnapshot = {
+  asOf: string;
+  categories: {
+    cash: number;
+    receivable: number;
+    inventory: number;
+    prepaid: number;
+    otherCurrentAssets: number;
+    fixedAssetsGross: number;
+    payables: number;
+    bankDebtShort: number;
+    bankDebtLong: number;
+    financingDebt: number;
+    totalCurrentLiabilities: number;
+  };
+};
 
 export default function CashFlow() {
   const [date, setDate] = useState<Date>(new Date());
   const { company, error: companyError } = useCompanyProfile();
   const { sales, error: salesError } = useSales(company?.id);
   const { purchases, error: purchasesError } = usePurchases(company?.id);
+  const [report, setReport] = useState<ReportData | null>(null);
+  const [prevReport, setPrevReport] = useState<ReportData | null>(null);
+  const [startBalance, setStartBalance] = useState<BalanceSnapshot | null>(null);
+  const [endBalance, setEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [prevStartBalance, setPrevStartBalance] = useState<BalanceSnapshot | null>(null);
+  const [prevEndBalance, setPrevEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(salesError, 'Gagal memuat penjualan');
   useErrorToast(purchasesError, 'Gagal memuat pembelian');
+  useErrorToast(loadError, 'Gagal memuat arus kas');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -29,6 +70,95 @@ export default function CashFlow() {
 
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(date);
+  const prevMonth = subMonths(date, 1);
+  const prevMonthStart = startOfMonth(prevMonth);
+  const prevMonthEnd = endOfMonth(prevMonth);
+
+  const emptyCategories: BalanceSnapshot['categories'] = useMemo(() => ({
+    cash: 0,
+    receivable: 0,
+    inventory: 0,
+    prepaid: 0,
+    otherCurrentAssets: 0,
+    fixedAssetsGross: 0,
+    payables: 0,
+    bankDebtShort: 0,
+    bankDebtLong: 0,
+    financingDebt: 0,
+    totalCurrentLiabilities: 0,
+  }), []);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id) return;
+      setLoadError(null);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const from = format(monthStart, 'yyyy-MM-dd');
+        const to = format(monthEnd, 'yyyy-MM-dd');
+        const prevFrom = format(prevMonthStart, 'yyyy-MM-dd');
+        const prevTo = format(prevMonthEnd, 'yyyy-MM-dd');
+
+        const fetchReport = async (rangeFrom: string, rangeTo: string) => {
+          const res = await fetch(`${apiBase}/companies/${company.id}/reports/range?from=${rangeFrom}&to=${rangeTo}&ts=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat arus kas');
+          }
+          return res.json();
+        };
+
+        const fetchBalance = async (asOf: string) => {
+          const res = await fetch(`${apiBase}/companies/${company.id}/reports/balance?asOf=${asOf}&ts=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat arus kas');
+          }
+          return res.json();
+        };
+
+        const [currentReport, previousReport, startSnap, endSnap, prevStartSnap, prevEndSnap] = await Promise.all([
+          fetchReport(from, to),
+          fetchReport(prevFrom, prevTo),
+          fetchBalance(format(subDays(monthStart, 1), 'yyyy-MM-dd')),
+          fetchBalance(format(monthEnd, 'yyyy-MM-dd')),
+          fetchBalance(format(subDays(prevMonthStart, 1), 'yyyy-MM-dd')),
+          fetchBalance(format(prevMonthEnd, 'yyyy-MM-dd')),
+        ]);
+
+        setReport(currentReport);
+        setPrevReport(previousReport);
+        setStartBalance(startSnap);
+        setEndBalance(endSnap);
+        setPrevStartBalance(prevStartSnap);
+        setPrevEndBalance(prevEndSnap);
+      } catch (err: any) {
+        setReport(null);
+        setPrevReport(null);
+        setStartBalance(null);
+        setEndBalance(null);
+        setPrevStartBalance(null);
+        setPrevEndBalance(null);
+        setLoadError(err.message ?? 'Gagal memuat arus kas');
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      }
+    };
+    load();
+  }, [company?.id, monthStart, monthEnd, prevMonthStart, prevMonthEnd, toast]);
 
   const monthlySales = sales.filter((s) => {
     const saleDate = new Date(s.soldAt);
@@ -40,17 +170,90 @@ export default function CashFlow() {
     return isWithinInterval(purchaseDate, { start: monthStart, end: monthEnd });
   });
 
-  // Cash Flow from Operating Activities
-  const cashFromSales = monthlySales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const cashForPurchases = monthlyPurchases.reduce((sum, p) => sum + p.totalCost, 0);
-  const netOperatingCashFlow = cashFromSales - cashForPurchases;
+  const currentStart = startBalance?.categories ?? emptyCategories;
+  const currentEnd = endBalance?.categories ?? emptyCategories;
+  const prevStart = prevStartBalance?.categories ?? emptyCategories;
+  const prevEnd = prevEndBalance?.categories ?? emptyCategories;
 
-  // Beginning balance (simplified - from all previous transactions)
-  const previousSales = sales.filter((s) => new Date(s.soldAt) < monthStart);
-  const previousPurchases = purchases.filter((p) => new Date(p.date) < monthStart);
-  const beginningBalance = previousSales.reduce((sum, s) => sum + s.totalPrice, 0) - previousPurchases.reduce((sum, p) => sum + p.totalCost, 0);
-  
-  const endingBalance = beginningBalance + netOperatingCashFlow;
+  const sumByKeywords = (items: ReportData['accounts'] | undefined, keywords: string[]) => {
+    if (!items) return 0;
+    const lower = (value: string) => value.toLowerCase();
+    return items
+      .filter((acc) => keywords.some((kw) => lower(acc.name).includes(kw)))
+      .reduce((sum, acc) => sum + acc.net, 0);
+  };
+
+  const netIncome = report?.totals.netProfit ?? 0;
+  const prevNetIncome = prevReport?.totals.netProfit ?? 0;
+  const depreciation = sumByKeywords(report?.accounts, ['penyusutan']);
+  const prevDepreciation = sumByKeywords(prevReport?.accounts, ['penyusutan']);
+
+  const receivableEffect = -(currentEnd.receivable - currentStart.receivable);
+  const inventoryEffect = -(currentEnd.inventory - currentStart.inventory);
+  const prepaidEffect = -(currentEnd.prepaid - currentStart.prepaid);
+  const otherAssetEffect = -(currentEnd.otherCurrentAssets - currentStart.otherCurrentAssets);
+  const payableEffect = currentEnd.payables - currentStart.payables;
+
+  const prevReceivableEffect = -(prevEnd.receivable - prevStart.receivable);
+  const prevInventoryEffect = -(prevEnd.inventory - prevStart.inventory);
+  const prevPrepaidEffect = -(prevEnd.prepaid - prevStart.prepaid);
+  const prevOtherAssetEffect = -(prevEnd.otherCurrentAssets - prevStart.otherCurrentAssets);
+  const prevPayableEffect = prevEnd.payables - prevStart.payables;
+
+  const netOperatingCashFlow =
+    netIncome +
+    depreciation +
+    receivableEffect +
+    inventoryEffect +
+    prepaidEffect +
+    otherAssetEffect +
+    payableEffect;
+
+  const prevOperatingCashFlow =
+    prevNetIncome +
+    prevDepreciation +
+    prevReceivableEffect +
+    prevInventoryEffect +
+    prevPrepaidEffect +
+    prevOtherAssetEffect +
+    prevPayableEffect;
+
+  const fixedAssetChange = currentEnd.fixedAssetsGross - currentStart.fixedAssetsGross;
+  const prevFixedAssetChange = prevEnd.fixedAssetsGross - prevStart.fixedAssetsGross;
+  const purchaseAsset = fixedAssetChange > 0 ? fixedAssetChange : 0;
+  const saleAsset = fixedAssetChange < 0 ? -fixedAssetChange : 0;
+  const prevPurchaseAsset = prevFixedAssetChange > 0 ? prevFixedAssetChange : 0;
+  const prevSaleAsset = prevFixedAssetChange < 0 ? -prevFixedAssetChange : 0;
+  const netInvesting = saleAsset - purchaseAsset;
+  const prevNetInvesting = prevSaleAsset - prevPurchaseAsset;
+
+  const bankDebtChange = (currentEnd.bankDebtShort + currentEnd.bankDebtLong) - (currentStart.bankDebtShort + currentStart.bankDebtLong);
+  const prevBankDebtChange = (prevEnd.bankDebtShort + prevEnd.bankDebtLong) - (prevStart.bankDebtShort + prevStart.bankDebtLong);
+  const bankDebtPayment = bankDebtChange < 0 ? -bankDebtChange : 0;
+  const bankDebtProceeds = bankDebtChange > 0 ? bankDebtChange : 0;
+  const prevBankDebtPayment = prevBankDebtChange < 0 ? -prevBankDebtChange : 0;
+  const prevBankDebtProceeds = prevBankDebtChange > 0 ? prevBankDebtChange : 0;
+
+  const financingDebtChange = currentEnd.financingDebt - currentStart.financingDebt;
+  const prevFinancingDebtChange = prevEnd.financingDebt - prevStart.financingDebt;
+  const financingPayment = financingDebtChange < 0 ? -financingDebtChange : 0;
+  const financingProceeds = financingDebtChange > 0 ? financingDebtChange : 0;
+  const prevFinancingPayment = prevFinancingDebtChange < 0 ? -prevFinancingDebtChange : 0;
+  const prevFinancingProceeds = prevFinancingDebtChange > 0 ? prevFinancingDebtChange : 0;
+
+  const netFinancing = bankDebtProceeds - bankDebtPayment + financingProceeds - financingPayment;
+  const prevNetFinancing = prevBankDebtProceeds - prevBankDebtPayment + prevFinancingProceeds - prevFinancingPayment;
+
+  const beginningBalance = currentStart.cash;
+  const endingBalance = currentEnd.cash;
+  const cashChange = endingBalance - beginningBalance;
+
+  const prevBeginningBalance = prevStart.cash;
+  const prevEndingBalance = prevEnd.cash;
+  const prevCashChange = prevEndingBalance - prevBeginningBalance;
+
+  const cashFromSales = report?.totals.revenue ?? 0;
+  const cashForPurchases = report?.totals.expense ?? 0;
 
   const exportToPDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -59,6 +262,7 @@ export default function CashFlow() {
     const marginR = 15;
     const contentW = pageW - marginL - marginR;
     const periodLabel = format(date, 'MMMM yyyy', { locale: id });
+    const prevPeriodLabel = format(prevMonth, 'MMMM yyyy', { locale: id });
 
     const fmtNum = (v: number) => {
       if (v === 0) return '-';
@@ -92,7 +296,7 @@ export default function CashFlow() {
     doc.setFont('helvetica', 'bold');
     doc.text('Pos', colPos, y);
     doc.text(periodLabel, colP2 + 10, y, { align: 'right' });
-    doc.text('[Periode 1]', colP1, y, { align: 'right' });
+    doc.text(prevPeriodLabel, colP1, y, { align: 'right' });
     doc.setLineWidth(0.5);
     doc.line(marginL, y + 2, pageW - marginR, y + 2);
     y += 7;
@@ -113,38 +317,38 @@ export default function CashFlow() {
 
     // Aktivitas Operasi
     addSectionHeader('Aktivitas Operasi');
-    addRow('Laba/Rugi Bersih', fmtNum(netOperatingCashFlow), '-', false, 4);
+    addRow('Laba/Rugi Bersih', fmtNum(netIncome), fmtNum(prevNetIncome), false, 4);
     addRow('Penyesuaian:', '', '', false, 4);
-    addRow('Akumulasi Penyusutan', '-', '-', false, 8);
+    addRow('Akumulasi Penyusutan', fmtNum(depreciation), fmtNum(prevDepreciation), false, 8);
     addRow('Kenaikan & Penurunan Kas', '', '', false, 4);
-    addRow('Piutang Usaha', '-', '-', false, 8);
-    addRow('Persediaan', '-', '-', false, 8);
-    addRow('Biaya Dibayar Dimuka (Down Payment)', '-', '-', false, 8);
-    addRow('Aset Lancar Lainnya', '-', '-', false, 8);
-    addRow('Total Arus Kas Bersih Aktivitas Operasional', fmtNum(netOperatingCashFlow), '-', true);
+    addRow('Piutang Usaha', fmtNum(receivableEffect), fmtNum(prevReceivableEffect), false, 8);
+    addRow('Persediaan', fmtNum(inventoryEffect), fmtNum(prevInventoryEffect), false, 8);
+    addRow('Biaya Dibayar Dimuka (Down Payment)', fmtNum(prepaidEffect), fmtNum(prevPrepaidEffect), false, 8);
+    addRow('Aset Lancar Lainnya', fmtNum(otherAssetEffect), fmtNum(prevOtherAssetEffect), false, 8);
+    addRow('Total Arus Kas Bersih Aktivitas Operasional', fmtNum(netOperatingCashFlow), fmtNum(prevOperatingCashFlow), true);
     y += 3;
 
     // Aktivitas Investasi
     addSectionHeader('Aktivitas Investasi');
-    addRow('Pembelian Aset', '-', '-', false, 4);
-    addRow('Penjualan Aset', '-', '-', false, 4);
-    addRow('Total Arus Kas Bersih Aktivitas Investasi', '-', '-', true);
+    addRow('Pembelian Aset', fmtNum(purchaseAsset), fmtNum(prevPurchaseAsset), false, 4);
+    addRow('Penjualan Aset', fmtNum(saleAsset), fmtNum(prevSaleAsset), false, 4);
+    addRow('Total Arus Kas Bersih Aktivitas Investasi', fmtNum(netInvesting), fmtNum(prevNetInvesting), true);
     y += 3;
 
     // Aktivitas Pendanaan
     addSectionHeader('Aktivitas Pendanaan');
-    addRow('Pembayaran Utang Bank', '-', '-', false, 4);
-    addRow('Penerimaan Utang Bank', '-', '-', false, 4);
-    addRow('Total Arus Kas Bersih Aktivitas Pendanaan', '-', '-', true);
+    addRow('Pembayaran Utang Bank', fmtNum(bankDebtPayment), fmtNum(prevBankDebtPayment), false, 4);
+    addRow('Penerimaan Utang Bank', fmtNum(bankDebtProceeds), fmtNum(prevBankDebtProceeds), false, 4);
+    addRow('Total Arus Kas Bersih Aktivitas Pendanaan', fmtNum(netFinancing), fmtNum(prevNetFinancing), true);
     y += 4;
 
     // Summary
     doc.setLineWidth(0.3);
     doc.line(marginL, y, pageW - marginR, y);
     y += 5;
-    addRow('Kenaikan Bersih Kas dan Setara Kas', fmtNum(netOperatingCashFlow), '-', true);
-    addRow('Kas dan Setara Kas Pada Awal Periode', fmtNum(beginningBalance), '-', false);
-    addRow('Kas dan Setara Kas Pada Akhir Periode', fmtNum(endingBalance), '-', true);
+    addRow('Kenaikan Bersih Kas dan Setara Kas', fmtNum(cashChange), fmtNum(prevCashChange), true);
+    addRow('Kas dan Setara Kas Pada Awal Periode', fmtNum(beginningBalance), fmtNum(prevBeginningBalance), false);
+    addRow('Kas dan Setara Kas Pada Akhir Periode', fmtNum(endingBalance), fmtNum(prevEndingBalance), true);
 
     // Footer
     y += 8;
@@ -201,13 +405,13 @@ export default function CashFlow() {
               <p className="text-2xl font-bold">{formatCurrency(beginningBalance)}</p>
             </CardContent>
           </Card>
-          <Card className={cn(netOperatingCashFlow >= 0 ? 'border-emerald-500/50' : 'border-destructive/50')}>
+          <Card className={cn(cashChange >= 0 ? 'border-emerald-500/50' : 'border-destructive/50')}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-muted-foreground">Perubahan Kas</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className={cn('text-2xl font-bold', netOperatingCashFlow >= 0 ? 'text-emerald-500' : 'text-destructive')}>
-                {netOperatingCashFlow >= 0 ? '+' : ''}{formatCurrency(netOperatingCashFlow)}
+              <p className={cn('text-2xl font-bold', cashChange >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                {cashChange >= 0 ? '+' : ''}{formatCurrency(cashChange)}
               </p>
             </CardContent>
           </Card>
