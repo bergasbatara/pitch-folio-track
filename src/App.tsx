@@ -9,7 +9,7 @@ import { SalesPage } from "@/features/sales";
 import { PurchasesPage } from "@/features/purchases";
 import { FinancialStatementsPage, BalanceSheetPage, CashFlowPage, EquityStatementPage, COGSPage, NotesFSPage } from "@/features/financial-statements";
 import { WelcomePage, CompanySetupPage } from "@/features/onboarding";
-import { SubscriptionPage } from "@/features/subscription";
+import { SubscriptionPage, PaymentPage } from "@/features/subscription";
 import { ReceivablesPage, PayablesPage } from "@/features/receivables";
 import { CustomersPage } from "@/features/customers";
 import { SuppliersPage } from "@/features/suppliers";
