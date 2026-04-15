@@ -42,10 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(me);
       } catch {
         const refreshed = await tryRefresh();
-        if (refreshed?.user) {
+        if (refreshed && 'user' in refreshed) {
           setUser(refreshed.user);
         } else {
-          const err = refreshed?.error;
+          const err = refreshed && 'error' in refreshed ? refreshed.error : undefined;
           if (err && isNetworkError(err)) {
             toast({
               title: 'Tidak dapat terhubung',
