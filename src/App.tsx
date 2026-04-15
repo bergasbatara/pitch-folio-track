@@ -62,6 +62,7 @@ const App = () => (
             <Route path="/akun" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
             <Route path="/jurnal" element={<ProtectedRoute><JournalsPage /></ProtectedRoute>} />
             <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/pembayaran" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SecurityCheck /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
             </Routes>

@@ -11,6 +11,7 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
 export default function Subscription() {
+  const navigate = useNavigate();
   const { company, error: companyError } = useCompanyProfile();
   const { plans, subscription, subscribe, getCurrentPlan, isSubscribed, error: subscriptionError } = useSubscription(company?.id);
   const { toast } = useToast();
@@ -20,7 +21,7 @@ export default function Subscription() {
 
   const currentPlan = getCurrentPlan();
 
-  const handleSubscribe = async (planId: string) => {
+  const handleSubscribe = (planId: string) => {
     if (!company?.id) {
       toast({
         title: 'Perusahaan belum ada',
@@ -29,11 +30,7 @@ export default function Subscription() {
       });
       return;
     }
-    await subscribe(planId);
-    toast({
-      title: 'Berlangganan Berhasil',
-      description: `Anda sekarang berlangganan paket ${plans.find(p => p.id === planId)?.name}`,
-    });
+    navigate(`/pembayaran?plan=${planId}`);
   };
 
   const formatPrice = (price: number) => {
