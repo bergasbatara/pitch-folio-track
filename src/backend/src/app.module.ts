@@ -23,6 +23,7 @@ import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { JournalsModule } from "./journals/journals.module";
 import { ReportsModule } from "./reports/reports.module";
+import { PaymentsModule } from "./payments/payments.module";
 
 const parseKeyPairs = (raw: unknown): Array<{ kid: string; secret: string }> => {
   const input = String(raw ?? "").trim();
@@ -111,6 +112,7 @@ const parseKeyPairs = (raw: unknown): Array<{ kid: string; secret: string }> => 
     AccountsModule,
     JournalsModule,
     ReportsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [
