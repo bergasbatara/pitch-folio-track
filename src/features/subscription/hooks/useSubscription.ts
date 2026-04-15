@@ -129,5 +129,7 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
     }
     throw new Error(message);
   }
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  if (!text) return null as T;
+  return JSON.parse(text) as T;
 };
