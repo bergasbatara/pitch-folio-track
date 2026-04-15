@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +7,43 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CreditCard, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CreditCard, Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useToast } from '@/components/ui/use-toast';
+import { withCsrf } from '@/shared/lib/csrf';
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY ?? '';
+const MIDTRANS_ENV = import.meta.env.VITE_MIDTRANS_ENV ?? 'sandbox';
+
+declare global {
+  interface Window {
+    MidtransNew3ds: {
+      getCardToken: (
+        cardData: {
+          card_number: string;
+          card_exp_month: string;
+          card_exp_year: string;
+          card_cvv: string;
+        },
+        options: {
+          onSuccess: (response: { token_id: string; hash: string }) => void;
+          onFailure: (response: { status_code: string; status_message: string; validation_messages?: string[] }) => void;
+        }
+      ) => void;
+      authenticate: (
+        redirectUrl: string,
+        options: {
+          performAuthentication: (url: string) => void;
+          onSuccess: (response: { transaction_status: string }) => void;
+          onFailure: (response: { transaction_status: string }) => void;
+          onPending: (response: { transaction_status: string }) => void;
+        }
+      ) => void;
+    };
+  }
+}
 
 export default function Payment() {
   const [searchParams] = useSearchParams();
@@ -18,7 +51,8 @@ export default function Payment() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { company } = useCompanyProfile();
-  const { plans, subscribe, isMutating } = useSubscription(company?.id);
+  const { plans } = useSubscription(company?.id);
+  const iframeModalRef = useRef<HTMLDivElement>(null);
 
   const selectedPlan = plans.find((p) => p.id === planId);
 
@@ -27,6 +61,23 @@ export default function Payment() {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [midtransReady, setMidtransReady] = useState(false);
+  const [show3DS, setShow3DS] = useState(false);
+
+  // Load Midtrans JS
+  useEffect(() => {
+    if (document.getElementById('midtrans-script')) {
+      setMidtransReady(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'midtrans-script';
+    script.src = 'https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js';
+    script.setAttribute('data-environment', MIDTRANS_ENV);
+    script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
+    script.onload = () => setMidtransReady(true);
+    document.head.appendChild(script);
+  }, []);
 
   const formatCardNumber = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 16);
@@ -54,26 +105,128 @@ export default function Payment() {
       cardNumber.replace(/\s/g, '').length === 16 &&
       cardName.trim().length > 0 &&
       expiry.length === 5 &&
-      cvv.length >= 3
+      cvv.length >= 3 &&
+      midtransReady
     );
   };
 
+  const chargeOnBackend = useCallback(async (tokenId: string) => {
+    if (!company?.id || !selectedPlan) return;
+
+    const orderId = `SUB-${company.id.slice(0, 8)}-${Date.now()}`;
+
+    const response = await fetch(`${API_URL}/companies/${company.id}/payments/charge`, {
+      ...withCsrf({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokenId,
+          orderId,
+          grossAmount: selectedPlan.price,
+          planId: selectedPlan.id,
+        }),
+      }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error((body as { message?: string }).message ?? 'Charge failed');
+    }
+
+    return response.json() as Promise<{
+      statusCode: string;
+      transactionStatus: string;
+      redirectUrl?: string;
+      orderId: string;
+      fraudStatus?: string;
+    }>;
+  }, [company?.id, selectedPlan]);
+
+  const handle3DS = useCallback((redirectUrl: string) => {
+    setShow3DS(true);
+
+    window.MidtransNew3ds.authenticate(redirectUrl, {
+      performAuthentication: (url: string) => {
+        // Open 3DS page in iframe
+        if (iframeModalRef.current) {
+          iframeModalRef.current.innerHTML = `<iframe frameborder="0" style="height:90vh; width:100%;" src="${url}"></iframe>`;
+        }
+      },
+      onSuccess: () => {
+        setShow3DS(false);
+        toast({
+          title: 'Pembayaran Berhasil',
+          description: `Anda sekarang berlangganan paket ${selectedPlan?.name}.`,
+        });
+        navigate('/langganan');
+      },
+      onFailure: () => {
+        setShow3DS(false);
+        toast({
+          title: 'Pembayaran Gagal',
+          description: 'Autentikasi 3D Secure gagal. Silakan coba lagi.',
+          variant: 'destructive',
+        });
+      },
+      onPending: () => {
+        setShow3DS(false);
+        toast({
+          title: 'Pembayaran Pending',
+          description: 'Pembayaran Anda sedang diproses. Kami akan mengonfirmasi segera.',
+        });
+        navigate('/langganan');
+      },
+    });
+  }, [navigate, toast, selectedPlan]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlan || !isFormValid()) return;
+    if (!selectedPlan || !isFormValid() || !midtransReady) return;
 
     setIsProcessing(true);
+
+    const [expMonth, expYear] = expiry.split('/');
+
     try {
-      await subscribe(selectedPlan.id);
-      toast({
-        title: 'Pembayaran Berhasil',
-        description: `Anda sekarang berlangganan paket ${selectedPlan.name}.`,
+      // Step 1: Get card token from Midtrans JS
+      const tokenId = await new Promise<string>((resolve, reject) => {
+        window.MidtransNew3ds.getCardToken(
+          {
+            card_number: cardNumber.replace(/\s/g, ''),
+            card_exp_month: expMonth,
+            card_exp_year: `20${expYear}`,
+            card_cvv: cvv,
+          },
+          {
+            onSuccess: (response) => resolve(response.token_id),
+            onFailure: (response) => reject(new Error(response.status_message || 'Gagal mendapatkan token kartu')),
+          }
+        );
       });
-      navigate('/langganan');
-    } catch {
+
+      // Step 2: Send token to backend for charge
+      const result = await chargeOnBackend(tokenId);
+
+      if (!result) throw new Error('No response from server');
+
+      if (result.statusCode === '200' && result.transactionStatus === 'capture') {
+        // Direct success (non-3DS)
+        toast({
+          title: 'Pembayaran Berhasil',
+          description: `Anda sekarang berlangganan paket ${selectedPlan.name}.`,
+        });
+        navigate('/langganan');
+      } else if (result.redirectUrl) {
+        // Needs 3DS authentication
+        handle3DS(result.redirectUrl);
+      } else {
+        throw new Error(`Payment failed: ${result.transactionStatus}`);
+      }
+    } catch (err) {
       toast({
         title: 'Pembayaran Gagal',
-        description: 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.',
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan. Silakan coba lagi.',
         variant: 'destructive',
       });
     } finally {
@@ -98,6 +251,19 @@ export default function Payment() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* 3DS Modal */}
+        {show3DS && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-background rounded-lg w-full max-w-lg overflow-hidden shadow-xl">
+              <div className="p-4 border-b flex items-center justify-between">
+                <h3 className="font-semibold">Verifikasi Keamanan</h3>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+              <div ref={iframeModalRef} className="min-h-[400px]" />
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/langganan')}>
@@ -132,6 +298,7 @@ export default function Payment() {
                         onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
                         maxLength={19}
                         className="pl-10"
+                        disabled={isProcessing}
                       />
                       <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>
@@ -145,6 +312,7 @@ export default function Payment() {
                       placeholder="Nama sesuai kartu"
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value)}
+                      disabled={isProcessing}
                     />
                   </div>
 
@@ -158,6 +326,7 @@ export default function Payment() {
                         value={expiry}
                         onChange={(e) => setExpiry(formatExpiry(e.target.value))}
                         maxLength={5}
+                        disabled={isProcessing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -169,6 +338,7 @@ export default function Payment() {
                         value={cvv}
                         onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
                         maxLength={4}
+                        disabled={isProcessing}
                       />
                     </div>
                   </div>
@@ -180,7 +350,7 @@ export default function Payment() {
                     <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                     <div className="text-sm text-muted-foreground">
                       <p className="font-medium text-foreground">Pembayaran Aman</p>
-                      <p>Data kartu Anda dienkripsi dan diproses secara aman. Kami tidak menyimpan informasi kartu Anda.</p>
+                      <p>Data kartu Anda dienkripsi oleh Midtrans dan tidak pernah menyentuh server kami.</p>
                     </div>
                   </div>
 
@@ -188,10 +358,19 @@ export default function Payment() {
                     type="submit"
                     className="w-full"
                     size="lg"
-                    disabled={!isFormValid() || isProcessing || isMutating}
+                    disabled={!isFormValid() || isProcessing}
                   >
-                    <Lock className="h-4 w-4 mr-2" />
-                    {isProcessing ? 'Memproses...' : `Bayar ${selectedPlan ? formatPrice(selectedPlan.price) : ''}`}
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        Bayar {selectedPlan ? formatPrice(selectedPlan.price) : ''}
+                      </>
+                    )}
                   </Button>
                 </form>
               </CardContent>
