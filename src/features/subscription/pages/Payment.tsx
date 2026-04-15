@@ -66,16 +66,23 @@ export default function Payment() {
 
   // Load Midtrans JS
   useEffect(() => {
-    if (document.getElementById('midtrans-script')) {
-      setMidtransReady(true);
+    const existing = document.getElementById('midtrans-script');
+    if (existing) {
+      // Only mark ready if the global is actually available. Script tags can exist even if load failed.
+      setMidtransReady(typeof window.MidtransNew3ds?.getCardToken === 'function');
       return;
     }
     const script = document.createElement('script');
     script.id = 'midtrans-script';
-    script.src = 'https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js';
+    // Sandbox uses a different host. The data-environment attribute alone isn't always enough.
+    script.src =
+      MIDTRANS_ENV === 'production'
+        ? 'https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js'
+        : 'https://api.sandbox.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js';
     script.setAttribute('data-environment', MIDTRANS_ENV);
     script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
-    script.onload = () => setMidtransReady(true);
+    script.onload = () => setMidtransReady(typeof window.MidtransNew3ds?.getCardToken === 'function');
+    script.onerror = () => setMidtransReady(false);
     document.head.appendChild(script);
   }, []);
 

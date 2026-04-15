@@ -43,6 +43,10 @@ export class MidtransService {
 
   constructor(private readonly config: ConfigService) {
     this.serverKey = this.config.get<string>("MIDTRANS_SERVER_KEY", "");
+    if (!this.serverKey) {
+      // Fail fast so it's obvious why payments "don't connect".
+      throw new Error("MIDTRANS_SERVER_KEY is not set");
+    }
     const isSandbox = !this.serverKey.startsWith("Mid-server-");
     this.baseUrl = isSandbox
       ? "https://api.sandbox.midtrans.com"
@@ -89,7 +93,14 @@ export class MidtransService {
       body: JSON.stringify(body),
     });
 
-    const data = (await response.json()) as ChargeResponse;
+    const data = (await response.json()) as ChargeResponse & { validation_messages?: string[] };
+    if (!response.ok) {
+      this.logger.warn(
+        `Midtrans charge failed: http=${response.status} status_code=${data.status_code} msg=${data.status_message}`,
+      );
+      // Bubble up a readable error to the controller/UI.
+      throw new Error(data.status_message || `Midtrans charge failed (HTTP ${response.status})`);
+    }
     this.logger.log(
       `Charge ${params.orderId}: status_code=${data.status_code} tx_status=${data.transaction_status}`,
     );
@@ -105,6 +116,13 @@ export class MidtransService {
         Authorization: `Basic ${authString}`,
       },
     });
-    return (await response.json()) as ChargeResponse;
+    const data = (await response.json()) as ChargeResponse;
+    if (!response.ok) {
+      this.logger.warn(
+        `Midtrans status failed: http=${response.status} status_code=${data.status_code} msg=${data.status_message}`,
+      );
+      throw new Error(data.status_message || `Midtrans status failed (HTTP ${response.status})`);
+    }
+    return data;
   }
 }
