@@ -17,7 +17,9 @@ export class UpdateCompanyDto {
   @IsString()
   phone?: string;
 
-  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
+  @Transform(({ value }) =>
+    value === undefined || value === null ? undefined : String(value).trim().toLowerCase(),
+  )
   @IsOptional()
   @IsEmail()
   email?: string;

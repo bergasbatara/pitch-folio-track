@@ -1,6 +1,8 @@
-import { IsEmail, IsString, Matches, MinLength } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsEmail, IsNotEmpty, IsString, Matches, MinLength } from "class-validator";
 
 export class RegisterDto {
+  @Transform(({ value }) => String(value ?? "").trim().toLowerCase())
   @IsEmail()
   email: string;
 
@@ -11,6 +13,7 @@ export class RegisterDto {
   })
   password: string;
 
+  @IsNotEmpty()
   @IsString()
   name: string;
 }

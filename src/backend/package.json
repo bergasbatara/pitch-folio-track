@@ -17,6 +17,7 @@
     "security:check": "node scripts/security-check.mjs",
     "security:password-check": "node scripts/password-policy-check.mjs",
     "security:dto-check": "node scripts/dto-coverage-check.mjs",
+    "security:refresh-rotation-check": "node scripts/refresh-rotation-check.mjs",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

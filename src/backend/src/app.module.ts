@@ -24,20 +24,62 @@ import { AccountsModule } from "./accounts/accounts.module";
 import { JournalsModule } from "./journals/journals.module";
 import { ReportsModule } from "./reports/reports.module";
 
+const parseKeyPairs = (raw: unknown): Array<{ kid: string; secret: string }> => {
+  const input = String(raw ?? "").trim();
+  if (!input) return [];
+  return input
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((pair) => {
+      const idx = pair.indexOf(":");
+      if (idx === -1) {
+        throw new Error('JWT_*_KEYS must be "kid:secret,kid2:secret2"');
+      }
+      const kid = pair.slice(0, idx).trim();
+      const secret = pair.slice(idx + 1).trim();
+      if (!kid || !secret) {
+        throw new Error("JWT_*_KEYS contains empty kid/secret");
+      }
+      return { kid, secret };
+    });
+};
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate: (env) => {
-        const required = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+        const isProd = (env.NODE_ENV ?? "development") === "production";
+        const accessPairs = parseKeyPairs(env.JWT_ACCESS_KEYS);
+        const refreshPairs = parseKeyPairs(env.JWT_REFRESH_KEYS);
+        const required: string[] = ["FRONTEND_URL"];
+        if (accessPairs.length === 0) required.push("JWT_ACCESS_SECRET");
+        if (refreshPairs.length === 0) required.push("JWT_REFRESH_SECRET");
         for (const key of required) {
-          if (!env[key]) {
-            throw new Error(`Missing required env: ${key}`);
-          }
+          if (!env[key]) throw new Error(`Missing required env: ${key}`);
         }
-        if ((env.NODE_ENV ?? "development") === "production") {
-          if (env.JWT_ACCESS_SECRET?.startsWith("dev_") || env.JWT_REFRESH_SECRET?.startsWith("dev_")) {
-            throw new Error("JWT secrets must be rotated for production.");
+
+        const allSecrets = [
+          env.JWT_ACCESS_SECRET,
+          env.JWT_REFRESH_SECRET,
+          ...accessPairs.map((p) => p.secret),
+          ...refreshPairs.map((p) => p.secret),
+        ].filter(Boolean) as string[];
+
+        if (isProd) {
+          if (String(env.FRONTEND_URL ?? "").includes("*")) {
+            throw new Error("FRONTEND_URL must not contain wildcard in production.");
+          }
+          for (const secret of allSecrets) {
+            if (secret.startsWith("dev_")) throw new Error("JWT secrets must be rotated for production.");
+            if (secret.length < 32) throw new Error("JWT secrets must be at least 32 characters in production.");
+          }
+          if (String(env.CSRF_ENABLED ?? "true") !== "true") {
+            throw new Error("CSRF must be enabled in production.");
+          }
+          if (String(env.CORS_ALLOW_NO_ORIGIN ?? "false") === "true") {
+            throw new Error("CORS_ALLOW_NO_ORIGIN must be false in production.");
           }
         }
         return env;
