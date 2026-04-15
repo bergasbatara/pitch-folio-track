@@ -9,7 +9,7 @@ import { SalesPage } from "@/features/sales";
 import { PurchasesPage } from "@/features/purchases";
 import { FinancialStatementsPage, BalanceSheetPage, CashFlowPage, EquityStatementPage, COGSPage, NotesFSPage } from "@/features/financial-statements";
 import { WelcomePage, CompanySetupPage } from "@/features/onboarding";
-import { SubscriptionPage } from "@/features/subscription";
+import { SubscriptionPage, PaymentPage } from "@/features/subscription";
 import { ReceivablesPage, PayablesPage } from "@/features/receivables";
 import { CustomersPage } from "@/features/customers";
 import { SuppliersPage } from "@/features/suppliers";
@@ -62,6 +62,7 @@ const App = () => (
             <Route path="/akun" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
             <Route path="/jurnal" element={<ProtectedRoute><JournalsPage /></ProtectedRoute>} />
             <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/pembayaran" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SecurityCheck /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
             </Routes>
