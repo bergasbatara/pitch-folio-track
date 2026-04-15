@@ -110,7 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (err instanceof Error) {
           if ((err as Error & { status?: number }).status === 401) {
             clearAuth();
-            window.location.href = '/login';
+            // Don't hard-reload the whole app on auth failure.
+            // ProtectedRoute will redirect to /login as needed.
           }
           return { error: err };
         }
