@@ -190,6 +190,22 @@ export default function Payment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan || !isFormValid() || !midtransReady) return;
+    if (!MIDTRANS_CLIENT_KEY) {
+      toast({
+        title: 'Konfigurasi Midtrans belum lengkap',
+        description: 'VITE_MIDTRANS_CLIENT_KEY belum di-set.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (typeof window.MidtransNew3ds?.getCardToken !== 'function') {
+      toast({
+        title: 'Midtrans belum siap',
+        description: 'Midtrans JS belum ter-load dengan benar. Coba refresh halaman.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsProcessing(true);
 

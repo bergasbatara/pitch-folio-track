@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { MidtransService } from "./midtrans.service";
 import { ChargeCardDto } from "./dto/charge-card.dto";
@@ -26,13 +32,20 @@ export class PaymentsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     // Call Midtrans Charge API
-    const chargeResult = await this.midtrans.chargeCard({
-      tokenId: dto.tokenId,
-      orderId: dto.orderId,
-      grossAmount: dto.grossAmount,
-      customerName: user?.name ?? undefined,
-      customerEmail: user?.email ?? undefined,
-    });
+    let chargeResult: Awaited<ReturnType<MidtransService["chargeCard"]>>;
+    try {
+      chargeResult = await this.midtrans.chargeCard({
+        tokenId: dto.tokenId,
+        orderId: dto.orderId,
+        grossAmount: dto.grossAmount,
+        customerName: user?.name ?? undefined,
+        customerEmail: user?.email ?? undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Midtrans charge failed";
+      // Midtrans failures are external dependency failures from our point of view.
+      throw new BadGatewayException(msg);
+    }
 
     const statusCode = chargeResult.status_code;
 
@@ -53,7 +66,13 @@ export class PaymentsService {
 
   async getPaymentStatus(userId: string, companyId: string, orderId: string) {
     await this.assertMember(userId, companyId);
-    const result = await this.midtrans.getStatus(orderId);
+    let result: Awaited<ReturnType<MidtransService["getStatus"]>>;
+    try {
+      result = await this.midtrans.getStatus(orderId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Midtrans status failed";
+      throw new BadGatewayException(msg);
+    }
 
     // If capture + accept, activate subscription
     if (
