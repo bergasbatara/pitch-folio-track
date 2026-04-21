@@ -40,6 +40,7 @@ export class MidtransService {
   private readonly logger = new Logger(MidtransService.name);
   private readonly serverKey: string;
   private readonly baseUrl: string;
+  private readonly timeoutMs: number;
 
   constructor(private readonly config: ConfigService) {
     this.serverKey = this.config.get<string>("MIDTRANS_SERVER_KEY", "");
@@ -47,10 +48,15 @@ export class MidtransService {
       // Fail fast so it's obvious why payments "don't connect".
       throw new Error("MIDTRANS_SERVER_KEY is not set");
     }
-    const isSandbox = !this.serverKey.startsWith("Mid-server-");
-    this.baseUrl = isSandbox
-      ? "https://api.sandbox.midtrans.com"
-      : "https://api.midtrans.com";
+    const env = (this.config.get<string>("MIDTRANS_ENV") ?? "").trim().toLowerCase();
+    const forcedSandbox = env === "sandbox";
+    const forcedProd = env === "production" || env === "prod";
+    const heuristicSandbox = this.serverKey.startsWith("SB-");
+    const useSandbox = forcedSandbox || (!forcedProd && heuristicSandbox);
+    this.baseUrl = useSandbox ? "https://api.sandbox.midtrans.com" : "https://api.midtrans.com";
+
+    const rawTimeout = Number(this.config.get<string>("MIDTRANS_TIMEOUT_MS") ?? "15000");
+    this.timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 15000;
   }
 
   async chargeCard(params: {
@@ -83,15 +89,28 @@ export class MidtransService {
 
     const authString = Buffer.from(`${this.serverKey}:`).toString("base64");
 
-    const response = await fetch(`${this.baseUrl}/v2/charge`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Basic ${authString}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/v2/charge`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Basic ${authString}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") {
+        throw new Error(`Midtrans charge timeout after ${this.timeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const data = (await response.json()) as ChargeResponse & { validation_messages?: string[] };
     if (!response.ok) {
@@ -109,13 +128,26 @@ export class MidtransService {
 
   async getStatus(orderId: string): Promise<ChargeResponse> {
     const authString = Buffer.from(`${this.serverKey}:`).toString("base64");
-    const response = await fetch(`${this.baseUrl}/v2/${orderId}/status`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Basic ${authString}`,
-      },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/v2/${orderId}/status`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Basic ${authString}`,
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") {
+        throw new Error(`Midtrans status timeout after ${this.timeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
     const data = (await response.json()) as ChargeResponse;
     if (!response.ok) {
       this.logger.warn(

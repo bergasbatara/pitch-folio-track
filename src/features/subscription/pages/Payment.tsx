@@ -213,20 +213,32 @@ export default function Payment() {
 
     try {
       // Step 1: Get card token from Midtrans JS
-      const tokenId = await new Promise<string>((resolve, reject) => {
-        window.MidtransNew3ds.getCardToken(
-          {
-            card_number: cardNumber.replace(/\s/g, ''),
-            card_exp_month: expMonth,
-            card_exp_year: `20${expYear}`,
-            card_cvv: cvv,
-          },
-          {
-            onSuccess: (response) => resolve(response.token_id),
-            onFailure: (response) => reject(new Error(response.status_message || 'Gagal mendapatkan token kartu')),
-          }
-        );
-      });
+      const tokenId = await Promise.race<string>([
+        new Promise<string>((resolve, reject) => {
+          window.MidtransNew3ds.getCardToken(
+            {
+              card_number: cardNumber.replace(/\s/g, ''),
+              card_exp_month: expMonth,
+              card_exp_year: `20${expYear}`,
+              card_cvv: cvv,
+            },
+            {
+              onSuccess: (response) => resolve(response.token_id),
+              onFailure: (response) =>
+                reject(new Error(response.status_message || 'Gagal mendapatkan token kartu')),
+            }
+          );
+        }),
+        new Promise<string>((_, reject) => {
+          setTimeout(() => {
+            reject(
+              new Error(
+                'Timeout saat tokenisasi kartu. Biasanya ini terjadi jika request ke Midtrans diblokir (adblock/privacy extension) atau client key/env tidak cocok.',
+              ),
+            );
+          }, 20000);
+        }),
+      ]);
 
       // Step 2: Send token to backend for charge
       const result = await chargeOnBackend(tokenId);
