@@ -53,6 +53,7 @@ export default function Payment() {
   const { company } = useCompanyProfile();
   const { plans } = useSubscription(company?.id);
   const iframeModalRef = useRef<HTMLDivElement>(null);
+  const threeDsPopupRef = useRef<Window | null>(null);
 
   const selectedPlan = plans.find((p) => p.id === planId);
 
@@ -63,6 +64,17 @@ export default function Payment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [midtransReady, setMidtransReady] = useState(false);
   const [show3DS, setShow3DS] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      try {
+        threeDsPopupRef.current?.close();
+      } catch {
+        // ignore
+      }
+      threeDsPopupRef.current = null;
+    };
+  }, []);
 
   // Load Midtrans JS
   useEffect(() => {
@@ -155,13 +167,36 @@ export default function Payment() {
 
     window.MidtransNew3ds.authenticate(redirectUrl, {
       performAuthentication: (url: string) => {
-        // Open 3DS page in iframe
-        if (iframeModalRef.current) {
-          iframeModalRef.current.innerHTML = `<iframe frameborder="0" style="height:90vh; width:100%;" src="${url}"></iframe>`;
+        // Prefer a popup: many 3DS pages send X-Frame-Options/CSP that blocks iframe embedding.
+        try {
+          const w = window.open(url, 'midtrans-3ds', 'width=480,height=640,noopener,noreferrer');
+          if (w) {
+            threeDsPopupRef.current = w;
+            return;
+          }
+        } catch {
+          // ignore and fall back to iframe
         }
+
+        // Fallback to iframe (e.g. if popup blocked by browser settings)
+        if (!iframeModalRef.current) return;
+        iframeModalRef.current.innerHTML = '';
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('frameborder', '0');
+        iframe.style.height = '90vh';
+        iframe.style.width = '100%';
+        iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation');
+        iframe.src = url;
+        iframeModalRef.current.appendChild(iframe);
       },
       onSuccess: () => {
         setShow3DS(false);
+        try {
+          threeDsPopupRef.current?.close();
+        } catch {
+          // ignore
+        }
+        threeDsPopupRef.current = null;
         toast({
           title: 'Pembayaran Berhasil',
           description: `Anda sekarang berlangganan paket ${selectedPlan?.name}.`,
@@ -170,6 +205,12 @@ export default function Payment() {
       },
       onFailure: () => {
         setShow3DS(false);
+        try {
+          threeDsPopupRef.current?.close();
+        } catch {
+          // ignore
+        }
+        threeDsPopupRef.current = null;
         toast({
           title: 'Pembayaran Gagal',
           description: 'Autentikasi 3D Secure gagal. Silakan coba lagi.',
@@ -178,6 +219,12 @@ export default function Payment() {
       },
       onPending: () => {
         setShow3DS(false);
+        try {
+          threeDsPopupRef.current?.close();
+        } catch {
+          // ignore
+        }
+        threeDsPopupRef.current = null;
         toast({
           title: 'Pembayaran Pending',
           description: 'Pembayaran Anda sedang diproses. Kami akan mengonfirmasi segera.',
@@ -293,6 +340,9 @@ export default function Payment() {
               <div className="p-4 border-b flex items-center justify-between">
                 <h3 className="font-semibold">Verifikasi Keamanan</h3>
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+              <div className="px-4 pt-3 text-sm text-muted-foreground">
+                Jika halaman verifikasi tidak muncul di sini, cek pop-up browser (Midtrans 3DS sering dibuka lewat pop-up).
               </div>
               <div ref={iframeModalRef} className="min-h-[400px]" />
             </div>
