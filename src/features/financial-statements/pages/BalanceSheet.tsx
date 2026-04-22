@@ -93,10 +93,6 @@ export default function BalanceSheet() {
 
         const fetchBalance = async (value: string) => {
           const res = await fetch(`${apiBase}/companies/${company.id}/reports/balance?asOf=${value}&ts=${Date.now()}`, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              Pragma: 'no-cache',
-            },
             cache: 'no-store',
             credentials: 'include',
           });

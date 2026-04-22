@@ -133,10 +133,6 @@ export default function NotesFS() {
         const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
         const fetchNotes = async (rangeFrom: string, rangeTo: string) => {
           const res = await fetch(`${apiBase}/companies/${company.id}/reports/notes?from=${rangeFrom}&to=${rangeTo}&ts=${Date.now()}`, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              Pragma: 'no-cache',
-            },
             cache: 'no-store',
             credentials: 'include',
           });
@@ -152,10 +148,6 @@ export default function NotesFS() {
 
         const fetchBalance = async (asOf: string) => {
           const res = await fetch(`${apiBase}/companies/${company.id}/reports/balance?asOf=${asOf}&ts=${Date.now()}`, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              Pragma: 'no-cache',
-            },
             cache: 'no-store',
             credentials: 'include',
           });

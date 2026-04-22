@@ -116,10 +116,6 @@ export default function FinancialStatements() {
             ? `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/daily?date=${rangeFrom}&ts=${Date.now()}`
             : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/reports/range?from=${rangeFrom}&to=${rangeTo}&ts=${Date.now()}`;
           const res = await fetch(url, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              Pragma: 'no-cache',
-            },
             cache: 'no-store',
             credentials: 'include',
           });

@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PlanGuard } from "../common/plan/plan.guard";
+import { PlanRequired } from "../common/plan/plan-required.decorator";
 import { CreateReceivableDto } from "./dto/create-receivable.dto";
 import { UpdateReceivableDto } from "./dto/update-receivable.dto";
 import { ReceivablesService } from "./receivables.service";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PlanGuard)
+@PlanRequired("business")
 @Controller("companies/:companyId/receivables")
 export class ReceivablesController {
   constructor(private readonly receivablesService: ReceivablesService) {}

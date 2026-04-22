@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PlanGuard } from "../common/plan/plan.guard";
+import { PlanRequired } from "../common/plan/plan-required.decorator";
 import { CreateTaxCodeDto } from "./dto/create-tax-code.dto";
 import { UpdateTaxCodeDto } from "./dto/update-tax-code.dto";
 import { TaxesService } from "./taxes.service";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PlanGuard)
+@PlanRequired("business")
 @Controller("companies/:companyId/tax-codes")
 export class TaxesController {
   constructor(private readonly taxesService: TaxesService) {}

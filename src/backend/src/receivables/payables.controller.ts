@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PlanGuard } from "../common/plan/plan.guard";
+import { PlanRequired } from "../common/plan/plan-required.decorator";
 import { CreatePayableDto } from "./dto/create-payable.dto";
 import { UpdatePayableDto } from "./dto/update-payable.dto";
 import { PayablesService } from "./payables.service";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PlanGuard)
+@PlanRequired("business")
 @Controller("companies/:companyId/payables")
 export class PayablesController {
   constructor(private readonly payablesService: PayablesService) {}
