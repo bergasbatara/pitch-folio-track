@@ -1,21 +1,42 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-interface ChargeRequest {
+type CustomerDetails = {
+  first_name?: string;
+  email?: string;
+  phone?: string;
+};
+
+interface ChargeCardRequest {
   payment_type: "credit_card";
-  transaction_details: {
-    order_id: string;
-    gross_amount: number;
+  transaction_details: { order_id: string; gross_amount: number };
+  credit_card: { token_id: string; authentication: boolean };
+  customer_details?: CustomerDetails;
+}
+
+interface ChargeQrisRequest {
+  payment_type: "qris";
+  transaction_details: { order_id: string; gross_amount: number };
+  qris?: { acquirer?: string };
+  customer_details?: CustomerDetails;
+}
+
+interface ChargeGopayRequest {
+  payment_type: "gopay";
+  transaction_details: { order_id: string; gross_amount: number };
+  gopay?: {
+    enable_callback?: boolean;
+    callback_url?: string;
+    account_id?: string;
+    payment_option_token?: string;
   };
-  credit_card: {
-    token_id: string;
-    authentication: boolean;
-  };
-  customer_details?: {
-    first_name?: string;
-    email?: string;
-    phone?: string;
-  };
+  customer_details?: CustomerDetails;
+}
+
+export interface MidtransAction {
+  name: string;
+  method: string;
+  url: string;
 }
 
 export interface ChargeResponse {
@@ -33,6 +54,11 @@ export interface ChargeResponse {
   masked_card?: string;
   bank?: string;
   card_type?: string;
+  // QRIS / GoPay
+  actions?: MidtransAction[];
+  qr_string?: string;
+  acquirer?: string;
+  expiry_time?: string;
 }
 
 @Injectable()
