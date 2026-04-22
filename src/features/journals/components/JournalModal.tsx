@@ -129,19 +129,10 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <span>Total Kredit: <strong>Rp{totalCredit.toLocaleString('id-ID')}</strong></span>
             </div>
             {hasAmounts && (
-              isBalanced ? (
-                <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Jurnal seimbang.</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>
-                    Debit dan Kredit harus seimbang. Selisih: <strong>Rp{difference.toLocaleString('id-ID')}</strong>
-                  </span>
-                </div>
-              )
+              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Siap disimpan. Keseimbangan dihitung secara keseluruhan di buku besar.</span>
+              </div>
             )}
           </div>
 
