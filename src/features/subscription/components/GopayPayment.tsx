@@ -53,7 +53,6 @@ export function GopayPayment({ companyId, planId, planName, grossAmount, onSucce
             orderId,
             grossAmount,
             planId,
-            callbackUrl: `${window.location.origin}/langganan`,
           }),
         }),
         credentials: 'include',

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { MidtransService } from "./midtrans.service";
 import { ChargeCardDto } from "./dto/charge-card.dto";
@@ -16,6 +17,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly midtrans: MidtransService,
+    private readonly config: ConfigService,
   ) {}
 
   async chargeCard(userId: string, companyId: string, dto: ChargeCardDto) {
@@ -114,12 +116,20 @@ export class PaymentsService {
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
+    // Callback URL should be controlled by the server (avoid open redirect / misuse).
+    const rawOrigins = (this.config.get<string>("FRONTEND_URL") ?? "http://localhost:8080")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+    const frontendOrigin = rawOrigins[0] ?? "http://localhost:8080";
+    const callbackUrl = `${frontendOrigin.replace(/\/$/, "")}/langganan`;
+
     let result: Awaited<ReturnType<MidtransService["chargeGopay"]>>;
     try {
       result = await this.midtrans.chargeGopay({
         orderId: dto.orderId,
         grossAmount: dto.grossAmount,
-        callbackUrl: dto.callbackUrl,
+        callbackUrl,
         customerName: user?.name ?? undefined,
         customerEmail: user?.email ?? undefined,
       });
@@ -128,16 +138,14 @@ export class PaymentsService {
       throw new BadGatewayException(msg);
     }
 
-    const deeplink = result.actions?.find(
-      (a) => a.name === "deeplink-redirect" || a.name === "cstore",
-    );
-    const qrAction = result.actions?.find((a) => a.name === "generate-qr-code");
+    const deeplinkUrl = result.actions?.find((a) => a.name === "deeplink-redirect")?.url;
+    const qrUrl = result.actions?.find((a) => a.name === "generate-qr-code")?.url;
     return {
       statusCode: result.status_code,
       transactionStatus: result.transaction_status,
       orderId: result.order_id,
-      deeplinkUrl: deeplink?.url,
-      qrUrl: qrAction?.url,
+      deeplinkUrl,
+      qrUrl,
       actions: result.actions,
       expiryTime: result.expiry_time,
     };

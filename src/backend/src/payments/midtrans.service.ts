@@ -67,6 +67,7 @@ export class MidtransService {
   private readonly serverKey: string;
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
+  private readonly qrisAcquirer?: string;
 
   constructor(private readonly config: ConfigService) {
     this.serverKey = this.config.get<string>("MIDTRANS_SERVER_KEY", "");
@@ -83,6 +84,9 @@ export class MidtransService {
 
     const rawTimeout = Number(this.config.get<string>("MIDTRANS_TIMEOUT_MS") ?? "15000");
     this.timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 15000;
+
+    const rawQrisAcquirer = (this.config.get<string>("MIDTRANS_QRIS_ACQUIRER") ?? "").trim();
+    this.qrisAcquirer = rawQrisAcquirer ? rawQrisAcquirer : undefined;
   }
 
   private async postCharge(
@@ -159,8 +163,10 @@ export class MidtransService {
     const body: ChargeQrisRequest = {
       payment_type: "qris",
       transaction_details: { order_id: params.orderId, gross_amount: params.grossAmount },
-      qris: { acquirer: "gopay" },
     };
+    if (this.qrisAcquirer) {
+      body.qris = { acquirer: this.qrisAcquirer };
+    }
     if (params.customerName || params.customerEmail) {
       body.customer_details = {
         first_name: params.customerName,
@@ -182,11 +188,13 @@ export class MidtransService {
     const body: ChargeGopayRequest = {
       payment_type: "gopay",
       transaction_details: { order_id: params.orderId, gross_amount: params.grossAmount },
-      gopay: {
+    };
+    if (params.callbackUrl) {
+      body.gopay = {
         enable_callback: true,
         callback_url: params.callbackUrl,
-      },
-    };
+      };
+    }
     if (params.customerName || params.customerEmail) {
       body.customer_details = {
         first_name: params.customerName,

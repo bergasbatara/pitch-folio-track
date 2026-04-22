@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsNumber, IsString, Min } from "class-validator";
 
 export class ChargeGopayDto {
   @Transform(({ value }) => String(value ?? "").trim())
@@ -14,9 +14,4 @@ export class ChargeGopayDto {
   @Transform(({ value }) => String(value ?? "").trim())
   @IsString()
   planId!: string;
-
-  @IsOptional()
-  @Transform(({ value }) => (value == null ? undefined : String(value).trim()))
-  @IsString()
-  callbackUrl?: string;
 }
