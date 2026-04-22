@@ -41,17 +41,15 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
-  const difference = Math.abs(totalDebit - totalCredit);
-  const isBalanced = difference === 0 && totalDebit > 0;
   const hasAmounts = totalDebit > 0 || totalCredit > 0;
   const allAccountsSelected = lines.every((l) => l.accountId);
-  // Backend also rejects lines that have both debit & credit set (or neither). Block save in that case.
+  // Each line must have either debit OR credit (not both, not neither)
   const everyLineValid = lines.every((l) => {
     const d = Number(l.debit) || 0;
     const c = Number(l.credit) || 0;
     return (d > 0 && c === 0) || (c > 0 && d === 0);
   });
-  const canSubmit = allAccountsSelected && everyLineValid && isBalanced;
+  const canSubmit = allAccountsSelected && everyLineValid && hasAmounts;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
