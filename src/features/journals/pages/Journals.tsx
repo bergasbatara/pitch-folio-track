@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { useJournals } from '../hooks/useJournals';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { useCompanyProfile } from '@/features/onboarding';
