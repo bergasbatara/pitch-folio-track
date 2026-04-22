@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CreditCard, Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, Lock, ShieldCheck, Loader2, QrCode, Smartphone } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSubscription } from '../hooks/useSubscription';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useToast } from '@/components/ui/use-toast';
 import { withCsrf } from '@/shared/lib/csrf';
+import { QrisPayment } from '../components/QrisPayment';
+import { GopayPayment } from '../components/GopayPayment';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY ?? '';
