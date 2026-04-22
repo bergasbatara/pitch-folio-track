@@ -74,18 +74,19 @@ export class PaymentsService {
       throw new BadGatewayException(msg);
     }
 
-    // If capture + accept, activate subscription
-    if (
-      result.transaction_status === "capture" &&
-      result.fraud_status === "accept"
-    ) {
-      // Find what plan this order was for — extract from existing subscription or rely on the caller
-      const sub = await this.prisma.subscription.findUnique({
-        where: { companyId },
-        include: { plan: true },
-      });
-      if (sub) {
-        await this.activateSubscription(companyId, sub.planId, sub.plan.period);
+    // If capture + accept, activate subscription.
+    // We encode the plan id in orderId: SUB-<companyShort>-<planId>-<timestamp>
+    if (result.transaction_status === "capture" && result.fraud_status === "accept") {
+      const m = /^SUB-([^-]+)-(.+)-(\d+)$/.exec(orderId);
+      const companyShort = companyId.slice(0, 8);
+      const orderCompanyShort = m?.[1];
+      const planId = m?.[2];
+
+      if (orderCompanyShort === companyShort && planId) {
+        const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
+        if (plan) {
+          await this.activateSubscription(companyId, plan.id, plan.period);
+        }
       }
     }
 

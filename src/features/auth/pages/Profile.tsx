@@ -11,12 +11,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Save, Camera, MapPin, Phone, Building2 } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { useSubscription } from '@/features/subscription';
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { company, saveCompanyProfile, error: companyError } = useCompanyProfile();
+  const { subscription, getCurrentPlan, isLoading: isLoadingSubscription } = useSubscription(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   
   const [name, setName] = useState(user?.name || '');
@@ -27,6 +29,11 @@ export function ProfilePage() {
   const [taxId, setTaxId] = useState(company?.taxId || '');
   const [isLoading, setIsLoading] = useState(false);
   const [showAvatarInput, setShowAvatarInput] = useState(false);
+
+  const currentPlan = getCurrentPlan();
+  const planLabel = isLoadingSubscription
+    ? 'Memuat...'
+    : currentPlan?.name ?? 'Free';
 
   useEffect(() => {
     if (!user) return;
@@ -179,6 +186,23 @@ export function ProfilePage() {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Masukkan nama perusahaan"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="plan" className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5" /> Paket Langganan
+                </Label>
+                <Input
+                  id="plan"
+                  type="text"
+                  value={
+                    subscription?.status
+                      ? `${planLabel} (${subscription.status})`
+                      : planLabel
+                  }
+                  disabled
+                  className="bg-muted"
                 />
               </div>
 

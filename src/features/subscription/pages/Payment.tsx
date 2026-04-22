@@ -54,6 +54,9 @@ export default function Payment() {
   const { plans } = useSubscription(company?.id);
   const iframeModalRef = useRef<HTMLDivElement>(null);
   const threeDsPopupRef = useRef<Window | null>(null);
+  const threeDsPollRef = useRef<number | null>(null);
+  const threeDsPollDeadlineRef = useRef<number | null>(null);
+  const threeDsPopupWatchRef = useRef<number | null>(null);
 
   const selectedPlan = plans.find((p) => p.id === planId);
 
@@ -67,6 +70,15 @@ export default function Payment() {
 
   useEffect(() => {
     return () => {
+      if (threeDsPollRef.current) {
+        window.clearInterval(threeDsPollRef.current);
+        threeDsPollRef.current = null;
+      }
+      threeDsPollDeadlineRef.current = null;
+      if (threeDsPopupWatchRef.current) {
+        window.clearInterval(threeDsPopupWatchRef.current);
+        threeDsPopupWatchRef.current = null;
+      }
       try {
         threeDsPopupRef.current?.close();
       } catch {
@@ -132,7 +144,8 @@ export default function Payment() {
   const chargeOnBackend = useCallback(async (tokenId: string) => {
     if (!company?.id || !selectedPlan) return;
 
-    const orderId = `SUB-${company.id.slice(0, 8)}-${Date.now()}`;
+    // Include plan id so the backend can safely map successful payments back to a plan.
+    const orderId = `SUB-${company.id.slice(0, 8)}-${selectedPlan.id}-${Date.now()}`;
 
     const response = await fetch(`${API_URL}/companies/${company.id}/payments/charge`, {
       ...withCsrf({
@@ -162,16 +175,216 @@ export default function Payment() {
     }>;
   }, [company?.id, selectedPlan]);
 
-  const handle3DS = useCallback((redirectUrl: string) => {
+  const pollPaymentStatusUntilFinal = useCallback((orderId: string) => {
+    if (!company?.id) return;
+
+    if (threeDsPollRef.current) {
+      window.clearInterval(threeDsPollRef.current);
+      threeDsPollRef.current = null;
+    }
+
+    // Poll for up to 5 minutes (banks/3DS can be slow and user may take time to enter OTP).
+    const deadline = Date.now() + 5 * 60_000;
+    threeDsPollDeadlineRef.current = deadline;
+
+    const checkOnce = async (): Promise<boolean> => {
+      try {
+        const res = await fetch(`${API_URL}/companies/${company.id}/payments/status/${orderId}`, {
+          credentials: 'include',
+        });
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Session expired. Silakan login lagi lalu coba ulang pembayaran.');
+        }
+        if (!res.ok) return false;
+        const body = (await res.json()) as {
+          transactionStatus?: string;
+          fraudStatus?: string;
+        };
+
+        const tx = body.transactionStatus;
+        const fraud = body.fraudStatus;
+
+        // Typical CC statuses: pending | capture | deny | cancel | expire
+        if (tx === 'capture' && (fraud === 'accept' || !fraud)) {
+          return true;
+        }
+        if (tx === 'settlement') {
+          return true;
+        }
+        if (tx === 'deny' || tx === 'cancel' || tx === 'expire') {
+          throw new Error(`Payment ${tx}`);
+        }
+        return false;
+      } catch (err) {
+        throw err;
+      }
+    };
+
+    // Fire immediately, then keep polling.
+    void (async () => {
+      try {
+        const done = await checkOnce();
+        if (done) {
+          setShow3DS(false);
+          try {
+            threeDsPopupRef.current?.close();
+          } catch {
+            // ignore
+          }
+          threeDsPopupRef.current = null;
+          if (threeDsPollRef.current) {
+            window.clearInterval(threeDsPollRef.current);
+            threeDsPollRef.current = null;
+          }
+          threeDsPollDeadlineRef.current = null;
+          toast({
+            title: 'Pembayaran Berhasil',
+            description: `Anda sekarang berlangganan paket ${selectedPlan?.name}.`,
+          });
+          navigate('/langganan');
+        }
+      } catch (err) {
+        setShow3DS(false);
+        try {
+          threeDsPopupRef.current?.close();
+        } catch {
+          // ignore
+        }
+        threeDsPopupRef.current = null;
+        if (threeDsPollRef.current) {
+          window.clearInterval(threeDsPollRef.current);
+          threeDsPollRef.current = null;
+        }
+        threeDsPollDeadlineRef.current = null;
+        toast({
+          title: 'Pembayaran Gagal',
+          description: err instanceof Error ? err.message : 'Pembayaran gagal.',
+          variant: 'destructive',
+        });
+      }
+    })();
+
+    threeDsPollRef.current = window.setInterval(() => {
+      if (threeDsPollDeadlineRef.current && Date.now() > threeDsPollDeadlineRef.current) {
+        if (threeDsPollRef.current) {
+          window.clearInterval(threeDsPollRef.current);
+          threeDsPollRef.current = null;
+        }
+        threeDsPollDeadlineRef.current = null;
+        toast({
+          title: 'Pembayaran Pending',
+          description: 'Masih menunggu konfirmasi. Silakan cek status beberapa saat lagi.',
+        });
+        return;
+      }
+
+      void (async () => {
+        try {
+          const done = await checkOnce();
+          if (!done) return;
+
+          setShow3DS(false);
+          try {
+            threeDsPopupRef.current?.close();
+          } catch {
+            // ignore
+          }
+          threeDsPopupRef.current = null;
+          if (threeDsPollRef.current) {
+            window.clearInterval(threeDsPollRef.current);
+            threeDsPollRef.current = null;
+          }
+          threeDsPollDeadlineRef.current = null;
+          toast({
+            title: 'Pembayaran Berhasil',
+            description: `Anda sekarang berlangganan paket ${selectedPlan?.name}.`,
+          });
+          navigate('/langganan');
+        } catch (err) {
+          setShow3DS(false);
+          try {
+            threeDsPopupRef.current?.close();
+          } catch {
+            // ignore
+          }
+          threeDsPopupRef.current = null;
+          if (threeDsPollRef.current) {
+            window.clearInterval(threeDsPollRef.current);
+            threeDsPollRef.current = null;
+          }
+          threeDsPollDeadlineRef.current = null;
+          toast({
+            title: 'Pembayaran Gagal',
+            description: err instanceof Error ? err.message : 'Pembayaran gagal.',
+            variant: 'destructive',
+          });
+        }
+      })();
+    }, 2500);
+  }, [company?.id, navigate, toast, selectedPlan]);
+
+  const watchPopupAndCloseOnReturn = useCallback(() => {
+    if (threeDsPopupWatchRef.current) {
+      window.clearInterval(threeDsPopupWatchRef.current);
+      threeDsPopupWatchRef.current = null;
+    }
+
+    threeDsPopupWatchRef.current = window.setInterval(() => {
+      const w = threeDsPopupRef.current;
+      if (!w) {
+        if (threeDsPopupWatchRef.current) {
+          window.clearInterval(threeDsPopupWatchRef.current);
+          threeDsPopupWatchRef.current = null;
+        }
+        return;
+      }
+
+      if (w.closed) {
+        if (threeDsPopupWatchRef.current) {
+          window.clearInterval(threeDsPopupWatchRef.current);
+          threeDsPopupWatchRef.current = null;
+        }
+        threeDsPopupRef.current = null;
+        return;
+      }
+
+      // Cross-origin while on Midtrans/ACS. Once it navigates back to our origin,
+      // we can read location.href and auto-close the popup.
+      try {
+        const href = w.location.href;
+        if (href.startsWith(window.location.origin)) {
+          try {
+            w.close();
+          } catch {
+            // ignore
+          }
+          threeDsPopupRef.current = null;
+          if (threeDsPopupWatchRef.current) {
+            window.clearInterval(threeDsPopupWatchRef.current);
+            threeDsPopupWatchRef.current = null;
+          }
+        }
+      } catch {
+        // ignore (still cross-origin)
+      }
+    }, 500);
+  }, []);
+
+  const handle3DS = useCallback((redirectUrl: string, orderId: string) => {
     setShow3DS(true);
 
     window.MidtransNew3ds.authenticate(redirectUrl, {
       performAuthentication: (url: string) => {
         // Prefer a popup: many 3DS pages send X-Frame-Options/CSP that blocks iframe embedding.
         try {
-          const w = window.open(url, 'midtrans-3ds', 'width=480,height=640,noopener,noreferrer');
+          // Note: don't use `noopener` here. Some 3DS flows rely on `window.opener` to communicate/redirect.
+          const w = window.open(url, 'midtrans-3ds', 'width=480,height=640');
           if (w) {
             threeDsPopupRef.current = w;
+            // In popup mode, Midtrans callbacks can be flaky depending on browser/ACS behavior.
+            // Start polling immediately; we will close the popup once the transaction becomes final.
+            pollPaymentStatusUntilFinal(orderId);
+            watchPopupAndCloseOnReturn();
             return;
           }
         } catch {
@@ -188,51 +401,21 @@ export default function Payment() {
         iframe.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation');
         iframe.src = url;
         iframeModalRef.current.appendChild(iframe);
+        // In iframe mode, callbacks usually work, but polling is still a robust fallback.
+        pollPaymentStatusUntilFinal(orderId);
       },
       onSuccess: () => {
-        setShow3DS(false);
-        try {
-          threeDsPopupRef.current?.close();
-        } catch {
-          // ignore
-        }
-        threeDsPopupRef.current = null;
-        toast({
-          title: 'Pembayaran Berhasil',
-          description: `Anda sekarang berlangganan paket ${selectedPlan?.name}.`,
-        });
-        navigate('/langganan');
+        // Some ACS pages don't allow us to auto-close/redirect. Poll the backend for final status.
+        pollPaymentStatusUntilFinal(orderId);
       },
       onFailure: () => {
-        setShow3DS(false);
-        try {
-          threeDsPopupRef.current?.close();
-        } catch {
-          // ignore
-        }
-        threeDsPopupRef.current = null;
-        toast({
-          title: 'Pembayaran Gagal',
-          description: 'Autentikasi 3D Secure gagal. Silakan coba lagi.',
-          variant: 'destructive',
-        });
+        pollPaymentStatusUntilFinal(orderId);
       },
       onPending: () => {
-        setShow3DS(false);
-        try {
-          threeDsPopupRef.current?.close();
-        } catch {
-          // ignore
-        }
-        threeDsPopupRef.current = null;
-        toast({
-          title: 'Pembayaran Pending',
-          description: 'Pembayaran Anda sedang diproses. Kami akan mengonfirmasi segera.',
-        });
-        navigate('/langganan');
+        pollPaymentStatusUntilFinal(orderId);
       },
     });
-  }, [navigate, toast, selectedPlan]);
+  }, [pollPaymentStatusUntilFinal, watchPopupAndCloseOnReturn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,7 +484,7 @@ export default function Payment() {
         navigate('/langganan');
       } else if (result.redirectUrl) {
         // Needs 3DS authentication
-        handle3DS(result.redirectUrl);
+        handle3DS(result.redirectUrl, result.orderId);
       } else {
         throw new Error(`Payment failed: ${result.transactionStatus}`);
       }

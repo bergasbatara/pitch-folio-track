@@ -155,6 +155,9 @@ export class MidtransService {
       );
       throw new Error(data.status_message || `Midtrans status failed (HTTP ${response.status})`);
     }
+    this.logger.log(
+      `Status ${orderId}: status_code=${data.status_code} tx_status=${data.transaction_status} fraud=${data.fraud_status ?? "-"}`,
+    );
     return data;
   }
 }
