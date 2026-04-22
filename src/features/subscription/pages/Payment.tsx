@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CreditCard, Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, Lock, ShieldCheck, Loader2, QrCode, Smartphone } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSubscription } from '../hooks/useSubscription';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useToast } from '@/components/ui/use-toast';
 import { withCsrf } from '@/shared/lib/csrf';
+import { QrisPayment } from '../components/QrisPayment';
+import { GopayPayment } from '../components/GopayPayment';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY ?? '';
@@ -548,99 +551,143 @@ export default function Payment() {
           <div className="md:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CreditCard className="h-5 w-5" />
-                  Informasi Kartu
-                </CardTitle>
+                <CardTitle className="text-lg">Pilih Metode Pembayaran</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Card Number */}
-                  <div className="space-y-2">
-                    <Label htmlFor="cardNumber">Nomor Kartu</Label>
-                    <div className="relative">
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                        maxLength={19}
-                        className="pl-10"
-                        disabled={isProcessing}
+                <Tabs defaultValue="card" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="card">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Kartu
+                    </TabsTrigger>
+                    <TabsTrigger value="qris">
+                      <QrCode className="h-4 w-4 mr-2" />
+                      QRIS
+                    </TabsTrigger>
+                    <TabsTrigger value="gopay">
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      GoPay
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="card" className="pt-4">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      {/* Card Number */}
+                      <div className="space-y-2">
+                        <Label htmlFor="cardNumber">Nomor Kartu</Label>
+                        <div className="relative">
+                          <Input
+                            id="cardNumber"
+                            placeholder="1234 5678 9012 3456"
+                            value={cardNumber}
+                            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                            maxLength={19}
+                            className="pl-10"
+                            disabled={isProcessing}
+                          />
+                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+
+                      {/* Card Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="cardName">Nama Pemegang Kartu</Label>
+                        <Input
+                          id="cardName"
+                          placeholder="Nama sesuai kartu"
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                          disabled={isProcessing}
+                        />
+                      </div>
+
+                      {/* Expiry & CVV */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="expiry">Masa Berlaku</Label>
+                          <Input
+                            id="expiry"
+                            placeholder="MM/YY"
+                            value={expiry}
+                            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                            maxLength={5}
+                            disabled={isProcessing}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cvv">CVV</Label>
+                          <Input
+                            id="cvv"
+                            placeholder="123"
+                            type="password"
+                            value={cvv}
+                            onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            maxLength={4}
+                            disabled={isProcessing}
+                          />
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Security Notice */}
+                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                        <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div className="text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground">Pembayaran Aman</p>
+                          <p>Data kartu Anda dienkripsi oleh Midtrans dan tidak pernah menyentuh server kami.</p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        size="lg"
+                        disabled={!isFormValid() || isProcessing}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Memproses...
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-4 w-4 mr-2" />
+                            Bayar {selectedPlan ? formatPrice(selectedPlan.price) : ''}
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </TabsContent>
+
+                  <TabsContent value="qris" className="pt-4">
+                    {company?.id && selectedPlan ? (
+                      <QrisPayment
+                        companyId={company.id}
+                        planId={selectedPlan.id}
+                        planName={selectedPlan.name}
+                        grossAmount={selectedPlan.price}
+                        onSuccess={() => navigate('/langganan')}
                       />
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-
-                  {/* Card Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="cardName">Nama Pemegang Kartu</Label>
-                    <Input
-                      id="cardName"
-                      placeholder="Nama sesuai kartu"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
-                      disabled={isProcessing}
-                    />
-                  </div>
-
-                  {/* Expiry & CVV */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="expiry">Masa Berlaku</Label>
-                      <Input
-                        id="expiry"
-                        placeholder="MM/YY"
-                        value={expiry}
-                        onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                        maxLength={5}
-                        disabled={isProcessing}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cvv">CVV</Label>
-                      <Input
-                        id="cvv"
-                        placeholder="123"
-                        type="password"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        maxLength={4}
-                        disabled={isProcessing}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Security Notice */}
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <div className="text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground">Pembayaran Aman</p>
-                      <p>Data kartu Anda dienkripsi oleh Midtrans dan tidak pernah menyentuh server kami.</p>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    size="lg"
-                    disabled={!isFormValid() || isProcessing}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Memproses...
-                      </>
                     ) : (
-                      <>
-                        <Lock className="h-4 w-4 mr-2" />
-                        Bayar {selectedPlan ? formatPrice(selectedPlan.price) : ''}
-                      </>
+                      <p className="text-sm text-muted-foreground">Memuat...</p>
                     )}
-                  </Button>
-                </form>
+                  </TabsContent>
+
+                  <TabsContent value="gopay" className="pt-4">
+                    {company?.id && selectedPlan ? (
+                      <GopayPayment
+                        companyId={company.id}
+                        planId={selectedPlan.id}
+                        planName={selectedPlan.name}
+                        grossAmount={selectedPlan.price}
+                        onSuccess={() => navigate('/langganan')}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Memuat...</p>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>

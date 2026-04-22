@@ -1,21 +1,42 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-interface ChargeRequest {
+type CustomerDetails = {
+  first_name?: string;
+  email?: string;
+  phone?: string;
+};
+
+interface ChargeCardRequest {
   payment_type: "credit_card";
-  transaction_details: {
-    order_id: string;
-    gross_amount: number;
+  transaction_details: { order_id: string; gross_amount: number };
+  credit_card: { token_id: string; authentication: boolean };
+  customer_details?: CustomerDetails;
+}
+
+interface ChargeQrisRequest {
+  payment_type: "qris";
+  transaction_details: { order_id: string; gross_amount: number };
+  qris?: { acquirer?: string };
+  customer_details?: CustomerDetails;
+}
+
+interface ChargeGopayRequest {
+  payment_type: "gopay";
+  transaction_details: { order_id: string; gross_amount: number };
+  gopay?: {
+    enable_callback?: boolean;
+    callback_url?: string;
+    account_id?: string;
+    payment_option_token?: string;
   };
-  credit_card: {
-    token_id: string;
-    authentication: boolean;
-  };
-  customer_details?: {
-    first_name?: string;
-    email?: string;
-    phone?: string;
-  };
+  customer_details?: CustomerDetails;
+}
+
+export interface MidtransAction {
+  name: string;
+  method: string;
+  url: string;
 }
 
 export interface ChargeResponse {
@@ -33,6 +54,11 @@ export interface ChargeResponse {
   masked_card?: string;
   bank?: string;
   card_type?: string;
+  // QRIS / GoPay
+  actions?: MidtransAction[];
+  qr_string?: string;
+  acquirer?: string;
+  expiry_time?: string;
 }
 
 @Injectable()
@@ -59,36 +85,11 @@ export class MidtransService {
     this.timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 15000;
   }
 
-  async chargeCard(params: {
-    tokenId: string;
-    orderId: string;
-    grossAmount: number;
-    customerName?: string;
-    customerEmail?: string;
-    customerPhone?: string;
-  }): Promise<ChargeResponse> {
-    const body: ChargeRequest = {
-      payment_type: "credit_card",
-      transaction_details: {
-        order_id: params.orderId,
-        gross_amount: params.grossAmount,
-      },
-      credit_card: {
-        token_id: params.tokenId,
-        authentication: true,
-      },
-    };
-
-    if (params.customerName || params.customerEmail) {
-      body.customer_details = {
-        first_name: params.customerName,
-        email: params.customerEmail,
-        phone: params.customerPhone,
-      };
-    }
-
+  private async postCharge(
+    body: ChargeCardRequest | ChargeQrisRequest | ChargeGopayRequest,
+    orderId: string,
+  ): Promise<ChargeResponse> {
     const authString = Buffer.from(`${this.serverKey}:`).toString("base64");
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     let response: Response;
@@ -117,13 +118,83 @@ export class MidtransService {
       this.logger.warn(
         `Midtrans charge failed: http=${response.status} status_code=${data.status_code} msg=${data.status_message}`,
       );
-      // Bubble up a readable error to the controller/UI.
       throw new Error(data.status_message || `Midtrans charge failed (HTTP ${response.status})`);
     }
     this.logger.log(
-      `Charge ${params.orderId}: status_code=${data.status_code} tx_status=${data.transaction_status}`,
+      `Charge ${orderId} [${body.payment_type}]: status_code=${data.status_code} tx_status=${data.transaction_status}`,
     );
     return data;
+  }
+
+  async chargeCard(params: {
+    tokenId: string;
+    orderId: string;
+    grossAmount: number;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+  }): Promise<ChargeResponse> {
+    const body: ChargeCardRequest = {
+      payment_type: "credit_card",
+      transaction_details: { order_id: params.orderId, gross_amount: params.grossAmount },
+      credit_card: { token_id: params.tokenId, authentication: true },
+    };
+    if (params.customerName || params.customerEmail) {
+      body.customer_details = {
+        first_name: params.customerName,
+        email: params.customerEmail,
+        phone: params.customerPhone,
+      };
+    }
+    return this.postCharge(body, params.orderId);
+  }
+
+  async chargeQris(params: {
+    orderId: string;
+    grossAmount: number;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+  }): Promise<ChargeResponse> {
+    const body: ChargeQrisRequest = {
+      payment_type: "qris",
+      transaction_details: { order_id: params.orderId, gross_amount: params.grossAmount },
+      qris: { acquirer: "gopay" },
+    };
+    if (params.customerName || params.customerEmail) {
+      body.customer_details = {
+        first_name: params.customerName,
+        email: params.customerEmail,
+        phone: params.customerPhone,
+      };
+    }
+    return this.postCharge(body, params.orderId);
+  }
+
+  async chargeGopay(params: {
+    orderId: string;
+    grossAmount: number;
+    callbackUrl?: string;
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+  }): Promise<ChargeResponse> {
+    const body: ChargeGopayRequest = {
+      payment_type: "gopay",
+      transaction_details: { order_id: params.orderId, gross_amount: params.grossAmount },
+      gopay: {
+        enable_callback: true,
+        callback_url: params.callbackUrl,
+      },
+    };
+    if (params.customerName || params.customerEmail) {
+      body.customer_details = {
+        first_name: params.customerName,
+        email: params.customerEmail,
+        phone: params.customerPhone,
+      };
+    }
+    return this.postCharge(body, params.orderId);
   }
 
   async getStatus(orderId: string): Promise<ChargeResponse> {
