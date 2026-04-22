@@ -76,6 +76,34 @@ export default function Journals() {
           </Button>
         </div>
 
+        {(() => {
+          const totalDebit = entries.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + (Number(l.debit) || 0), 0), 0);
+          const totalKredit = entries.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + (Number(l.credit) || 0), 0), 0);
+          const fmt = (v: number) => `Rp${v.toLocaleString('id-ID')}`;
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <ArrowDownCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Debit</p>
+                  <p className="text-2xl font-bold text-foreground">{fmt(totalDebit)}</p>
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <ArrowUpCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Kredit</p>
+                  <p className="text-2xl font-bold text-foreground">{fmt(totalKredit)}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Cari memo atau sumber..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-background border-border" />
