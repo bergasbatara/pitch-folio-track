@@ -41,17 +41,15 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
-  const difference = Math.abs(totalDebit - totalCredit);
-  const isBalanced = difference === 0 && totalDebit > 0;
   const hasAmounts = totalDebit > 0 || totalCredit > 0;
   const allAccountsSelected = lines.every((l) => l.accountId);
-  // Backend also rejects lines that have both debit & credit set (or neither). Block save in that case.
+  // Each line must have either debit OR credit (not both, not neither)
   const everyLineValid = lines.every((l) => {
     const d = Number(l.debit) || 0;
     const c = Number(l.credit) || 0;
     return (d > 0 && c === 0) || (c > 0 && d === 0);
   });
-  const canSubmit = allAccountsSelected && everyLineValid && isBalanced;
+  const canSubmit = allAccountsSelected && everyLineValid && hasAmounts;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +119,7 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <Plus className="h-3 w-3" /> Tambah Baris
             </Button>
             <p className="text-xs text-muted-foreground">
-              Isi salah satu kolom Debit atau Kredit pada setiap baris. Total Debit harus sama dengan total Kredit.
+              Isi salah satu kolom Debit atau Kredit pada setiap baris. Akun aset/beban yang bertambah masuk Debit; liabilitas/ekuitas/pendapatan yang bertambah masuk Kredit.
             </p>
           </div>
 
@@ -131,19 +129,10 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <span>Total Kredit: <strong>Rp{totalCredit.toLocaleString('id-ID')}</strong></span>
             </div>
             {hasAmounts && (
-              isBalanced ? (
-                <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Jurnal seimbang.</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>
-                    Debit dan Kredit harus seimbang. Selisih: <strong>Rp{difference.toLocaleString('id-ID')}</strong>
-                  </span>
-                </div>
-              )
+              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Siap disimpan. Keseimbangan dihitung secara keseluruhan di buku besar.</span>
+              </div>
             )}
           </div>
 
