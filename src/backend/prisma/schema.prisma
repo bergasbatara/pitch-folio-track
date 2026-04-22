@@ -77,6 +77,9 @@ model Product {
   companyId String
   code      String?
   name      String
+  type      String   @default("barang")
+  unit      String   @default("pcs")
+  buyPrice  Int      @default(0)
   price     Int
   stock     Int
   createdAt DateTime @default(now())

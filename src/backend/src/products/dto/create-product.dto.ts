@@ -15,6 +15,29 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === "string") {
+      const normalized = value.replace(/[^\d]/g, "");
+      return normalized ? Number(normalized) : 0;
+    }
+    return Number(value);
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  buyPrice?: number;
+
   @Transform(({ value }) => {
     if (typeof value === "string") {
       const normalized = value.replace(/[^\d]/g, "");
