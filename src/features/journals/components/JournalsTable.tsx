@@ -14,6 +14,13 @@ interface JournalsTableProps {
 const SOURCE_LABELS: Record<string, string> = {
   sale: 'Penjualan',
   purchase: 'Pembelian',
+  fixed_asset: 'Aset Tetap',
+  receivable: 'Piutang',
+  receivable_payment: 'Pembayaran Piutang',
+  payable: 'Hutang',
+  payable_payment: 'Pembayaran Hutang',
+  depreciation: 'Penyusutan',
+  tax: 'Pajak',
 };
 
 export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTableProps) {
