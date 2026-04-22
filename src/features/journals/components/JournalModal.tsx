@@ -119,7 +119,7 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <Plus className="h-3 w-3" /> Tambah Baris
             </Button>
             <p className="text-xs text-muted-foreground">
-              Isi salah satu kolom Debit atau Kredit pada setiap baris. Total Debit harus sama dengan total Kredit.
+              Isi salah satu kolom Debit atau Kredit pada setiap baris. Akun aset/beban yang bertambah masuk Debit; liabilitas/ekuitas/pendapatan yang bertambah masuk Kredit.
             </p>
           </div>
 
