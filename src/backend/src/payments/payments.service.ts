@@ -8,6 +8,8 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { MidtransService } from "./midtrans.service";
 import { ChargeCardDto } from "./dto/charge-card.dto";
+import { ChargeQrisDto } from "./dto/charge-qris.dto";
+import { ChargeGopayDto } from "./dto/charge-gopay.dto";
 
 @Injectable()
 export class PaymentsService {
