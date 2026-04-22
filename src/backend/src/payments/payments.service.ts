@@ -153,9 +153,11 @@ export class PaymentsService {
       throw new BadGatewayException(msg);
     }
 
-    // If capture + accept, activate subscription.
-    // We encode the plan id in orderId: SUB-<companyShort>-<planId>-<timestamp>
-    if (result.transaction_status === "capture" && result.fraud_status === "accept") {
+    // Card: "capture"+accept means success. QRIS/GoPay: "settlement" means success.
+    const isCardSuccess =
+      result.transaction_status === "capture" && result.fraud_status === "accept";
+    const isEwalletSuccess = result.transaction_status === "settlement";
+    if (isCardSuccess || isEwalletSuccess) {
       const m = /^SUB-([^-]+)-(.+)-(\d+)$/.exec(orderId);
       const companyShort = companyId.slice(0, 8);
       const orderCompanyShort = m?.[1];
