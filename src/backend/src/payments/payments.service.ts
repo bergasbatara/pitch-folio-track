@@ -66,6 +66,83 @@ export class PaymentsService {
     };
   }
 
+  async chargeQris(userId: string, companyId: string, dto: ChargeQrisDto) {
+    await this.assertOwner(userId, companyId);
+
+    const plan = await this.prisma.plan.findUnique({ where: { id: dto.planId } });
+    if (!plan) throw new NotFoundException("Plan not found");
+    if (dto.grossAmount !== plan.price) {
+      throw new BadRequestException("Amount does not match plan price");
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    let result: Awaited<ReturnType<MidtransService["chargeQris"]>>;
+    try {
+      result = await this.midtrans.chargeQris({
+        orderId: dto.orderId,
+        grossAmount: dto.grossAmount,
+        customerName: user?.name ?? undefined,
+        customerEmail: user?.email ?? undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Midtrans QRIS charge failed";
+      throw new BadGatewayException(msg);
+    }
+
+    // QRIS qr_string lives either at top-level or in actions[].url
+    const qrAction = result.actions?.find((a) => a.name === "generate-qr-code");
+    return {
+      statusCode: result.status_code,
+      transactionStatus: result.transaction_status,
+      orderId: result.order_id,
+      qrString: result.qr_string,
+      qrUrl: qrAction?.url,
+      actions: result.actions,
+      expiryTime: result.expiry_time,
+    };
+  }
+
+  async chargeGopay(userId: string, companyId: string, dto: ChargeGopayDto) {
+    await this.assertOwner(userId, companyId);
+
+    const plan = await this.prisma.plan.findUnique({ where: { id: dto.planId } });
+    if (!plan) throw new NotFoundException("Plan not found");
+    if (dto.grossAmount !== plan.price) {
+      throw new BadRequestException("Amount does not match plan price");
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    let result: Awaited<ReturnType<MidtransService["chargeGopay"]>>;
+    try {
+      result = await this.midtrans.chargeGopay({
+        orderId: dto.orderId,
+        grossAmount: dto.grossAmount,
+        callbackUrl: dto.callbackUrl,
+        customerName: user?.name ?? undefined,
+        customerEmail: user?.email ?? undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Midtrans GoPay charge failed";
+      throw new BadGatewayException(msg);
+    }
+
+    const deeplink = result.actions?.find(
+      (a) => a.name === "deeplink-redirect" || a.name === "cstore",
+    );
+    const qrAction = result.actions?.find((a) => a.name === "generate-qr-code");
+    return {
+      statusCode: result.status_code,
+      transactionStatus: result.transaction_status,
+      orderId: result.order_id,
+      deeplinkUrl: deeplink?.url,
+      qrUrl: qrAction?.url,
+      actions: result.actions,
+      expiryTime: result.expiry_time,
+    };
+  }
+
   async getPaymentStatus(userId: string, companyId: string, orderId: string) {
     await this.assertMember(userId, companyId);
     let result: Awaited<ReturnType<MidtransService["getStatus"]>>;
