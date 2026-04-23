@@ -58,7 +58,7 @@ export function Sidebar({ onAddMetric }: SidebarProps) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <TrendingUp className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-sidebar-foreground whitespace-nowrap">Asia Global Financial</span>
+          <span className="text-lg font-semibold text-sidebar-foreground whitespace-nowrap">Asia Global Finansial</span>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
