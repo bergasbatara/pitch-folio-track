@@ -12,6 +12,7 @@ import { JournalDetailModal } from '../components/JournalDetailModal';
 import { JournalEntry, JournalFormData } from '../types';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { getDisplayTotalsForEntries } from '../lib/journalDisplayTotals';
 
 export default function Journals() {
   const { company, error: companyError } = useCompanyProfile();
@@ -77,8 +78,8 @@ export default function Journals() {
         </div>
 
         {(() => {
-          const totalDebit = entries.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + (Number(l.debit) || 0), 0), 0);
-          const totalKredit = entries.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + (Number(l.credit) || 0), 0), 0);
+          // Keep summary in sync with what the table is currently showing (search-filtered).
+          const { totalDebit, totalCredit: totalKredit } = getDisplayTotalsForEntries(filtered);
           const fmt = (v: number) => `Rp${v.toLocaleString('id-ID')}`;
           return (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

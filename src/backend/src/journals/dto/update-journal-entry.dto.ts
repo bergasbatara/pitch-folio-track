@@ -1,5 +1,5 @@
 import { Transform, Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDate, IsOptional, IsString, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDate, IsIn, IsOptional, IsString, ValidateNested } from "class-validator";
 import { JournalLineDto } from "./journal-line.dto";
 
 export class UpdateJournalEntryDto {
@@ -12,6 +12,12 @@ export class UpdateJournalEntryDto {
   @IsOptional()
   @IsString()
   memo?: string;
+
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  @IsIn(["draft", "posted"])
+  status?: "draft" | "posted";
 
   @IsOptional()
   @IsArray()

@@ -13,6 +13,7 @@ export interface JournalEntry {
   memo?: string;
   source?: string;
   sourceId?: string;
+  status?: 'draft' | 'posted';
   lines: JournalLine[];
   createdAt: string;
   updatedAt: string;

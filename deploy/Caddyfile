@@ -1,0 +1,14 @@
+{
+  email {env.LETSENCRYPT_EMAIL}
+}
+
+{env.APP_DOMAIN} {
+  encode gzip zstd
+  reverse_proxy frontend:80
+}
+
+{env.API_DOMAIN} {
+  encode gzip zstd
+  reverse_proxy backend:3000
+}
+

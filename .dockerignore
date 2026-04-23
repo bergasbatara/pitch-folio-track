@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+coverage
+.git
+.DS_Store
+*.log
+
+# env files should be provided at deploy time
+.env
+.env.*
+
+src/backend/node_modules
+src/backend/dist
+src/backend/coverage
+

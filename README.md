@@ -253,8 +253,7 @@ npm run start:dev
 
 ### Test Credentials
 
-- **Email**: `bergaspurboyo@gmail.com`
-- **Password**: `indo789`
+Do not publish real credentials in docs. For development seeding, see `src/backend/prisma/seed.ts`.
 
 ## Project Structure
 
@@ -296,6 +295,10 @@ bun run build
 ```
 
 Build output will be in the `dist/` folder.
+
+## Production Deployment
+
+See `PRODUCTION.md` for a Docker-based production setup (HTTPS + frontend + backend + Postgres).
 
 ## License
 

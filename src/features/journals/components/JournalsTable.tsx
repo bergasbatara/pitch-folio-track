@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { JournalEntry } from '../types';
+import { getDisplayTotals } from '../lib/journalDisplayTotals';
 
 interface JournalsTableProps {
   entries: JournalEntry[];
@@ -44,8 +45,7 @@ export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTab
       </TableHeader>
       <TableBody>
         {entries.map((e) => {
-          const totalDebit = e.lines.reduce((s, l) => s + l.debit, 0);
-          const totalCredit = e.lines.reduce((s, l) => s + l.credit, 0);
+          const { totalDebit, totalCredit } = getDisplayTotals(e);
           const isSystem = !!e.source;
           return (
             <TableRow key={e.id}>

@@ -1,0 +1,75 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-pitch_folio_track}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./src/backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-pitch_folio_track}
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL (comma-separated origins)}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET (>=32 chars)}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET (>=32 chars)}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      CSRF_ENABLED: "true"
+      CORS_ALLOW_NO_ORIGIN: "false"
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
+      RATE_LIMIT_LIMIT: ${RATE_LIMIT_LIMIT:-120}
+      REQUEST_BODY_LIMIT: ${REQUEST_BODY_LIMIT:-1mb}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:?Set MIDTRANS_SERVER_KEY}
+      MIDTRANS_ENV: ${MIDTRANS_ENV:-production}
+      MIDTRANS_TIMEOUT_MS: ${MIDTRANS_TIMEOUT_MS:-15000}
+    command: ["sh", "-lc", "npm run prisma:migrate:deploy && node dist/main"]
+
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:?Set VITE_API_URL}
+        VITE_MIDTRANS_CLIENT_KEY: ${VITE_MIDTRANS_CLIENT_KEY:-}
+        VITE_MIDTRANS_ENV: ${VITE_MIDTRANS_ENV:-production}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?Set LETSENCRYPT_EMAIL}
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN (e.g. app.example.com)}
+      API_DOMAIN: ${API_DOMAIN:?Set API_DOMAIN (e.g. api.example.com)}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  pg_data: {}
+  caddy_data: {}
+  caddy_config: {}
+

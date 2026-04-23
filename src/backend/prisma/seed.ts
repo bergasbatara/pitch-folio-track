@@ -10,15 +10,25 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const passwordHash = await bcrypt.hash("password123", 10);
+  const nodeEnv = String(process.env.NODE_ENV ?? "development");
+  const allowSeedInProd = String(process.env.ALLOW_SEED_IN_PROD ?? "false") === "true";
+  if (nodeEnv === "production" && !allowSeedInProd) {
+    throw new Error(
+      "Refusing to run seed in production. Set ALLOW_SEED_IN_PROD=true only for one-off controlled runs.",
+    );
+  }
+
+  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@test.com";
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "password123";
+  const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.upsert({
-    where: { email: "admin@test.com" },
+    where: { email },
     update: {
       password: passwordHash,
       name: "Admin Test",
     },
     create: {
-      email: "admin@test.com",
+      email,
       password: passwordHash,
       name: "Admin Test",
     },
@@ -32,7 +42,7 @@ async function main() {
       name: "Asia Global Financial",
       address: "Jakarta",
       phone: "+62 21 1234567",
-      email: "admin@test.com",
+      email,
       currency: "IDR",
     },
   });

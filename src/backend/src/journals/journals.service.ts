@@ -44,7 +44,9 @@ export class JournalsService {
   async createEntry(userId: string, companyId: string, dto: CreateJournalEntryDto) {
     await this.assertOwner(userId, companyId);
     const { lines, totalDebit, totalCredit } = this.normalizeLines(dto.lines);
-    if (totalDebit !== totalCredit) {
+    const balanced = totalDebit === totalCredit;
+    const status = dto.status ?? (balanced ? "posted" : "draft");
+    if (status === "posted" && !balanced) {
       throw new BadRequestException("Journal entry is not balanced");
     }
 
@@ -56,6 +58,7 @@ export class JournalsService {
           companyId,
           date: dto.date ?? new Date(),
           memo: dto.memo,
+          status,
         },
       });
       await tx.journalLine.createMany({
@@ -89,15 +92,31 @@ export class JournalsService {
       throw new NotFoundException("Journal entry not found");
     }
 
-
-
     let normalizedLines: ReturnType<typeof this.normalizeLines> | null = null;
     if (dto.lines) {
       normalizedLines = this.normalizeLines(dto.lines);
-      if (normalizedLines.totalDebit !== normalizedLines.totalCredit) {
-        throw new BadRequestException("Journal entry is not balanced");
-      }
       await this.ensureAccounts(companyId, normalizedLines.lines.map((l) => l.accountId));
+    }
+
+    const nextStatus = dto.status ?? existing.status ?? "posted";
+    if (nextStatus === "posted") {
+      if (normalizedLines) {
+        if (normalizedLines.totalDebit !== normalizedLines.totalCredit) {
+          throw new BadRequestException("Journal entry is not balanced");
+        }
+      } else if (dto.status === "posted" && existing.status !== "posted") {
+        // Posting without changing lines: validate existing lines are balanced.
+        const currentLines = await this.prisma.journalLine.findMany({
+          where: { entryId },
+          select: { accountId: true, debit: true, credit: true, memo: true },
+        });
+        const totals = this.normalizeLines(
+          currentLines.map((l) => ({ ...l, memo: l.memo ?? undefined })),
+        );
+        if (totals.totalDebit !== totals.totalCredit) {
+          throw new BadRequestException("Journal entry is not balanced");
+        }
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -106,6 +125,7 @@ export class JournalsService {
         data: {
           date: dto.date ?? existing.date,
           memo: dto.memo ?? existing.memo,
+          status: dto.status ?? existing.status,
         },
       });
 

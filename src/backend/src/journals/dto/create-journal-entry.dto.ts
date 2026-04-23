@@ -1,5 +1,13 @@
 import { Transform, Type } from "class-transformer";
-import { IsArray, IsDate, IsOptional, IsString, ValidateNested, ArrayMinSize } from "class-validator";
+import {
+  ArrayMinSize,
+  IsArray,
+  IsDate,
+  IsIn,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from "class-validator";
 import { JournalLineDto } from "./journal-line.dto";
 
 export class CreateJournalEntryDto {
@@ -11,6 +19,13 @@ export class CreateJournalEntryDto {
   @IsOptional()
   @IsString()
   memo?: string;
+
+  // If omitted: backend will auto-pick posted when balanced, otherwise draft.
+  @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
+  @IsOptional()
+  @IsString()
+  @IsIn(["draft", "posted"])
+  status?: "draft" | "posted";
 
   @IsArray()
   @ArrayMinSize(2)

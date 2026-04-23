@@ -102,6 +102,7 @@ export class ReportsService {
       where: {
         entry: {
           companyId,
+          status: "posted",
           date: { gte: start, lt: end },
         },
       },
@@ -193,6 +194,7 @@ export class ReportsService {
       where: {
         entry: {
           companyId,
+          status: "posted",
           date: { lte: end },
         },
       },
