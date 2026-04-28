@@ -9,7 +9,10 @@ import { AssetsTable } from '../components/AssetsTable';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 
-const fmt = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
+const fmt = (v: number) => {
+  const abs = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Math.abs(v));
+  return v < 0 ? `(${abs})` : abs;
+};
 
 export default function FixedAssets() {
   const [isModalOpen, setIsModalOpen] = useState(false);

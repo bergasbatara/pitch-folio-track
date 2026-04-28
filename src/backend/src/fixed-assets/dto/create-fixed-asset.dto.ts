@@ -24,12 +24,10 @@ export class CreateFixedAssetDto {
 
   @Transform(({ value }) => Number(value))
   @IsInt()
-  @Min(0)
   acquisitionCost!: number;
 
   @Transform(({ value }) => Number(value ?? 0))
   @IsInt()
-  @Min(0)
   residualValue!: number;
 
   @Transform(({ value }) => Number(value ?? 0))

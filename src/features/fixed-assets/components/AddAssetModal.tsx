@@ -82,11 +82,11 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nilai Perolehan (Rp)</Label>
-              <Input type="text" inputMode="numeric" value={form.acquisitionCost} onChange={e => { const n = e.target.value.replace(/[^\d]/g, ''); setForm({ ...form, acquisitionCost: n ? parseInt(n) : 0 }); }} className="bg-background border-border" required />
+              <Input type="text" inputMode="numeric" value={form.acquisitionCost} onChange={e => { const raw = e.target.value.replace(/[^\d-]/g, ''); const neg = raw.startsWith('-'); const digits = raw.replace(/-/g, ''); setForm({ ...form, acquisitionCost: digits ? (neg ? -parseInt(digits) : parseInt(digits)) : 0 }); }} className="bg-background border-border" required />
             </div>
             <div className="space-y-2">
               <Label>Nilai Residu (Rp)</Label>
-              <Input type="text" inputMode="numeric" value={form.residualValue} onChange={e => { const n = e.target.value.replace(/[^\d]/g, ''); setForm({ ...form, residualValue: n ? parseInt(n) : 0 }); }} className="bg-background border-border" />
+              <Input type="text" inputMode="numeric" value={form.residualValue} onChange={e => { const raw = e.target.value.replace(/[^\d-]/g, ''); const neg = raw.startsWith('-'); const digits = raw.replace(/-/g, ''); setForm({ ...form, residualValue: digits ? (neg ? -parseInt(digits) : parseInt(digits)) : 0 }); }} className="bg-background border-border" />
             </div>
           </div>
           <div className="space-y-2">
