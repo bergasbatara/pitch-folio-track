@@ -20,6 +20,8 @@ const initial: FixedAssetFormData = {
 
 export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props) {
   const [form, setForm] = useState<FixedAssetFormData>(initial);
+  const [acquisitionCostInput, setAcquisitionCostInput] = useState(String(initial.acquisitionCost));
+  const [residualValueInput, setResidualValueInput] = useState(String(initial.residualValue));
 
   useEffect(() => {
     if (editingAsset) {
@@ -29,15 +31,38 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
         acquisitionCost: editingAsset.acquisitionCost, usefulLifeMonths: editingAsset.usefulLifeMonths,
         residualValue: editingAsset.residualValue, depreciationMethod: editingAsset.depreciationMethod,
       });
+      setAcquisitionCostInput(String(editingAsset.acquisitionCost));
+      setResidualValueInput(String(editingAsset.residualValue));
     } else { setForm(initial); }
   }, [editingAsset, isOpen]);
+
+  const parseSignedNumber = (value: string) => {
+    if (value === '' || value === '-') return 0;
+    return parseInt(value, 10) || 0;
+  };
+
+  const normalizeSignedInput = (value: string) => {
+    const cleaned = value.replace(/[^\d-]/g, '');
+    const isNegative = cleaned.startsWith('-');
+    const digits = cleaned.replace(/-/g, '');
+    return `${isNegative ? '-' : ''}${digits}`;
+  };
 
   const handleCategoryChange = (cat: AssetCategory) => {
     setForm({ ...form, category: cat, usefulLifeMonths: ASSET_USEFUL_LIFE[cat] });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); onSubmit(form); onClose(); setForm(initial);
+    e.preventDefault();
+    onSubmit({
+      ...form,
+      acquisitionCost: parseSignedNumber(acquisitionCostInput),
+      residualValue: parseSignedNumber(residualValueInput),
+    });
+    onClose();
+    setForm(initial);
+    setAcquisitionCostInput(String(initial.acquisitionCost));
+    setResidualValueInput(String(initial.residualValue));
   };
 
   return (
