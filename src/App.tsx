@@ -82,7 +82,7 @@ const App = () => (
             <Route path="/hutang" element={<Gated><PayablesPage /></Gated>} />
             <Route path="/akun" element={<Gated><AccountsPage /></Gated>} />
             <Route path="/jurnal" element={<Gated><JournalsPage /></Gated>} />
-            <Route path="/saldo-awal" element={<Gated><OpeningBalancesPage /></Gated>} />
+            <Route path="/liabilitas-ekuitas" element={<Gated><OpeningBalancesPage /></Gated>} />
 
             {/* Professional-tier routes */}
             <Route path="/audit-draft" element={<Gated><AuditDraftPage /></Gated>} />
