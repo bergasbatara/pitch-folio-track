@@ -54,6 +54,7 @@ model Company {
   taxCodes    TaxCode[]
   accounts    Account[]
   journalEntries JournalEntry[]
+  openingBalanceItems OpeningBalanceItem[]
   fixedAssets FixedAsset[]
   subscription Subscription?
 }
@@ -273,6 +274,7 @@ model Account {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lines   JournalLine[]
+  openingBalanceItems OpeningBalanceItem[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -293,6 +295,7 @@ model JournalEntry {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   taxCode TaxCode? @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
   lines   JournalLine[]
+  openingBalanceItem OpeningBalanceItem?
 
   @@index([companyId])
   @@index([companyId, source, sourceId])
@@ -302,6 +305,32 @@ model JournalEntry {
 enum JournalEntryStatus {
   draft
   posted
+}
+
+enum OpeningBalanceKind {
+  liability
+  equity
+}
+
+model OpeningBalanceItem {
+  id            String            @id @default(uuid())
+  companyId     String
+  kind          OpeningBalanceKind
+  accountId     String
+  asOfDate      DateTime
+  amount        Int
+  memo          String?
+  journalEntryId String?          @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, kind, accountId, asOfDate])
+  @@index([companyId])
+  @@index([companyId, asOfDate])
 }
 
 model JournalLine {

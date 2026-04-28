@@ -6,92 +6,66 @@ import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
-import { useJournals } from '@/features/journals/hooks/useJournals';
 import { AddLEModal, type LEFormData, type LEItem } from '../components/AddLEModal';
 import { LETable } from '../components/LETable';
+import { useOpeningBalanceItems } from '../hooks/useOpeningBalanceItems';
 
 const PERANTARA_CODE = '3999';
-const PERANTARA_NAME = 'Saldo Awal Sementara';
-const SOURCE_TAG = 'liabilitas-ekuitas';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
 
 export default function OpeningBalances() {
   const { company, error: companyError } = useCompanyProfile();
-  const { accounts, addAccount, error: accountsError } = useAccounts(company?.id);
-  const { entries, addEntry, updateEntry, deleteEntry, error: journalsError } = useJournals(company?.id);
+  const { accounts, error: accountsError } = useAccounts(company?.id);
+  const { items: dbItems, addItem, updateItem, deleteItem, error: itemsError } = useOpeningBalanceItems(company?.id);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(accountsError, 'Gagal memuat akun');
-  useErrorToast(journalsError, 'Gagal memuat jurnal');
+  useErrorToast(itemsError, 'Gagal memuat liabilitas & ekuitas');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<LEItem | null>(null);
 
-  // Convert journal entries tagged as liabilitas-ekuitas back into LEItems
-  const items: LEItem[] = useMemo(() => {
-    return entries
-      .filter((e) => e.source === SOURCE_TAG)
-      .map((e) => {
-        // Each entry: 1 credit line (the L/E account) + 1 debit line (perantara)
-        const creditLine = e.lines.find((l) => l.credit > 0 && l.account.code !== PERANTARA_CODE);
-        if (!creditLine) return null;
-        const acc = accounts.find((a) => a.id === creditLine.accountId);
-        const type = acc?.type === 'liability' ? 'liability' : 'equity';
-        return {
-          id: e.id,
-          type,
-          accountId: creditLine.accountId,
-          accountCode: creditLine.account.code,
-          accountName: creditLine.account.name,
-          date: e.date,
-          amount: creditLine.credit,
-          memo: e.memo ?? '',
-        } as LEItem;
-      })
-      .filter((x): x is LEItem => !!x);
-  }, [entries, accounts]);
+  const items: LEItem[] = useMemo(
+    () =>
+      dbItems.map((it) => ({
+        id: it.id,
+        type: it.kind,
+        accountId: it.accountId,
+        accountCode: it.account.code,
+        accountName: it.account.name,
+        date: it.asOfDate,
+        amount: it.amount,
+        memo: it.memo ?? '',
+      })),
+    [dbItems],
+  );
 
   const totalLiability = items.filter((i) => i.type === 'liability').reduce((s, i) => s + i.amount, 0);
   const totalEquity = items.filter((i) => i.type === 'equity').reduce((s, i) => s + i.amount, 0);
   const grandTotal = totalLiability + totalEquity;
 
-  const ensurePerantaraId = async () => {
-    const existing = accounts.find((a) => a.code === PERANTARA_CODE);
-    if (existing) return existing.id;
-    const created = await addAccount({
-      code: PERANTARA_CODE,
-      name: PERANTARA_NAME,
-      type: 'equity',
-      normalBalance: 'debit',
-    });
-    return created.id;
-  };
-
-  const buildPayload = async (data: LEFormData) => {
-    const perantaraId = await ensurePerantaraId();
-    return {
-      date: data.date,
-      memo: data.memo || (data.type === 'liability' ? 'Saldo Awal Liabilitas' : 'Saldo Awal Ekuitas'),
-      source: SOURCE_TAG,
-      status: 'posted' as const,
-      lines: [
-        { accountId: perantaraId, debit: data.amount, credit: 0, memo: 'Penyeimbang Saldo Awal' },
-        { accountId: data.accountId, debit: 0, credit: data.amount, memo: data.memo || '' },
-      ],
-    };
-  };
-
   const handleSubmit = async (data: LEFormData) => {
     if (!company?.id) return;
     try {
-      const payload = await buildPayload(data);
       if (editing) {
-        await updateEntry(editing.id, payload as any);
+        await updateItem(editing.id, {
+          kind: data.type,
+          accountId: data.accountId,
+          asOfDate: data.date,
+          amount: data.amount,
+          memo: data.memo,
+        });
         toast({ title: 'Tersimpan', description: 'Data berhasil diperbarui.' });
       } else {
-        await addEntry(payload as any);
+        await addItem({
+          kind: data.type,
+          accountId: data.accountId,
+          asOfDate: data.date,
+          amount: data.amount,
+          memo: data.memo,
+        });
         toast({ title: 'Tersimpan', description: 'Data berhasil ditambahkan.' });
       }
       setEditing(null);
@@ -103,7 +77,7 @@ export default function OpeningBalances() {
   const handleEdit = (it: LEItem) => { setEditing(it); setIsModalOpen(true); };
   const handleDelete = async (id: string) => {
     try {
-      await deleteEntry(id);
+      await deleteItem(id);
       toast({ title: 'Dihapus', description: 'Data berhasil dihapus.' });
     } catch (err: any) {
       toast({ title: 'Gagal Menghapus', description: err.message, variant: 'destructive' });
