@@ -39,22 +39,23 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
   };
 
-  const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
-  const hasAmounts = totalDebit > 0 || totalCredit > 0;
-  const allAccountsSelected = lines.every((l) => l.accountId);
-  // Each line must have either debit OR credit (not both, not neither)
-  const everyLineValid = lines.every((l) => {
+  // Only consider lines that have an account or any amount as "active"
+  const activeLines = lines.filter((l) => {
     const d = Number(l.debit) || 0;
     const c = Number(l.credit) || 0;
-    return (d > 0 && c === 0) || (c > 0 && d === 0);
+    return l.accountId || d > 0 || c > 0;
   });
-  const canSubmit = allAccountsSelected && everyLineValid && hasAmounts;
+  const totalDebit = activeLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+  const totalCredit = activeLines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
+  const hasAmounts = totalDebit > 0 || totalCredit > 0;
+  // Every active line just needs an account selected — no balance/either-or constraint
+  const activeLinesHaveAccount = activeLines.every((l) => l.accountId);
+  const canSubmit = activeLines.length > 0 && activeLinesHaveAccount && hasAmounts;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    onSubmit({ date, memo: memo || undefined, lines });
+    onSubmit({ date, memo: memo || undefined, lines: activeLines });
     onClose();
   };
 
