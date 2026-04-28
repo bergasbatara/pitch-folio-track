@@ -29,13 +29,11 @@ export class UpdateFixedAssetDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))
   @IsOptional()
   @IsInt()
-  @Min(0)
   acquisitionCost?: number;
 
   @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))
   @IsOptional()
   @IsInt()
-  @Min(0)
   residualValue?: number;
 
   @Transform(({ value }) => (value === undefined || value === null ? undefined : Number(value)))

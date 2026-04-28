@@ -4,7 +4,10 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { FixedAsset, ASSET_CATEGORY_LABELS, ASSET_TYPE_LABELS, calculateDepreciation } from '../types';
 import { Badge } from '@/components/ui/badge';
 
-const fmt = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
+const fmt = (v: number) => {
+  const abs = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Math.abs(v));
+  return v < 0 ? `(${abs})` : abs;
+};
 
 interface Props {
   assets: FixedAsset[];
