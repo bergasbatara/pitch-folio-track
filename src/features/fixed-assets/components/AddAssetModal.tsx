@@ -33,7 +33,11 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
       });
       setAcquisitionCostInput(String(editingAsset.acquisitionCost));
       setResidualValueInput(String(editingAsset.residualValue));
-    } else { setForm(initial); }
+    } else {
+      setForm(initial);
+      setAcquisitionCostInput(String(initial.acquisitionCost));
+      setResidualValueInput(String(initial.residualValue));
+    }
   }, [editingAsset, isOpen]);
 
   const parseSignedNumber = (value: string) => {
@@ -107,11 +111,11 @@ export function AddAssetModal({ isOpen, onClose, onSubmit, editingAsset }: Props
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nilai Perolehan (Rp)</Label>
-              <Input type="text" inputMode="numeric" value={form.acquisitionCost} onChange={e => { const raw = e.target.value.replace(/[^\d-]/g, ''); const neg = raw.startsWith('-'); const digits = raw.replace(/-/g, ''); setForm({ ...form, acquisitionCost: digits ? (neg ? -parseInt(digits) : parseInt(digits)) : 0 }); }} className="bg-background border-border" required />
+              <Input type="text" inputMode="text" value={acquisitionCostInput} onChange={e => { const value = normalizeSignedInput(e.target.value); setAcquisitionCostInput(value); setForm({ ...form, acquisitionCost: parseSignedNumber(value) }); }} className="bg-background border-border" required />
             </div>
             <div className="space-y-2">
               <Label>Nilai Residu (Rp)</Label>
-              <Input type="text" inputMode="numeric" value={form.residualValue} onChange={e => { const raw = e.target.value.replace(/[^\d-]/g, ''); const neg = raw.startsWith('-'); const digits = raw.replace(/-/g, ''); setForm({ ...form, residualValue: digits ? (neg ? -parseInt(digits) : parseInt(digits)) : 0 }); }} className="bg-background border-border" />
+              <Input type="text" inputMode="text" value={residualValueInput} onChange={e => { const value = normalizeSignedInput(e.target.value); setResidualValueInput(value); setForm({ ...form, residualValue: parseSignedNumber(value) }); }} className="bg-background border-border" />
             </div>
           </div>
           <div className="space-y-2">
