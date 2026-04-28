@@ -22,6 +22,7 @@ const SOURCE_LABELS: Record<string, string> = {
   payable_payment: 'Pembayaran Hutang',
   depreciation: 'Penyusutan',
   tax: 'Pajak',
+  opening_balance_item_le: 'Saldo Awal L/E',
 };
 
 export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTableProps) {

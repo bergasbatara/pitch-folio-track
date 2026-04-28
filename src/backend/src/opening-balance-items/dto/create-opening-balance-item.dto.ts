@@ -1,5 +1,5 @@
-import { Transform } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsPositive, IsString, IsUUID } from "class-validator";
+import { Transform, Type } from "class-transformer";
+import { IsDate, IsIn, IsInt, IsOptional, IsPositive, IsString, IsUUID } from "class-validator";
 
 const KIND_VALUES = ["liability", "equity"] as const;
 
@@ -12,7 +12,8 @@ export class CreateOpeningBalanceItemDto {
   @IsUUID()
   accountId!: string;
 
-  @Transform(({ value }) => new Date(String(value)))
+  @Type(() => Date)
+  @IsDate()
   asOfDate!: Date;
 
   @Transform(({ value }) => Number(value))
@@ -25,4 +26,3 @@ export class CreateOpeningBalanceItemDto {
   @IsString()
   memo?: string;
 }
-

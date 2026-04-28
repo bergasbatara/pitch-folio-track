@@ -74,7 +74,17 @@ export class OpeningBalanceItemsService {
     await this.assertOwner(userId, companyId);
 
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.openingBalanceItem.findFirst({ where: { id: itemId, companyId } });
+      return this.updateWithinTx(tx, companyId, itemId, dto);
+    });
+  }
+
+  private async updateWithinTx(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    itemId: string,
+    dto: UpdateOpeningBalanceItemDto,
+  ) {
+    const existing = await tx.openingBalanceItem.findFirst({ where: { id: itemId, companyId } });
       if (!existing) throw new NotFoundException("Opening balance item not found");
 
       const nextKind = (dto.kind ?? existing.kind) as string;
@@ -141,7 +151,6 @@ export class OpeningBalanceItemsService {
       });
 
       return updatedItem;
-    });
   }
 
   async remove(userId: string, companyId: string, itemId: string) {

@@ -328,7 +328,6 @@ model OpeningBalanceItem {
   account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
   journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
 
-  @@unique([companyId, kind, accountId, asOfDate])
   @@index([companyId])
   @@index([companyId, asOfDate])
 }

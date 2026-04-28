@@ -10,12 +10,20 @@ const ACCOUNT_CODES = {
   payable: '2001',
 } as const;
 
+const PERANTARA_CODE = '3999';
+
 function sumDebitByCode(e: JournalEntry, code: string) {
   return e.lines.filter((l) => l.account?.code === code).reduce((s, l) => s + (l.debit ?? 0), 0);
 }
 
 function sumCreditByCode(e: JournalEntry, code: string) {
   return e.lines.filter((l) => l.account?.code === code).reduce((s, l) => s + (l.credit ?? 0), 0);
+}
+
+function sumCreditExcludingCode(e: JournalEntry, excludeCode: string) {
+  return e.lines
+    .filter((l) => l.account?.code !== excludeCode)
+    .reduce((s, l) => s + (l.credit ?? 0), 0);
 }
 
 export function getDisplayTotals(e: JournalEntry): { totalDebit: number; totalCredit: number } {
@@ -28,6 +36,13 @@ export function getDisplayTotals(e: JournalEntry): { totalDebit: number; totalCr
   // For certain system sources, show a "primary impact" value to match how users think
   // when inputting opening balances / operational modules.
   switch (e.source) {
+    case 'opening_balance_item_le': {
+      // Liabilities/Equity opening balance items are created as a balanced journal:
+      // debit perantara 3999, credit the selected L/E account.
+      // For display in Jurnal Umum, show only the credit impact.
+      const credit = sumCreditExcludingCode(e, PERANTARA_CODE);
+      return { totalDebit: 0, totalCredit: credit || totalCredit };
+    }
     case 'fixed_asset': {
       // Show only the asset acquisition amount (debit fixed assets), ignore cash credit.
       const debit = sumDebitByCode(e, ACCOUNT_CODES.fixedAsset);
@@ -82,4 +97,3 @@ export function getDisplayTotalsForEntries(entries: JournalEntry[]) {
     { totalDebit: 0, totalCredit: 0 },
   );
 }
-
