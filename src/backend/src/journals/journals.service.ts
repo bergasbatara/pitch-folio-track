@@ -43,10 +43,13 @@ export class JournalsService {
 
   async createEntry(userId: string, companyId: string, dto: CreateJournalEntryDto) {
     await this.assertOwner(userId, companyId);
-    const { lines, totalDebit, totalCredit } = this.normalizeLines(dto.lines);
-    const balanced = totalDebit === totalCredit;
-    const status = dto.status ?? (balanced ? "posted" : "draft");
-    if (status === "posted" && !balanced) {
+    const requestedStatus = dto.status;
+    const { lines, totalDebit, totalCredit } = this.normalizeLines(dto.lines, {
+      requirePair: requestedStatus === "posted",
+    });
+    const balanced = totalDebit === totalCredit && lines.length >= 2;
+    const status = requestedStatus ?? (balanced ? "posted" : "draft");
+    if (status === "posted" && (!balanced || lines.length < 2)) {
       throw new BadRequestException("Journal entry is not balanced");
     }
 
