@@ -130,9 +130,45 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <span>Total Kredit: <strong>Rp{totalCredit.toLocaleString('id-ID')}</strong></span>
             </div>
             {hasAmounts && (
-              <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Siap disimpan. Keseimbangan dihitung secara keseluruhan di buku besar.</span>
+              <div className="flex items-center justify-between gap-2 text-xs">
+                {totalDebit === totalCredit ? (
+                  <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Seimbang — akan diposting.
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <AlertCircle className="h-4 w-4" />
+                    Selisih Rp{Math.abs(totalDebit - totalCredit).toLocaleString('id-ID')}
+                    {totalDebit < totalCredit ? ' (perlu Debit tambahan)' : ' (perlu Kredit tambahan)'}. Akan disimpan sebagai Draft.
+                  </span>
+                )}
+                {totalDebit < totalCredit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const diff = totalCredit - totalDebit;
+                      setLines((p) => [...p, { accountId: '', debit: diff, credit: 0, memo: 'Penyeimbang' }]);
+                    }}
+                  >
+                    + Baris Debit Penyeimbang (Rp{(totalCredit - totalDebit).toLocaleString('id-ID')})
+                  </Button>
+                )}
+                {totalCredit < totalDebit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const diff = totalDebit - totalCredit;
+                      setLines((p) => [...p, { accountId: '', debit: 0, credit: diff, memo: 'Penyeimbang' }]);
+                    }}
+                  >
+                    + Baris Kredit Penyeimbang (Rp{(totalDebit - totalCredit).toLocaleString('id-ID')})
+                  </Button>
+                )}
               </div>
             )}
           </div>
