@@ -1,73 +1,63 @@
 import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Scale } from 'lucide-react';
+import { Plus, Scale } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { useJournals } from '@/features/journals/hooks/useJournals';
-
-type ItemType = 'liability' | 'equity';
-
-interface Row {
-  id: string;
-  type: ItemType;
-  accountId: string;
-  amount: number;
-  memo: string;
-}
+import { AddLEModal, type LEFormData, type LEItem } from '../components/AddLEModal';
+import { LETable } from '../components/LETable';
 
 const PERANTARA_CODE = '3999';
 const PERANTARA_NAME = 'Saldo Awal Sementara';
+const SOURCE_TAG = 'liabilitas-ekuitas';
 
-const newRow = (type: ItemType = 'liability'): Row => ({
-  id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
-  type,
-  accountId: '',
-  amount: 0,
-  memo: '',
-});
+const fmt = (v: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
 
 export default function OpeningBalances() {
   const { company, error: companyError } = useCompanyProfile();
   const { accounts, addAccount, error: accountsError } = useAccounts(company?.id);
-  const { addEntry, isMutating, error: journalsError } = useJournals(company?.id);
+  const { entries, addEntry, updateEntry, deleteEntry, error: journalsError } = useJournals(company?.id);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(accountsError, 'Gagal memuat akun');
   useErrorToast(journalsError, 'Gagal memuat jurnal');
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [rows, setRows] = useState<Row[]>([newRow('liability'), newRow('equity')]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editing, setEditing] = useState<LEItem | null>(null);
 
-  const liabilityAccounts = useMemo(() => accounts.filter((a) => a.type === 'liability'), [accounts]);
-  const equityAccounts = useMemo(
-    () => accounts.filter((a) => a.type === 'equity' && a.code !== PERANTARA_CODE),
-    [accounts],
-  );
+  // Convert journal entries tagged as liabilitas-ekuitas back into LEItems
+  const items: LEItem[] = useMemo(() => {
+    return entries
+      .filter((e) => e.source === SOURCE_TAG)
+      .map((e) => {
+        // Each entry: 1 credit line (the L/E account) + 1 debit line (perantara)
+        const creditLine = e.lines.find((l) => l.credit > 0 && l.account.code !== PERANTARA_CODE);
+        if (!creditLine) return null;
+        const acc = accounts.find((a) => a.id === creditLine.accountId);
+        const type = acc?.type === 'liability' ? 'liability' : 'equity';
+        return {
+          id: e.id,
+          type,
+          accountId: creditLine.accountId,
+          accountCode: creditLine.account.code,
+          accountName: creditLine.account.name,
+          date: e.date,
+          amount: creditLine.credit,
+          memo: e.memo ?? '',
+        } as LEItem;
+      })
+      .filter((x): x is LEItem => !!x);
+  }, [entries, accounts]);
 
-  const updateRow = (id: string, patch: Partial<Row>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  };
-
-  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
-
-  const totalLiability = rows
-    .filter((r) => r.type === 'liability')
-    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const totalEquity = rows
-    .filter((r) => r.type === 'equity')
-    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalLiability = items.filter((i) => i.type === 'liability').reduce((s, i) => s + i.amount, 0);
+  const totalEquity = items.filter((i) => i.type === 'equity').reduce((s, i) => s + i.amount, 0);
   const grandTotal = totalLiability + totalEquity;
 
-  const validRows = rows.filter((r) => r.accountId && Number(r.amount) > 0);
-  const canSubmit = validRows.length > 0 && !!company?.id && !isMutating;
-
-  const ensurePerantaraAccount = async () => {
+  const ensurePerantaraId = async () => {
     const existing = accounts.find((a) => a.code === PERANTARA_CODE);
     if (existing) return existing.id;
     const created = await addAccount({
@@ -79,194 +69,93 @@ export default function OpeningBalances() {
     return created.id;
   };
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
+  const buildPayload = async (data: LEFormData) => {
+    const perantaraId = await ensurePerantaraId();
+    return {
+      date: data.date,
+      memo: data.memo || (data.type === 'liability' ? 'Saldo Awal Liabilitas' : 'Saldo Awal Ekuitas'),
+      source: SOURCE_TAG,
+      status: 'posted' as const,
+      lines: [
+        { accountId: perantaraId, debit: data.amount, credit: 0, memo: 'Penyeimbang Saldo Awal' },
+        { accountId: data.accountId, debit: 0, credit: data.amount, memo: data.memo || '' },
+      ],
+    };
+  };
+
+  const handleSubmit = async (data: LEFormData) => {
+    if (!company?.id) return;
     try {
-      const perantaraId = await ensurePerantaraAccount();
-      const total = validRows.reduce((s, r) => s + Number(r.amount), 0);
-      const lines = [
-        { accountId: perantaraId, debit: total, credit: 0, memo: 'Penyeimbang Saldo Awal' },
-        ...validRows.map((r) => ({
-          accountId: r.accountId,
-          debit: 0,
-          credit: Number(r.amount),
-          memo: r.memo || (r.type === 'liability' ? 'Saldo Awal Liabilitas' : 'Saldo Awal Ekuitas'),
-        })),
-      ];
-      await addEntry({
-        date,
-        memo: 'Saldo Awal — Liabilitas & Ekuitas',
-        status: 'posted',
-        lines,
-      } as any);
-      toast({ title: 'Saldo Awal Tersimpan', description: 'Jurnal saldo awal berhasil diposting.' });
-      setRows([newRow('liability'), newRow('equity')]);
+      const payload = await buildPayload(data);
+      if (editing) {
+        await updateEntry(editing.id, payload as any);
+        toast({ title: 'Tersimpan', description: 'Data berhasil diperbarui.' });
+      } else {
+        await addEntry(payload as any);
+        toast({ title: 'Tersimpan', description: 'Data berhasil ditambahkan.' });
+      }
+      setEditing(null);
     } catch (err: any) {
       toast({ title: 'Gagal Menyimpan', description: err.message, variant: 'destructive' });
     }
   };
 
-  const fmt = (v: number) => `Rp${v.toLocaleString('id-ID')}`;
+  const handleEdit = (it: LEItem) => { setEditing(it); setIsModalOpen(true); };
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteEntry(id);
+      toast({ title: 'Dihapus', description: 'Data berhasil dihapus.' });
+    } catch (err: any) {
+      toast({ title: 'Gagal Menghapus', description: err.message, variant: 'destructive' });
+    }
+  };
+  const handleClose = () => { setIsModalOpen(false); setEditing(null); };
 
   return (
     <MainLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Saldo Awal — Liabilitas & Ekuitas</h1>
-            <p className="text-muted-foreground">
-              Input setiap pos liabilitas dan ekuitas. Sistem otomatis membuat jurnal seimbang
-              menggunakan akun perantara <strong>{PERANTARA_CODE} {PERANTARA_NAME}</strong>.
-            </p>
+            <h1 className="text-2xl font-bold text-foreground">Liabilitas & Ekuitas</h1>
+            <p className="text-muted-foreground">Kelola pos liabilitas dan ekuitas perusahaan</p>
           </div>
+          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />Tambah
+          </Button>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 max-w-md">
-            <div className="space-y-2">
-              <Label>Tanggal</Label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-[160px_1fr_200px_1fr_auto] gap-3 items-center text-xs font-medium text-muted-foreground px-1">
-              <span>Tipe</span>
-              <span>Akun</span>
-              <span>Nominal (Rp)</span>
-              <span>Keterangan</span>
-              <span></span>
-            </div>
-
-            {rows.map((row) => {
-              const accountList = row.type === 'liability' ? liabilityAccounts : equityAccounts;
-              return (
-                <div key={row.id} className="grid grid-cols-[160px_1fr_200px_1fr_auto] gap-3 items-center">
-                  <Select
-                    value={row.type}
-                    onValueChange={(v) => updateRow(row.id, { type: v as ItemType, accountId: '' })}
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="liability">Liabilitas</SelectItem>
-                      <SelectItem value="equity">Ekuitas</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={row.accountId}
-                    onValueChange={(v) => updateRow(row.id, { accountId: v })}
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue
-                        placeholder={
-                          accountList.length === 0
-                            ? `Belum ada akun ${row.type === 'liability' ? 'liabilitas' : 'ekuitas'}`
-                            : 'Pilih akun'
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accountList.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.code} - {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={row.amount || ''}
-                    onChange={(e) => updateRow(row.id, { amount: Number(e.target.value) || 0 })}
-                    className="bg-background border-border"
-                  />
-
-                  <Input
-                    placeholder="Opsional"
-                    value={row.memo}
-                    onChange={(e) => updateRow(row.id, { memo: e.target.value })}
-                    className="bg-background border-border"
-                  />
-
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => removeRow(row.id)}
-                    disabled={rows.length <= 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Liabilitas', value: fmt(totalLiability) },
+            { label: 'Total Ekuitas', value: fmt(totalEquity) },
+            { label: 'Total Liabilitas + Ekuitas', value: fmt(grandTotal) },
+          ].map((s) => (
+            <div key={s.label} className="p-4 rounded-xl bg-card border border-border">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted text-primary"><Scale className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{s.label}</p>
+                  <p className="text-xl font-bold text-foreground">{s.value}</p>
                 </div>
-              );
-            })}
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setRows((p) => [...p, newRow('liability')])}
-              >
-                <Plus className="h-3 w-3" /> Tambah Liabilitas
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setRows((p) => [...p, newRow('equity')])}
-              >
-                <Plus className="h-3 w-3" /> Tambah Ekuitas
-              </Button>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Total Liabilitas</p>
-              <p className="text-xl font-bold text-foreground">{fmt(totalLiability)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Total Ekuitas</p>
-              <p className="text-xl font-bold text-foreground">{fmt(totalEquity)}</p>
-            </div>
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <p className="text-xs text-muted-foreground">Total Liabilitas + Ekuitas</p>
-              <p className="text-xl font-bold text-primary">{fmt(grandTotal)}</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-            <Scale className="h-4 w-4 mt-0.5 shrink-0" />
-            <p>
-              Saat disimpan, sistem akan membuat <strong>1 jurnal seimbang</strong> dengan total
-              Debit <strong>{fmt(grandTotal)}</strong> ke akun perantara <strong>{PERANTARA_CODE} {PERANTARA_NAME}</strong>,
-              dan total Kredit <strong>{fmt(grandTotal)}</strong> tersebar ke setiap akun di atas.
-              Akun perantara akan otomatis nol setelah Anda menginput sisi Aset di halaman Saldo Awal Aset
-              (atau melalui Jurnal Umum dengan kebalikannya: Debit Aset / Kredit {PERANTARA_CODE}).
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button onClick={handleSubmit} disabled={!canSubmit}>
-              {isMutating ? 'Menyimpan...' : 'Simpan Saldo Awal'}
-            </Button>
-          </div>
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h2 className="text-lg font-semibold mb-4">Daftar Liabilitas & Ekuitas</h2>
+          <LETable items={items} onEdit={handleEdit} onDelete={handleDelete} />
         </div>
       </div>
+
+      <AddLEModal
+        isOpen={isModalOpen}
+        onClose={handleClose}
+        onSubmit={handleSubmit}
+        editingItem={editing}
+        accounts={accounts}
+        perantaraCode={PERANTARA_CODE}
+      />
     </MainLayout>
   );
 }
