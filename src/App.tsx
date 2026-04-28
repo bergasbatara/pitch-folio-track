@@ -17,6 +17,7 @@ import { FixedAssetsPage } from "@/features/fixed-assets";
 import { TaxesPage } from "@/features/taxes";
 import { AccountsPage } from "@/features/accounts";
 import { JournalsPage } from "@/features/journals";
+import { OpeningBalancesPage } from "@/features/opening-balances";
 import {
   AuditDraftPage,
   FinancialRatiosPage,
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/hutang" element={<Gated><PayablesPage /></Gated>} />
             <Route path="/akun" element={<Gated><AccountsPage /></Gated>} />
             <Route path="/jurnal" element={<Gated><JournalsPage /></Gated>} />
+            <Route path="/saldo-awal" element={<Gated><OpeningBalancesPage /></Gated>} />
 
             {/* Professional-tier routes */}
             <Route path="/audit-draft" element={<Gated><AuditDraftPage /></Gated>} />

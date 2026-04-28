@@ -24,6 +24,7 @@ const navigation: NavItem[] = [
   { name: 'Pajak', href: '/pajak', icon: Receipt, section: 'business' },
   { name: 'Daftar Akun', href: '/akun', icon: ListTree, section: 'business' },
   { name: 'Jurnal Umum', href: '/jurnal', icon: BookMarked, section: 'business' },
+  { name: 'Saldo Awal', href: '/saldo-awal', icon: Scale, section: 'business' },
   { name: 'Laba Rugi', href: '/laba-rugi', icon: FileText, section: 'business' },
   { name: 'Neraca', href: '/neraca', icon: Scale, section: 'business' },
   { name: 'Arus Kas', href: '/arus-kas', icon: ArrowRight, section: 'business' },
