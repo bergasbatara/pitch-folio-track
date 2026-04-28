@@ -43,13 +43,33 @@ export class JournalsService {
 
   async createEntry(userId: string, companyId: string, dto: CreateJournalEntryDto) {
     await this.assertOwner(userId, companyId);
-    const requestedStatus = dto.status;
-    const { lines, totalDebit, totalCredit } = this.normalizeLines(dto.lines, {
-      requirePair: requestedStatus === "posted",
-    });
-    const balanced = totalDebit === totalCredit && lines.length >= 2;
-    const status = requestedStatus ?? (balanced ? "posted" : "draft");
-    if (status === "posted" && (!balanced || lines.length < 2)) {
+    const rawLines = dto.lines ?? [];
+    if (rawLines.length === 0) {
+      throw new BadRequestException("At least 1 journal line is required");
+    }
+
+    // If client doesn't specify status, infer it:
+    // - 1 line can never be balanced => draft
+    // - otherwise posted if balanced else draft
+    const normalizedForInference = rawLines.length >= 2 ? this.normalizeLines(rawLines) : null;
+    const inferredStatus =
+      rawLines.length < 2
+        ? "draft"
+        : normalizedForInference!.totalDebit === normalizedForInference!.totalCredit
+          ? "posted"
+          : "draft";
+    const status = dto.status ?? inferredStatus;
+
+    // For posted entries we require at least 2 lines and balance.
+    if (status === "posted" && rawLines.length < 2) {
+      throw new BadRequestException("At least 2 journal lines are required");
+    }
+
+    const { lines, totalDebit, totalCredit } =
+      rawLines.length >= 2 ? this.normalizeLines(rawLines) : this.normalizeDraftLines(rawLines);
+
+    const balanced = totalDebit === totalCredit;
+    if (status === "posted" && !balanced) {
       throw new BadRequestException("Journal entry is not balanced");
     }
 
@@ -97,7 +117,15 @@ export class JournalsService {
 
     let normalizedLines: ReturnType<typeof this.normalizeLines> | null = null;
     if (dto.lines) {
-      normalizedLines = this.normalizeLines(dto.lines);
+      if (dto.lines.length === 0) {
+        throw new BadRequestException("At least 1 journal line is required");
+      }
+      const wantsPosted = (dto.status ?? existing.status ?? "posted") === "posted";
+      if (wantsPosted && dto.lines.length < 2) {
+        throw new BadRequestException("At least 2 journal lines are required");
+      }
+      normalizedLines =
+        dto.lines.length >= 2 ? this.normalizeLines(dto.lines) : this.normalizeDraftLines(dto.lines);
       await this.ensureAccounts(companyId, normalizedLines.lines.map((l) => l.accountId));
     }
 
@@ -183,6 +211,35 @@ export class JournalsService {
       const credit = Number(line.credit ?? 0);
       if ((debit > 0 && credit > 0) || (debit === 0 && credit === 0)) {
         throw new BadRequestException("Each line must have either debit or credit");
+      }
+      totalDebit += debit;
+      totalCredit += credit;
+      return {
+        accountId: line.accountId,
+        debit,
+        credit,
+        memo: line.memo,
+      };
+    });
+    return { lines: normalized, totalDebit, totalCredit };
+  }
+
+  private normalizeDraftLines(lines: JournalLineDto[]) {
+    // Drafts are allowed to be unbalanced and can be entered progressively.
+    // Still enforce: at least 1 line, must reference an account, and must have some amount.
+    if (!lines?.length) {
+      throw new BadRequestException("At least 1 journal line is required");
+    }
+    let totalDebit = 0;
+    let totalCredit = 0;
+    const normalized = lines.map((line) => {
+      const debit = Number(line.debit ?? 0);
+      const credit = Number(line.credit ?? 0);
+      if (!line.accountId) {
+        throw new BadRequestException("Each line must have an account");
+      }
+      if (debit === 0 && credit === 0) {
+        throw new BadRequestException("Each line must have a debit or credit amount");
       }
       totalDebit += debit;
       totalCredit += credit;
