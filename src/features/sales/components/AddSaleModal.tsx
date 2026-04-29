@@ -26,10 +26,12 @@ interface AddSaleModalProps {
 }
 
 export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleModalProps) {
+  const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState<SaleFormData>({
     productId: '',
     quantity: 1,
     pricePerUnit: 0,
+    soldAt: today,
   });
   const [productCode, setProductCode] = useState('');
 
@@ -64,7 +66,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
     
     onSubmit({ ...formData, productCode: productCode.trim() || undefined });
     onClose();
-    setFormData({ productId: '', quantity: 1, pricePerUnit: 0 });
+    setFormData({ productId: '', quantity: 1, pricePerUnit: 0, soldAt: today });
   };
 
   const totalPrice = formData.quantity * formData.pricePerUnit;
@@ -76,6 +78,17 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
           <DialogTitle className="text-foreground">Catat Penjualan Baru</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="soldAt">Tanggal</Label>
+            <Input
+              id="soldAt"
+              type="date"
+              value={formData.soldAt ?? today}
+              onChange={(e) => setFormData({ ...formData, soldAt: e.target.value })}
+              className="bg-background border-border"
+              required
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="productCode">Kode Produk (opsional)</Label>
             <Input

@@ -13,4 +13,5 @@ export interface SaleFormData {
   productCode?: string;
   quantity: number;
   pricePerUnit: number;
+  soldAt?: string;
 }
