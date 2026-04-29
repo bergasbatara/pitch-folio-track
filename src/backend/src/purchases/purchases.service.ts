@@ -5,6 +5,8 @@ import { UpdatePurchaseDto } from "./dto/update-purchase.dto";
 import type { Prisma } from "@prisma/client";
 import { DEFAULT_ACCOUNTS, DEFAULT_ACCOUNT_CODES } from "../accounts/accounts.defaults";
 
+const DEFAULT_CATEGORY_NAME = "Umum";
+
 @Injectable()
 export class PurchasesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -50,12 +52,14 @@ export class PurchasesService {
   async createPurchase(userId: string, companyId: string, dto: CreatePurchaseDto) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
-      const category = await tx.purchaseCategory.findFirst({
-        where: { id: dto.categoryId, companyId },
-      });
-      if (!category) {
-        throw new NotFoundException("Category not found");
-      }
+      const ensuredCategory = dto.categoryId
+        ? await tx.purchaseCategory.findFirst({ where: { id: dto.categoryId, companyId } })
+        : await tx.purchaseCategory.upsert({
+            where: { companyId_name: { companyId, name: DEFAULT_CATEGORY_NAME } },
+            create: { companyId, name: DEFAULT_CATEGORY_NAME },
+            update: {},
+          });
+      if (!ensuredCategory) throw new NotFoundException("Category not found");
 
       const product = dto.productId
         ? await tx.product.findFirst({
@@ -73,7 +77,7 @@ export class PurchasesService {
       const purchase = await tx.purchase.create({
         data: {
           companyId,
-          categoryId: category.id,
+          categoryId: ensuredCategory.id,
           productId: product?.id,
           itemName: String(dto.itemName ?? "").trim(),
           supplier: dto.supplier ? String(dto.supplier).trim() : undefined,

@@ -3,8 +3,9 @@ import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreatePurchaseDto {
   @Transform(({ value }) => String(value ?? ''))
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  categoryId?: string;
 
   @Transform(({ value }) => {
     if (value === undefined || value === null || value === '') return undefined;

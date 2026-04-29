@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PurchasesTable } from '../components/PurchasesTable';
 import { AddPurchaseModal } from '../components/AddPurchaseModal';
-import { usePurchases, usePurchaseCategories } from '../hooks/usePurchases';
+import { usePurchases } from '../hooks/usePurchases';
 import { Purchase, PurchaseFormData } from '../types';
 import { Plus, TrendingDown } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
@@ -14,10 +14,8 @@ export default function Purchases() {
   const { company, error: companyError } = useCompanyProfile();
 
   const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend, error: purchasesError } = usePurchases(company?.id);
-  const { categories, addCategory, error: categoriesError } = usePurchaseCategories(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(purchasesError, 'Gagal memuat pembelian');
-  useErrorToast(categoriesError, 'Gagal memuat kategori pembelian');
 
   const handleEdit = (purchase: Purchase) => {
     setEditingPurchase(purchase);
@@ -89,7 +87,7 @@ export default function Purchases() {
             <div className="metric-card-glow" />
             <div>
               <p className="stat-label">Kategori</p>
-              <p className="stat-value">{categories.length}</p>
+              <p className="stat-value">-</p>
             </div>
           </div>
         </div>
@@ -97,7 +95,6 @@ export default function Purchases() {
         {/* Purchases Table */}
         <PurchasesTable
           purchases={purchases}
-          categories={categories}
           onEdit={handleEdit}
           onDelete={deletePurchase}
         />
@@ -106,8 +103,6 @@ export default function Purchases() {
         <AddPurchaseModal
           open={isModalOpen}
           onOpenChange={handleCloseModal}
-          categories={categories}
-          onAddCategory={addCategory}
           onAddPurchase={handleAddPurchase}
           editingPurchase={editingPurchase}
           onUpdatePurchase={handleUpdatePurchase}

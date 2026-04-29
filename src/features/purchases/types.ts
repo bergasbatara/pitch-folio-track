@@ -23,7 +23,6 @@ export interface Purchase {
 
 export interface PurchaseFormData {
   date: string;
-  categoryId: string;
   productId?: string | null;
   productCode?: string | null;
   itemName: string;

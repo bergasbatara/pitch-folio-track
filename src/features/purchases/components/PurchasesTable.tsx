@@ -14,22 +14,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { Purchase, PurchaseCategory } from '../types';
+import { Purchase } from '../types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 interface PurchasesTableProps {
   purchases: Purchase[];
-  categories: PurchaseCategory[];
   onEdit: (purchase: Purchase) => void;
   onDelete: (id: string) => void;
 }
 
-export function PurchasesTable({ purchases, categories, onEdit, onDelete }: PurchasesTableProps) {
-  const getCategoryName = (categoryId: string, fallback?: string) => {
-    return categories.find(c => c.id === categoryId)?.name || fallback || 'Tidak diketahui';
-  };
-
+export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTableProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -54,7 +49,6 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
           <TableRow>
             <TableHead>Tanggal</TableHead>
             <TableHead>Barang</TableHead>
-            <TableHead>Kategori</TableHead>
             <TableHead>Pemasok</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
@@ -69,11 +63,6 @@ export function PurchasesTable({ purchases, categories, onEdit, onDelete }: Purc
                 {format(new Date(purchase.date), 'd MMM yyyy', { locale: id })}
               </TableCell>
               <TableCell className="font-medium">{purchase.itemName}</TableCell>
-              <TableCell>
-                <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-                  {getCategoryName(purchase.categoryId, purchase.categoryName)}
-                </span>
-              </TableCell>
               <TableCell className="text-muted-foreground">
                 {purchase.supplier || '-'}
               </TableCell>

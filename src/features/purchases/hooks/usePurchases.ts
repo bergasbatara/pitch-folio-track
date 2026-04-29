@@ -120,7 +120,7 @@ export function usePurchases(companyId?: string) {
     const optimistic = hydratePurchase({
       id: tempId,
       date: data.date,
-      categoryId: data.categoryId,
+      categoryId: '',
       itemName: data.itemName,
       supplier: data.supplier,
       quantity: data.quantity,
