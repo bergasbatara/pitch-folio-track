@@ -15,8 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Purchase } from '../types';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { formatDateId } from '@/shared/lib/date';
 
 interface PurchasesTableProps {
   purchases: Purchase[];
@@ -60,7 +59,7 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
           {purchases.map((purchase) => (
             <TableRow key={purchase.id}>
               <TableCell className="text-muted-foreground">
-                {format(new Date(purchase.date), 'd MMM yyyy', { locale: id })}
+                {formatDateId(purchase.date)}
               </TableCell>
               <TableCell className="font-medium">{purchase.itemName}</TableCell>
               <TableCell className="text-muted-foreground">

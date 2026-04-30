@@ -9,8 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { formatDateId } from '@/shared/lib/date';
 
 interface SalesTableProps {
   sales: Sale[];
@@ -32,7 +31,7 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead>Tanggal & Waktu</TableHead>
+            <TableHead>Tanggal</TableHead>
             <TableHead>Produk</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
@@ -44,7 +43,7 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
           {sales.map((sale) => (
             <TableRow key={sale.id}>
               <TableCell className="text-muted-foreground">
-                {format(new Date(sale.soldAt), 'd MMM yyyy HH:mm', { locale: id })}
+                {formatDateId(sale.soldAt)}
               </TableCell>
               <TableCell className="font-medium">{sale.productName}</TableCell>
               <TableCell className="text-right">{sale.quantity}</TableCell>

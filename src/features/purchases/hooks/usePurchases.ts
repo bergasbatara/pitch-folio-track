@@ -210,13 +210,21 @@ export function usePurchases(companyId?: string) {
 
 const normalizeDate = (value?: string) => {
   if (!value) {
-    return new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
+  const datePart = value.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date().toISOString().split('T')[0];
-  }
-  return parsed.toISOString().split('T')[0];
+  if (Number.isNaN(parsed.getTime())) return datePart;
+  // Return local date (not UTC) to avoid off-by-one.
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const hydratePurchase = (purchase: Purchase): Purchase => ({

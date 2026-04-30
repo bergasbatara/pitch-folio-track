@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { SaleFormData } from '../types';
 import { Product } from '@/features/products/types';
+import { todayInputValue } from '@/shared/lib/date';
 
 interface AddSaleModalProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ interface AddSaleModalProps {
 }
 
 export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleModalProps) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayInputValue();
   const [formData, setFormData] = useState<SaleFormData>({
     productId: '',
     quantity: 1,

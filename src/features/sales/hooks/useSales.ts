@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sale, SaleFormData } from '../types';
 import { useAsyncStatus } from '@/shared/hooks/useAsyncStatus';
 import { withCsrf } from '@/shared/lib/csrf';
+import { parseApiDateToLocalDate } from '@/shared/lib/date';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -63,7 +64,7 @@ export function useSales(companyId?: string) {
   const todaysSales = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return sales.filter((sale) => new Date(sale.soldAt) >= today);
+    return sales.filter((sale) => parseApiDateToLocalDate(sale.soldAt) >= today);
   }, [sales]);
 
   const todaysRevenue = useMemo(() => {
@@ -91,7 +92,7 @@ export function useSales(companyId?: string) {
 
 const hydrateSale = (sale: Sale) => ({
   ...sale,
-  soldAt: new Date(sale.soldAt),
+  soldAt: sale.soldAt,
 });
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

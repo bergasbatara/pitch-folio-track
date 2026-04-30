@@ -44,11 +44,26 @@ export class CreatePurchaseDto {
   unitCost!: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @Transform(({ value }) => parseDateInput(value))
   date?: Date;
 
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value).trim()))
   @IsOptional()
   @IsString()
   notes?: string;
+}
+
+function parseDateInput(value: unknown): Date | undefined {
+  if (!value) return undefined;
+  const raw = String(value);
+  // `YYYY-MM-DD` is parsed as UTC by `new Date(string)` and can shift a day in local time.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (m) {
+    const year = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const day = Number(m[3]);
+    // Use midday local time to avoid DST/UTC edge cases.
+    return new Date(year, month, day, 12, 0, 0);
+  }
+  return new Date(raw);
 }

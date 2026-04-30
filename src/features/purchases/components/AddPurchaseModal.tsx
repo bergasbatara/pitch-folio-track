@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Purchase, PurchaseFormData } from '../types';
+import { todayInputValue } from '@/shared/lib/date';
 
 interface AddPurchaseModalProps {
   open: boolean;
@@ -26,7 +27,7 @@ interface AddPurchaseModalProps {
   onUpdatePurchase?: (id: string, updates: Partial<PurchaseFormData>) => Promise<void> | void;
 }
 
-const defaultDate = () => new Date().toISOString().split('T')[0];
+const defaultDate = () => todayInputValue();
 
 export function AddPurchaseModal({
   open,

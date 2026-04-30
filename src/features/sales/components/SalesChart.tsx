@@ -3,6 +3,7 @@ import { Sale } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { parseApiDateToLocalDate } from '@/shared/lib/date';
 
 interface SalesChartProps {
   sales: Sale[];
@@ -22,7 +23,7 @@ export function SalesChart({ sales, days = 7 }: SalesChartProps) {
       dayEnd.setHours(23, 59, 59, 999);
       
       const daySales = sales.filter(sale => {
-        const saleDate = new Date(sale.soldAt);
+        const saleDate = parseApiDateToLocalDate(sale.soldAt);
         return saleDate >= dayStart && saleDate <= dayEnd;
       });
       

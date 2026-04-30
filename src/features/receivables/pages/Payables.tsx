@@ -9,10 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Building, CreditCard, AlertCircle, Trash2, Banknote } from 'lucide-react';
 import { usePayables } from '../hooks/useReceivables';
-import { format } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { formatDateId } from '@/shared/lib/date';
 
 export default function Payables() {
   const { company, error: companyError } = useCompanyProfile();
@@ -185,7 +184,7 @@ export default function Payables() {
                     <TableCell>{payable.description}</TableCell>
                     <TableCell>{formatCurrency(payable.amount)}</TableCell>
                     <TableCell>{formatCurrency(payable.paidAmount)}</TableCell>
-                    <TableCell>{format(new Date(payable.dueDate), 'dd MMM yyyy', { locale: localeId })}</TableCell>
+                    <TableCell>{formatDateId(payable.dueDate)}</TableCell>
                     <TableCell>{getStatusBadge(payable.status)}</TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">

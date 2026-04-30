@@ -5,7 +5,7 @@ export interface Sale {
   quantity: number;
   pricePerUnit: number;
   totalPrice: number;
-  soldAt: Date;
+  soldAt: string;
 }
 
 export interface SaleFormData {
