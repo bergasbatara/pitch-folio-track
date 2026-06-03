@@ -51,12 +51,8 @@ export async function subscribeToPlan(
   const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
   expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
 
-  const companyResponse = await page.context().request.get(`${API_URL}/companies/current`);
-  expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
-  const company = (await companyResponse.json()) as { id: string };
-
-  const cookies = await page.context().cookies(API_URL);
-  const csrfToken = cookies.find((cookie) => cookie.name === 'csrf_token')?.value;
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
 
   const response = await page.context().request.post(
     `${API_URL}/companies/${company.id}/subscription`,
@@ -67,6 +63,35 @@ export async function subscribeToPlan(
   );
 
   expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+export async function expireCurrentSubscription(page: Page) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.patch(
+    `${API_URL}/companies/${company.id}/subscription`,
+    {
+      data: { status: 'expired' },
+      headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+    },
+  );
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+async function getCurrentCompany(page: Page) {
+  const companyResponse = await page.context().request.get(`${API_URL}/companies/current`);
+  expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
+  return (await companyResponse.json()) as { id: string };
+}
+
+async function getCsrfToken(page: Page) {
+  const cookies = await page.context().cookies(API_URL);
+  return cookies.find((cookie) => cookie.name === 'csrf_token')?.value;
 }
 
 export async function closeAuthedContext(context: BrowserContext) {

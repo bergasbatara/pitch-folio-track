@@ -43,7 +43,7 @@ export function ProfilePage() {
     setPhone(company?.phone || user.phone || '');
     setCompanyName(company?.name || user.companyName || '');
     setTaxId(company?.taxId || '');
-  }, [user, company]);
+  }, [user?.id, company?.id]);
 
   if (!user) {
     navigate('/login');

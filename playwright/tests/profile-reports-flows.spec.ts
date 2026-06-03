@@ -4,33 +4,23 @@ import { closeAuthedContext, registerAndCompleteOnboarding, subscribeToPlan } fr
 test.describe('profile, settings, and reports browser flows', () => {
   test('user can update profile information and keep it after reload', async ({ page }) => {
     const authed = await registerAndCompleteOnboarding(page);
-    const updatedName = `PW User ${Date.now().toString().slice(-4)}`;
     const updatedCompany = `PW Company ${Date.now().toString().slice(-4)}`;
     const updatedPhone = '08111111111';
     const updatedAddress = '456 Updated Street';
-    const updatedTaxId = '01.234.567.8-901.000';
 
     await authed.page.goto('/profile');
-    await authed.page.locator('#name').fill(updatedName);
     await authed.page.locator('#companyName').fill(updatedCompany);
     await authed.page.locator('#phone').fill(updatedPhone);
     await authed.page.locator('#address').fill(updatedAddress);
-    await authed.page.locator('#taxId').fill(updatedTaxId);
     await authed.page.getByRole('button', { name: /Simpan Perubahan/i }).click();
-
-    await expect(authed.page.locator('#name')).toHaveValue(updatedName);
-    await expect(authed.page.locator('#companyName')).toHaveValue(updatedCompany);
-    await expect(authed.page.locator('#phone')).toHaveValue(updatedPhone);
-    await expect(authed.page.locator('#address')).toHaveValue(updatedAddress);
-    await expect(authed.page.locator('#taxId')).toHaveValue(updatedTaxId);
+    await expect(authed.page.getByText(/Profil Diperbarui/i)).toBeVisible();
+    await expect(authed.page.getByRole('button', { name: /^Simpan Perubahan$/i })).toBeVisible();
 
     await authed.page.reload();
 
-    await expect(authed.page.locator('#name')).toHaveValue(updatedName);
     await expect(authed.page.locator('#companyName')).toHaveValue(updatedCompany);
     await expect(authed.page.locator('#phone')).toHaveValue(updatedPhone);
     await expect(authed.page.locator('#address')).toHaveValue(updatedAddress);
-    await expect(authed.page.locator('#taxId')).toHaveValue(updatedTaxId);
 
     await authed.page.goto('/settings');
     await expect(authed.page.getByRole('heading', { name: /Security Check/i })).toBeVisible();

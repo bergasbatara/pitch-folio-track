@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { closeAuthedContext, registerAndCompleteOnboarding, subscribeToPlan } from './support/app';
+import {
+  closeAuthedContext,
+  expireCurrentSubscription,
+  registerAndCompleteOnboarding,
+  subscribeToPlan,
+} from './support/app';
 
 test.describe('subscription and plan browser flows', () => {
   test('new user can register, complete onboarding, and access the subscription page', async ({ page }) => {
@@ -43,6 +48,30 @@ test.describe('subscription and plan browser flows', () => {
       authed.page.getByRole('heading', { name: /^Pembayaran$/i }),
     ).toBeVisible();
     await expect(authed.page.getByText('Professional')).toBeVisible();
+    await closeAuthedContext(authed.context);
+  });
+
+  test('expired professional subscription is blocked, can start renewal, and regains access after renewal', async ({ page }) => {
+    const authed = await registerAndCompleteOnboarding(page);
+    await subscribeToPlan(authed.page, 'professional');
+    await expireCurrentSubscription(authed.page);
+
+    await authed.page.goto('/audit-draft');
+    await expect(authed.page.getByRole('heading', { name: /Halaman Terkunci/i })).toBeVisible();
+
+    await authed.page.goto('/langganan');
+    await expect(authed.page.getByRole('heading', { name: /Pilih Paket Langganan/i })).toBeVisible();
+    await authed.page.getByRole('button', { name: /Perpanjang Paket Ini/i }).click();
+
+    await expect(authed.page).toHaveURL(/\/pembayaran\?plan=professional$/);
+    await expect(authed.page.getByRole('heading', { name: /^Pembayaran$/i })).toBeVisible();
+
+    await subscribeToPlan(authed.page, 'professional');
+    await authed.page.goto('/audit-draft');
+
+    await expect(
+      authed.page.getByRole('heading', { name: /Drafting Laporan Keuangan untuk Audit/i }),
+    ).toBeVisible();
     await closeAuthedContext(authed.context);
   });
 });
