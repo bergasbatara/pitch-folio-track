@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,15 +8,15 @@ import { useSubscription } from '../hooks/useSubscription';
 import { useToast } from '@/components/ui/use-toast';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { formatDateId } from '@/shared/lib/date';
 
 export default function Subscription() {
   const navigate = useNavigate();
   const { company, error: companyError } = useCompanyProfile();
-  const { plans, subscription, subscribe, getCurrentPlan, isSubscribed, error: subscriptionError } = useSubscription(company?.id);
+  const { plans, subscription, getCurrentPlan, isSubscribed, error: subscriptionError } = useSubscription(company?.id);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(subscriptionError, 'Gagal memuat langganan');
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   const currentPlan = getCurrentPlan();
 
@@ -52,6 +51,8 @@ export default function Subscription() {
     }
   };
 
+  const formattedEndDate = subscription?.endDate ? formatDateId(subscription.endDate) : null;
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -68,9 +69,21 @@ export default function Subscription() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
-                  <span>Anda saat ini berlangganan paket <strong>{currentPlan.name}</strong></span>
+                  <div className="space-y-1">
+                    <div>Anda saat ini berlangganan paket <strong>{currentPlan.name}</strong></div>
+                    {formattedEndDate && (
+                      <div className="text-sm text-muted-foreground">
+                        Berlaku sampai {formattedEndDate}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="default">Aktif</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default">Aktif</Badge>
+                  <Button onClick={() => handleSubscribe(currentPlan.id)}>
+                    Perpanjang Paket
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -113,10 +126,9 @@ export default function Subscription() {
                   <Button 
                     className="w-full" 
                     variant={plan.recommended ? 'default' : 'outline'}
-                    disabled={isCurrentPlan}
                     onClick={() => handleSubscribe(plan.id)}
                   >
-                    {isCurrentPlan ? 'Paket Saat Ini' : 'Pilih Paket'}
+                    {isCurrentPlan ? 'Perpanjang Paket Ini' : 'Pilih Paket'}
                   </Button>
                 </CardContent>
               </Card>

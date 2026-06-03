@@ -171,6 +171,7 @@ export default function Payment() {
 
     return response.json() as Promise<{
       statusCode: string;
+      statusMessage?: string;
       transactionStatus: string;
       redirectUrl?: string;
       orderId: string;
@@ -478,7 +479,10 @@ export default function Payment() {
 
       if (!result) throw new Error('No response from server');
 
-      if (result.statusCode === '200' && result.transactionStatus === 'capture') {
+      if (
+        (result.statusCode === '200' && result.transactionStatus === 'capture') ||
+        result.transactionStatus === 'settlement'
+      ) {
         // Direct success (non-3DS)
         toast({
           title: 'Pembayaran Berhasil',
@@ -488,8 +492,21 @@ export default function Payment() {
       } else if (result.redirectUrl) {
         // Needs 3DS authentication
         handle3DS(result.redirectUrl, result.orderId);
+      } else if (result.orderId && ['pending', 'authorize'].includes(result.transactionStatus)) {
+        pollPaymentStatusUntilFinal(result.orderId);
+        toast({
+          title: 'Menunggu Konfirmasi Pembayaran',
+          description:
+            result.statusMessage ??
+            'Pembayaran sedang diproses. Status akan diperiksa otomatis.',
+        });
       } else {
-        throw new Error(`Payment failed: ${result.transactionStatus}`);
+        const parts = [
+          result.statusMessage,
+          result.transactionStatus ? `transaction status: ${result.transactionStatus}` : null,
+          result.statusCode ? `status code: ${result.statusCode}` : null,
+        ].filter(Boolean);
+        throw new Error(parts.join(' | ') || 'Payment failed with unexpected response');
       }
     } catch (err) {
       toast({

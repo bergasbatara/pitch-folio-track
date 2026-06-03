@@ -61,6 +61,7 @@ export class PaymentsService {
 
     return {
       statusCode,
+      statusMessage: chargeResult.status_message,
       transactionStatus: chargeResult.transaction_status,
       redirectUrl: chargeResult.redirect_url,
       orderId: chargeResult.order_id,
@@ -96,6 +97,7 @@ export class PaymentsService {
     const qrAction = result.actions?.find((a) => a.name === "generate-qr-code");
     return {
       statusCode: result.status_code,
+      statusMessage: result.status_message,
       transactionStatus: result.transaction_status,
       orderId: result.order_id,
       qrString: result.qr_string,
@@ -142,6 +144,7 @@ export class PaymentsService {
     const qrUrl = result.actions?.find((a) => a.name === "generate-qr-code")?.url;
     return {
       statusCode: result.status_code,
+      statusMessage: result.status_message,
       transactionStatus: result.transaction_status,
       orderId: result.order_id,
       deeplinkUrl,
@@ -181,6 +184,7 @@ export class PaymentsService {
 
     return {
       statusCode: result.status_code,
+      statusMessage: result.status_message,
       transactionStatus: result.transaction_status,
       orderId: result.order_id,
       fraudStatus: result.fraud_status,
