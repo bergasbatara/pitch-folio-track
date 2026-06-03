@@ -69,13 +69,18 @@ export function ProfilePage() {
       const trimmedAddress = address.trim();
       const trimmedPhone = phone.trim();
       const trimmedTaxId = taxId.trim();
+      const trimmedAvatar = avatar.trim();
 
       await updateProfile({
         name: trimmedName || undefined,
-        avatar: avatar.trim() || undefined,
-        address: trimmedAddress || undefined,
-        phone: trimmedPhone || undefined,
-        companyName: trimmedCompanyName || undefined,
+        avatar: trimmedAvatar || undefined,
+        ...(company?.id
+          ? {}
+          : {
+              address: trimmedAddress || undefined,
+              phone: trimmedPhone || undefined,
+              companyName: trimmedCompanyName || undefined,
+            }),
       });
 
       if (company?.id) {
@@ -86,6 +91,13 @@ export function ProfilePage() {
           taxId: trimmedTaxId || undefined,
         });
       }
+
+      setName(trimmedName);
+      setAvatar(trimmedAvatar);
+      setAddress(trimmedAddress);
+      setPhone(trimmedPhone);
+      setCompanyName(trimmedCompanyName);
+      setTaxId(trimmedTaxId);
 
       toast({
         title: "Profil Diperbarui",
