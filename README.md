@@ -82,6 +82,29 @@ cd src/backend
 npm test
 ```
 
+### Browser e2e (Playwright)
+
+Playwright runs the app in a real Chromium browser and covers full user flows across frontend + backend.
+
+```bash
+# one-time browser install
+npx playwright install chromium
+
+# run browser e2e
+npm run test:browser
+```
+
+Playwright uses the local app on:
+- frontend: `http://localhost:8080`
+- backend: `http://localhost:3000`
+
+It will reuse already-running local dev servers on those ports when available.
+
+Current Playwright flows cover:
+- register + onboarding
+- business vs professional route gating
+- renewal navigation from subscription to payment
+
 ## Production
 
 - Single-server Docker Compose: `docker-compose.prod.yml` + `deploy/` (Caddy + Nginx + Nest + Postgres)
