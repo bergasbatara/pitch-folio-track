@@ -158,6 +158,86 @@ export async function createJournalEntryByCode(
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
+export async function createProduct(
+  page: Page,
+  input: {
+    name: string;
+    code?: string;
+    type?: string;
+    unit?: string;
+    price: number;
+    buyPrice?: number;
+    stock: number;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/companies/${company.id}/products`, {
+    data: input,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<{ id: string; name: string; code?: string | null }>;
+}
+
+export async function createPurchase(
+  page: Page,
+  input: {
+    date: string;
+    itemName: string;
+    productId?: string;
+    productCode?: string;
+    supplier?: string;
+    quantity: number;
+    unitCost: number;
+    notes?: string;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/companies/${company.id}/purchases`, {
+    data: input,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<{ id: string }>;
+}
+
+export async function createSale(
+  page: Page,
+  input: {
+    soldAt: string;
+    productId?: string;
+    productCode?: string;
+    quantity: number;
+    pricePerUnit: number;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/companies/${company.id}/sales`, {
+    data: input,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<{ id: string }>;
+}
+
 export async function getCurrentCompany(page: Page) {
   const companyResponse = await page.context().request.get(`${API_URL}/companies/current`);
   expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
