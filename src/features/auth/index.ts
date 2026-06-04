@@ -1,6 +1,7 @@
 export { AuthProvider, useAuth } from './contexts/AuthContext';
 export { ProtectedRoute } from './components/ProtectedRoute';
 export { OnboardingRoute } from './components/OnboardingRoute';
+export { default as ForgotPasswordPage } from './pages/ForgotPassword';
 export { default as LoginPage } from './pages/Login';
 export { default as ResetPasswordPage } from './pages/ResetPassword';
 export { RegisterPage } from './pages/Register';

@@ -112,7 +112,7 @@ export default function Login() {
                 </div>
                 <div className="flex justify-end">
                   <Link
-                    to="/reset-password"
+                    to="/forgot-password"
                     className="text-sm text-primary hover:underline font-medium"
                   >
                     Lupa password?

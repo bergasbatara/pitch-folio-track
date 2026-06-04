@@ -22,13 +22,15 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (email: string, password: string, name: string) => Promise<boolean>;
-  resetPassword: (email: string, newPassword: string) => Promise<boolean>;
+  requestPasswordReset: (email: string) => Promise<{ resetUrl?: string }>;
+  resetPassword: (token: string, newPassword: string) => Promise<boolean>;
   updateProfile: (data: { name?: string; avatar?: string; address?: string; phone?: string; companyName?: string }) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -80,10 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const resetPassword = async (email: string, newPassword: string): Promise<boolean> => {
+  const requestPasswordReset = async (email: string): Promise<{ resetUrl?: string }> => {
+    return fetchJson<{ success: true; resetUrl?: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  };
+
+  const resetPassword = async (token: string, newPassword: string): Promise<boolean> => {
     await fetchJson<{ success: true }>('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ email, newPassword }),
+      body: JSON.stringify({ token, newPassword }),
     });
     return true;
   };
@@ -132,7 +141,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return /failed to fetch|networkerror|net::err/i.test(err.message);
   };
 
+  const getCsrfCookie = () => {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('csrf_token='));
+    if (!match) return null;
+    return decodeURIComponent(match.split('=').slice(1).join('='));
+  };
+
+  const ensureCsrfCookie = async () => {
+    if (getCsrfCookie()) return;
+    await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
+  };
+
   const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
+    const method = (options.method ?? 'GET').toUpperCase();
+    if (!SAFE_METHODS.includes(method)) {
+      await ensureCsrfCookie();
+    }
+
     const headers = {
       'Content-Type': 'application/json',
       ...(options.headers ?? {}),
@@ -160,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, resetPassword, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, requestPasswordReset, resetPassword, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

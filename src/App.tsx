@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, ProtectedRoute, OnboardingRoute, LoginPage, ResetPasswordPage, RegisterPage, ProfilePage } from "@/features/auth";
+import { AuthProvider, ProtectedRoute, OnboardingRoute, ForgotPasswordPage, LoginPage, ResetPasswordPage, RegisterPage, ProfilePage } from "@/features/auth";
 import { ProductsPage } from "@/features/products";
 import { SalesPage } from "@/features/sales";
 import { PurchasesPage } from "@/features/purchases";
@@ -51,6 +51,7 @@ const App = () => (
             <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/register" element={<RegisterPage />} />
 

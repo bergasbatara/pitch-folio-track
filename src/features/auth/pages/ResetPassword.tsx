@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, KeyRound } from 'lucide-react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Lock, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,18 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { resetPassword } = useAuth();
   const { toast } = useToast();
 
-  const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const token = searchParams.get('token');
+
+  if (!token) {
+    return <Navigate to="/forgot-password" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +37,7 @@ export default function ResetPassword() {
 
     setIsLoading(true);
     try {
-      await resetPassword(email, newPassword);
+      await resetPassword(token, newPassword);
       toast({
         title: 'Password berhasil direset',
         description: 'Silakan login kembali dengan password baru Anda.',
@@ -56,26 +61,10 @@ export default function ResetPassword() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
-          <CardDescription>Masukkan email dan password baru untuk akun Anda</CardDescription>
+          <CardDescription>Masukkan password baru untuk menyelesaikan reset akun Anda</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reset-email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="reset-email"
-                  type="email"
-                  placeholder="email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="reset-password">Password Baru</Label>
               <div className="relative">
@@ -117,9 +106,9 @@ export default function ResetPassword() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            Ingat password Anda?{' '}
-            <Link to="/login" className="text-primary hover:underline font-medium">
-              Kembali ke login
+            Butuh link baru?{' '}
+            <Link to="/forgot-password" className="text-primary hover:underline font-medium">
+              Minta reset lagi
             </Link>
           </p>
         </CardFooter>
