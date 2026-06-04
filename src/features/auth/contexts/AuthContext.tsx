@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (email: string, password: string, name: string) => Promise<boolean>;
+  resetPassword: (email: string, newPassword: string) => Promise<boolean>;
   updateProfile: (data: { name?: string; avatar?: string; address?: string; phone?: string; companyName?: string }) => Promise<boolean>;
 }
 
@@ -76,6 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password, name }),
     });
     setUser(response.user);
+    return true;
+  };
+
+  const resetPassword = async (email: string, newPassword: string): Promise<boolean> => {
+    await fetchJson<{ success: true }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword }),
+    });
     return true;
   };
 
@@ -151,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, resetPassword, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

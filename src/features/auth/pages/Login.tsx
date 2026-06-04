@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnboarding } from '@/features/onboarding';
 import { Button } from '@/components/ui/button';
@@ -109,6 +109,14 @@ export default function Login() {
                       required
                     />
                   </div>
+                </div>
+                <div className="flex justify-end">
+                  <Link
+                    to="/reset-password"
+                    className="text-sm text-primary hover:underline font-medium"
+                  >
+                    Lupa password?
+                  </Link>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   <LogIn className="mr-2 h-4 w-4" />
