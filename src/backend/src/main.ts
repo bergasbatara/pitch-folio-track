@@ -15,20 +15,32 @@ async function bootstrap() {
   const isProd = (process.env.NODE_ENV ?? "development") === "production";
   const allowNoOrigin =
     (process.env.CORS_ALLOW_NO_ORIGIN ?? (isProd ? "false" : "true")) === "true";
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        return allowNoOrigin ? callback(null, true) : callback(new Error("Not allowed by CORS"));
+  app.enableCors((req, callback) => {
+    const origin = req.header("Origin");
+    if (!origin) {
+      const method = req.method.toUpperCase();
+      const path = req.path;
+      const isHealthCheckRequest =
+        (method === "GET" || method === "HEAD") && (path === "/" || path === "/healthz");
+
+      if (!allowNoOrigin && !isHealthCheckRequest) {
+        return callback(new Error("Not allowed by CORS"), {
+          origin: false,
+        });
       }
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-XSRF-Token"],
-    exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+    } else if (!allowedOrigins.includes(origin)) {
+      return callback(new Error("Not allowed by CORS"), {
+        origin: false,
+      });
+    }
+
+    return callback(null, {
+      origin: true,
+      credentials: true,
+      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-XSRF-Token"],
+      exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+    });
   });
   app.use(
     helmet({
