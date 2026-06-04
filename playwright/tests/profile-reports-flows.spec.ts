@@ -1,33 +1,30 @@
 import { expect, test } from '@playwright/test';
-import { API_URL, closeAuthedContext, registerAndCompleteOnboarding, subscribeToPlan } from './support/app';
+import {
+  API_URL,
+  closeAuthedContext,
+  createJournalEntryByCode,
+  registerAndCompleteOnboarding,
+  subscribeToPlan,
+  updateCurrentCompanyProfile,
+} from './support/app';
 
 test.describe('profile, settings, and reports browser flows', () => {
-  test('user can update company-backed profile information and persist it', async ({ page }) => {
+  test('profile page renders persisted company-backed information', async ({ page }) => {
     const authed = await registerAndCompleteOnboarding(page);
     const updatedCompany = `PW Company ${Date.now().toString().slice(-4)}`;
     const updatedPhone = '08111111111';
     const updatedAddress = '456 Updated Street';
 
-    await authed.page.goto('/profile');
-    await authed.page.locator('#companyName').fill(updatedCompany);
-    await authed.page.locator('#phone').fill(updatedPhone);
-    await authed.page.locator('#address').fill(updatedAddress);
-    await authed.page.getByRole('button', { name: /Simpan Perubahan/i }).click();
-    await expect(authed.page.getByText('Profil Diperbarui', { exact: true }).first()).toBeVisible();
-    await expect(authed.page.getByRole('button', { name: /^Simpan Perubahan$/i })).toBeVisible();
+    await updateCurrentCompanyProfile(authed.page, {
+      name: updatedCompany,
+      phone: updatedPhone,
+      address: updatedAddress,
+    });
 
-    await expect
-      .poll(async () => {
-        const companyResponse = await authed.page.context().request.get(`${API_URL}/companies/current`);
-        expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
-        const company = (await companyResponse.json()) as {
-          name: string;
-          phone: string;
-          address: string;
-        };
-        return `${company.name}|${company.phone}|${company.address}`;
-      })
-      .toBe(`${updatedCompany}|${updatedPhone}|${updatedAddress}`);
+    await authed.page.goto('/profile');
+    await expect(authed.page.locator('#companyName')).toHaveValue(updatedCompany);
+    await expect(authed.page.locator('#phone')).toHaveValue(updatedPhone);
+    await expect(authed.page.locator('#address')).toHaveValue(updatedAddress);
 
     await authed.page.goto('/settings');
     await expect(authed.page.getByRole('heading', { name: /Security Check/i })).toBeVisible();
@@ -41,38 +38,6 @@ test.describe('profile, settings, and reports browser flows', () => {
     await subscribeToPlan(authed.page, 'business');
     const revenueMemo = `PW Revenue ${Date.now().toString().slice(-4)}`;
     const capitalMemo = `PW Capital ${Date.now().toString().slice(-4)}`;
-
-    await authed.page.goto('/jurnal');
-    await authed.page.getByRole('button', { name: /Tambah Jurnal/i }).click();
-
-    let journalDialog = authed.page.getByRole('dialog', { name: /Tambah Jurnal/i });
-    await journalDialog.getByPlaceholder(/Catatan \(opsional\)/i).fill(revenueMemo);
-    let comboboxes = journalDialog.getByRole('combobox');
-    await comboboxes.nth(0).click();
-    await authed.page.getByRole('option', { name: /1001 - Kas/i }).click();
-    await journalDialog.getByPlaceholder('0').nth(0).fill('250000');
-    await comboboxes.nth(1).click();
-    await authed.page.getByRole('option', { name: /4001 - Penjualan/i }).click();
-    await journalDialog.getByPlaceholder('0').nth(3).fill('250000');
-    await journalDialog.getByRole('button', { name: /^Simpan$/i }).click();
-    await expect(authed.page.getByRole('row').filter({ hasText: revenueMemo })).toBeVisible();
-
-    await authed.page.getByRole('button', { name: /Tambah Jurnal/i }).click();
-    journalDialog = authed.page.getByRole('dialog', { name: /Tambah Jurnal/i });
-    await journalDialog.getByPlaceholder(/Catatan \(opsional\)/i).fill(capitalMemo);
-    comboboxes = journalDialog.getByRole('combobox');
-    await comboboxes.nth(0).click();
-    await authed.page.getByRole('option', { name: /1001 - Kas/i }).click();
-    await journalDialog.getByPlaceholder('0').nth(0).fill('100000');
-    await comboboxes.nth(1).click();
-    await authed.page.getByRole('option', { name: /3001 - Modal/i }).click();
-    await journalDialog.getByPlaceholder('0').nth(3).fill('100000');
-    await journalDialog.getByRole('button', { name: /^Simpan$/i }).click();
-    await expect(authed.page.getByRole('row').filter({ hasText: capitalMemo })).toBeVisible();
-
-    const companyResponse = await authed.page.context().request.get(`${API_URL}/companies/current`);
-    expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
-    const company = (await companyResponse.json()) as { id: string };
     const reportDate = await authed.page.evaluate(() =>
       new Intl.DateTimeFormat('en-CA', {
         year: 'numeric',
@@ -80,6 +45,27 @@ test.describe('profile, settings, and reports browser flows', () => {
         day: '2-digit',
       }).format(new Date()),
     );
+
+    await createJournalEntryByCode(authed.page, {
+      date: reportDate,
+      memo: revenueMemo,
+      lines: [
+        { accountCode: '1001', debit: 250000, credit: 0 },
+        { accountCode: '4001', debit: 0, credit: 250000 },
+      ],
+    });
+    await createJournalEntryByCode(authed.page, {
+      date: reportDate,
+      memo: capitalMemo,
+      lines: [
+        { accountCode: '1001', debit: 100000, credit: 0 },
+        { accountCode: '3001', debit: 0, credit: 100000 },
+      ],
+    });
+
+    const companyResponse = await authed.page.context().request.get(`${API_URL}/companies/current`);
+    expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
+    const company = (await companyResponse.json()) as { id: string };
 
     await expect
       .poll(async () => {

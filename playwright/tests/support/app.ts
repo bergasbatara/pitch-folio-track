@@ -83,7 +83,69 @@ export async function expireCurrentSubscription(page: Page) {
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
-async function getCurrentCompany(page: Page) {
+export async function updateCurrentCompanyProfile(
+  page: Page,
+  data: { name: string; phone: string; address: string; taxId?: string },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.patch(`${API_URL}/companies/${company.id}`, {
+    data,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+export async function createJournalEntryByCode(
+  page: Page,
+  input: {
+    date: string;
+    memo: string;
+    lines: Array<{ accountCode: string; debit: number; credit: number }>;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const company = await getCurrentCompany(page);
+  const csrfToken = await getCsrfToken(page);
+
+  const accountsResponse = await page.context().request.get(`${API_URL}/companies/${company.id}/accounts`);
+  expect(accountsResponse.ok(), await accountsResponse.text()).toBeTruthy();
+  const accounts = (await accountsResponse.json()) as Array<{ id: string; code: string }>;
+  const accountByCode = new Map(accounts.map((account) => [account.code, account.id]));
+
+  const lines = input.lines.map((line) => {
+    const accountId = accountByCode.get(line.accountCode);
+    if (!accountId) {
+      throw new Error(`Account code not found: ${line.accountCode}`);
+    }
+    return {
+      accountId,
+      debit: line.debit,
+      credit: line.credit,
+    };
+  });
+
+  const response = await page.context().request.post(`${API_URL}/companies/${company.id}/journals`, {
+    data: {
+      date: input.date,
+      memo: input.memo,
+      status: 'posted',
+      lines,
+    },
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+export async function getCurrentCompany(page: Page) {
   const companyResponse = await page.context().request.get(`${API_URL}/companies/current`);
   expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
   return (await companyResponse.json()) as { id: string };
