@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SecurityCheck from "./SecurityCheck";
 
-const companyState = {
-  company: { id: "company-1" as string } | null,
+const companyState: { company: { id: string } | null } = {
+  company: { id: "company-1" },
 };
 
 vi.mock("@/components/layout/MainLayout", () => ({

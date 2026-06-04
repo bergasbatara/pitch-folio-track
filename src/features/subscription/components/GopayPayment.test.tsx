@@ -19,10 +19,10 @@ describe("GopayPayment", () => {
     toastMock.mockReset();
     pollCallback = undefined;
     document.cookie = "csrf_token=test-token; path=/";
-    vi.spyOn(window, "setInterval").mockImplementation((callback) => {
-      pollCallback = callback as () => Promise<void>;
-      return 1 as unknown as number;
-    });
+    vi.spyOn(window, "setInterval").mockImplementation(((callback: () => Promise<void>) => {
+      pollCallback = callback;
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof window.setInterval);
     vi.spyOn(window, "clearInterval").mockImplementation(() => {});
   });
 

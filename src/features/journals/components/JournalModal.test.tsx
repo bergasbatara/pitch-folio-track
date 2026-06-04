@@ -22,7 +22,18 @@ describe("JournalModal", () => {
     isOpen: true,
     onClose: vi.fn(),
     onSubmit: vi.fn(),
-    accounts: [{ id: "acc-1", code: "1001", name: "Kas", type: "asset" }],
+    accounts: [
+      {
+        id: "acc-1",
+        code: "1001",
+        name: "Kas",
+        type: "asset" as const,
+        normalBalance: "debit" as const,
+        isSystem: false,
+        createdAt: "2026-04-28T00:00:00.000Z",
+        updatedAt: "2026-04-28T00:00:00.000Z",
+      },
+    ],
   };
 
   it("shows draft messaging when debit and credit are imbalanced", () => {
