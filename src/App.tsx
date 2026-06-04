@@ -29,6 +29,7 @@ import {
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SecurityCheck from "./pages/SecurityCheck";
+import SettingsPage from "./pages/Settings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -64,7 +65,8 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/langganan" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/pembayaran" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SecurityCheck /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/system-check" element={<ProtectedRoute><SecurityCheck /></ProtectedRoute>} />
 
             {/* Business-tier routes */}
             <Route path="/sales" element={<Gated><SalesPage /></Gated>} />
