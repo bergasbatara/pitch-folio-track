@@ -33,7 +33,7 @@ export const generateDemoSales = (): Sale[] => {
       quantity,
       pricePerUnit: product.price,
       totalPrice: quantity * product.price,
-      soldAt: subDays(now, daysAgo),
+      soldAt: subDays(now, daysAgo).toISOString(),
     });
   }
   

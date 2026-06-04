@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, Scale } from 'lucide-react';
+import { Plus, Scale, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { useCompanyProfile } from '@/features/onboarding';
@@ -9,11 +9,13 @@ import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { AddLEModal, type LEFormData, type LEItem } from '../components/AddLEModal';
 import { LETable } from '../components/LETable';
 import { useOpeningBalanceItems } from '../hooks/useOpeningBalanceItems';
+import { PageHeader, StatCard, EmptyState } from '@/shared';
 
 const PERANTARA_CODE = '3999';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
+
 
 export default function OpeningBalances() {
   const { company, error: companyError } = useCompanyProfile();
@@ -88,38 +90,34 @@ export default function OpeningBalances() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Liabilitas & Ekuitas</h1>
-            <p className="text-muted-foreground">Kelola pos liabilitas dan ekuitas perusahaan</p>
-          </div>
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />Tambah
-          </Button>
-        </div>
+        <PageHeader
+          icon={Scale}
+          title="Liabilitas & Ekuitas"
+          description="Kelola pos liabilitas dan ekuitas perusahaan"
+          tip="Catat saldo awal liabilitas (kewajiban/hutang) dan ekuitas (modal) perusahaan Anda agar neraca seimbang sejak awal."
+          action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah</Button>}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { label: 'Total Liabilitas', value: fmt(totalLiability) },
-            { label: 'Total Ekuitas', value: fmt(totalEquity) },
-            { label: 'Total Liabilitas + Ekuitas', value: fmt(grandTotal) },
-          ].map((s) => (
-            <div key={s.label} className="p-4 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-muted text-primary"><Scale className="h-5 w-5" /></div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                  <p className="text-xl font-bold text-foreground">{s.value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+          <StatCard icon={Landmark} tone="warning" label="Total Liabilitas" value={fmt(totalLiability)} hint="Kewajiban perusahaan" />
+          <StatCard icon={Wallet} tone="success" label="Total Ekuitas" value={fmt(totalEquity)} hint="Modal pemilik" />
+          <StatCard icon={Scale} tone="primary" label="Total Liabilitas + Ekuitas" value={fmt(grandTotal)} hint="Harus seimbang dengan aset" />
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-[var(--shadow-card)]">
           <h2 className="text-lg font-semibold mb-4">Daftar Liabilitas & Ekuitas</h2>
-          <LETable items={items} onEdit={handleEdit} onDelete={handleDelete} />
+          {items.length === 0 ? (
+            <EmptyState
+              icon={Scale}
+              title="Belum ada data"
+              description="Tambahkan pos liabilitas atau ekuitas pertama Anda untuk menyusun saldo awal perusahaan."
+              action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah</Button>}
+            />
+          ) : (
+            <LETable items={items} onEdit={handleEdit} onDelete={handleDelete} />
+          )}
         </div>
+
       </div>
 
       <AddLEModal
