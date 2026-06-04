@@ -65,6 +65,27 @@ export async function subscribeToPlan(
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
+export async function subscribeCompanyToPlan(
+  page: Page,
+  companyId: string,
+  planId: 'business' | 'professional' | 'premium',
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(
+    `${API_URL}/companies/${companyId}/subscription`,
+    {
+      data: { planId },
+      headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+    },
+  );
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
 export async function expireCurrentSubscription(page: Page) {
   const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
   expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
@@ -81,6 +102,31 @@ export async function expireCurrentSubscription(page: Page) {
   );
 
   expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+export async function createAdditionalCompany(
+  page: Page,
+  data: {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    taxId?: string;
+    currency?: string;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/companies`, {
+    data,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<{ id: string; name: string }>;
 }
 
 export async function forceLogoutCurrentSession(page: Page) {
@@ -177,6 +223,33 @@ export async function createProduct(
   const csrfToken = await getCsrfToken(page);
 
   const response = await page.context().request.post(`${API_URL}/companies/${company.id}/products`, {
+    data: input,
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<{ id: string; name: string; code?: string | null }>;
+}
+
+export async function createProductForCompany(
+  page: Page,
+  companyId: string,
+  input: {
+    name: string;
+    code?: string;
+    type?: string;
+    unit?: string;
+    price: number;
+    buyPrice?: number;
+    stock: number;
+  },
+) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/companies/${companyId}/products`, {
     data: input,
     headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
   });
