@@ -83,6 +83,19 @@ export async function expireCurrentSubscription(page: Page) {
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
+export async function forceLogoutCurrentSession(page: Page) {
+  const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
+  expect(csrfResponse.ok(), await csrfResponse.text()).toBeTruthy();
+
+  const csrfToken = await getCsrfToken(page);
+
+  const response = await page.context().request.post(`${API_URL}/auth/logout`, {
+    headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined,
+  });
+
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
 export async function updateCurrentCompanyProfile(
   page: Page,
   data: { name: string; phone: string; address: string; taxId?: string },

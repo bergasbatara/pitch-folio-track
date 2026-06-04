@@ -13,6 +13,7 @@ import { TaxCode, TaxCodeFormData } from '../types';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { withCsrf } from '@/shared/lib/csrf';
 
 const initial: TaxCodeFormData = { name: '', code: '', rate: 0, description: '' };
 
@@ -64,15 +65,17 @@ export default function Taxes() {
     setIsPosting(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/companies/${company.id}/taxes/settlement`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          date: settlementDate,
-          taxCodeId: settlementTaxCodeId,
-          memo: settlementMemo?.trim() || undefined,
+        ...withCsrf({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount,
+            date: settlementDate,
+            taxCodeId: settlementTaxCodeId,
+            memo: settlementMemo?.trim() || undefined,
+          }),
         }),
         credentials: 'include',
       });
