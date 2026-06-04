@@ -4,9 +4,11 @@ import { PurchasesTable } from '../components/PurchasesTable';
 import { AddPurchaseModal } from '../components/AddPurchaseModal';
 import { usePurchases } from '../hooks/usePurchases';
 import { Purchase, PurchaseFormData } from '../types';
-import { Plus, TrendingDown } from 'lucide-react';
+import { Plus, TrendingDown, ShoppingBag, Layers } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { Button } from '@/components/ui/button';
+import { PageHeader, StatCard, EmptyState } from '@/shared';
 
 export default function Purchases() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,57 +51,35 @@ export default function Purchases() {
 
   return (
     <MainLayout>
-      <div className="animate-fade-in">
-        {/* Header */}
-        <div className="page-header flex items-center justify-between">
-          <div>
-            <h1 className="page-title">Pembelian</h1>
-            <p className="page-description">Lacak pengeluaran dan persediaan bisnis Anda</p>
-          </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary">
-            <Plus className="h-4 w-4" />
-            Tambah Pembelian
-          </button>
-        </div>
-
-        {/* Summary Card */}
-        <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="metric-card">
-            <div className="metric-card-glow" />
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                <TrendingDown className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="stat-label">Total Pengeluaran</p>
-                <p className="stat-value">{formatCurrency(getTotalSpend())}</p>
-              </div>
-            </div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-card-glow" />
-            <div>
-              <p className="stat-label">Total Pembelian</p>
-              <p className="stat-value">{purchases.length}</p>
-            </div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-card-glow" />
-            <div>
-              <p className="stat-label">Kategori</p>
-              <p className="stat-value">-</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Purchases Table */}
-        <PurchasesTable
-          purchases={purchases}
-          onEdit={handleEdit}
-          onDelete={deletePurchase}
+      <div className="space-y-6">
+        <PageHeader
+          icon={ShoppingBag}
+          title="Pembelian"
+          description="Lacak pengeluaran dan persediaan bisnis Anda"
+          tip="Catat setiap pembelian barang atau biaya operasional. Pilih tanggal dan kategori agar laporan pengeluaran Anda akurat."
+          action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Pembelian</Button>}
         />
 
-        {/* Add/Edit Modal */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard icon={TrendingDown} tone="destructive" label="Total Pengeluaran" value={formatCurrency(getTotalSpend())} hint="Akumulasi semua pembelian" />
+          <StatCard icon={ShoppingBag} tone="primary" label="Total Pembelian" value={purchases.length} hint="Jumlah transaksi tercatat" />
+          <StatCard icon={Layers} tone="muted" label="Kategori" value="-" hint="Kelompok pengeluaran" />
+        </div>
+
+        <div className="bg-card rounded-xl border border-border p-6 shadow-[var(--shadow-card)]">
+          <h2 className="text-lg font-semibold mb-4">Daftar Pembelian</h2>
+          {purchases.length === 0 ? (
+            <EmptyState
+              icon={ShoppingBag}
+              title="Belum ada pembelian"
+              description="Catat pembelian pertama Anda untuk mulai melacak pengeluaran usaha."
+              action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Pembelian</Button>}
+            />
+          ) : (
+            <PurchasesTable purchases={purchases} onEdit={handleEdit} onDelete={deletePurchase} />
+          )}
+        </div>
+
         <AddPurchaseModal
           open={isModalOpen}
           onOpenChange={handleCloseModal}
