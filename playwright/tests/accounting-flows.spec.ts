@@ -30,7 +30,7 @@ test.describe('auth and accounting browser flows', () => {
     const journalMemo = `Playwright Jurnal ${Date.now().toString().slice(-4)}`;
 
     await authed.page.goto('/liabilitas-ekuitas');
-    await authed.page.getByRole('button', { name: /^Tambah$/i }).click();
+    await authed.page.getByRole('button', { name: /^Tambah$/i }).first().click();
     const openingDialog = authed.page.getByRole('dialog', { name: /Tambah Liabilitas \/ Ekuitas/i });
     await openingDialog.getByRole('combobox').first().click();
     await authed.page.getByRole('option', { name: /Liabilitas/i }).click();
