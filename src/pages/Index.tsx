@@ -32,7 +32,7 @@ export default function Index() {
   };
 
   const salesData = sales.map(s => ({
-    date: s.soldAt instanceof Date ? s.soldAt.toISOString() : new Date(s.soldAt).toISOString(),
+    date: new Date(s.soldAt).toISOString(),
     total: s.totalPrice,
     productName: s.productName,
     quantity: s.quantity,
