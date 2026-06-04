@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, Scale } from 'lucide-react';
+import { Plus, Scale, Landmark, Wallet } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { useCompanyProfile } from '@/features/onboarding';
@@ -9,11 +9,13 @@ import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { AddLEModal, type LEFormData, type LEItem } from '../components/AddLEModal';
 import { LETable } from '../components/LETable';
 import { useOpeningBalanceItems } from '../hooks/useOpeningBalanceItems';
+import { PageHeader, StatCard, EmptyState } from '@/shared';
 
 const PERANTARA_CODE = '3999';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
+
 
 export default function OpeningBalances() {
   const { company, error: companyError } = useCompanyProfile();
