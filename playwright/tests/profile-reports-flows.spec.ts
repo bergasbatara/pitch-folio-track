@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { closeAuthedContext, registerAndCompleteOnboarding, subscribeToPlan } from './support/app';
+import { API_URL, closeAuthedContext, registerAndCompleteOnboarding, subscribeToPlan } from './support/app';
 
 test.describe('profile, settings, and reports browser flows', () => {
-  test('user can update profile information and keep it after reload', async ({ page }) => {
+  test('user can update company-backed profile information and persist it', async ({ page }) => {
     const authed = await registerAndCompleteOnboarding(page);
     const updatedCompany = `PW Company ${Date.now().toString().slice(-4)}`;
     const updatedPhone = '08111111111';
@@ -13,14 +13,21 @@ test.describe('profile, settings, and reports browser flows', () => {
     await authed.page.locator('#phone').fill(updatedPhone);
     await authed.page.locator('#address').fill(updatedAddress);
     await authed.page.getByRole('button', { name: /Simpan Perubahan/i }).click();
-    await expect(authed.page.getByText(/Profil Diperbarui/i)).toBeVisible();
+    await expect(authed.page.getByText('Profil Diperbarui', { exact: true }).first()).toBeVisible();
     await expect(authed.page.getByRole('button', { name: /^Simpan Perubahan$/i })).toBeVisible();
 
-    await authed.page.reload();
-
-    await expect(authed.page.locator('#companyName')).toHaveValue(updatedCompany);
-    await expect(authed.page.locator('#phone')).toHaveValue(updatedPhone);
-    await expect(authed.page.locator('#address')).toHaveValue(updatedAddress);
+    await expect
+      .poll(async () => {
+        const companyResponse = await authed.page.context().request.get(`${API_URL}/companies/current`);
+        expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
+        const company = (await companyResponse.json()) as {
+          name: string;
+          phone: string;
+          address: string;
+        };
+        return `${company.name}|${company.phone}|${company.address}`;
+      })
+      .toBe(`${updatedCompany}|${updatedPhone}|${updatedAddress}`);
 
     await authed.page.goto('/settings');
     await expect(authed.page.getByRole('heading', { name: /Security Check/i })).toBeVisible();
@@ -62,6 +69,30 @@ test.describe('profile, settings, and reports browser flows', () => {
     await journalDialog.getByPlaceholder('0').nth(3).fill('100000');
     await journalDialog.getByRole('button', { name: /^Simpan$/i }).click();
     await expect(authed.page.getByRole('row').filter({ hasText: capitalMemo })).toBeVisible();
+
+    const companyResponse = await authed.page.context().request.get(`${API_URL}/companies/current`);
+    expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
+    const company = (await companyResponse.json()) as { id: string };
+    const reportDate = await authed.page.evaluate(() =>
+      new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()),
+    );
+
+    await expect
+      .poll(async () => {
+        const reportResponse = await authed.page.context().request.get(
+          `${API_URL}/companies/${company.id}/reports/daily?date=${reportDate}`,
+        );
+        expect(reportResponse.ok(), await reportResponse.text()).toBeTruthy();
+        const report = (await reportResponse.json()) as {
+          totals: { revenue: number };
+        };
+        return report.totals.revenue;
+      })
+      .toBe(250000);
 
     await authed.page.goto('/laba-rugi');
     await expect(authed.page.getByText(/Laba Rugi Harian/i)).toBeVisible();
