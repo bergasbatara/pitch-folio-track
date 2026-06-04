@@ -60,7 +60,9 @@ export default function Index() {
     <MainLayout>
       <div className="page-header">
         <h1 className="page-title">Ringkasan Bisnis</h1>
+        <p className="page-description">Pantau kesehatan keuangan usaha Anda dalam satu tampilan.</p>
       </div>
+
 
       <Tabs defaultValue="ringkasan" className="mb-6">
         <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start gap-4 h-auto p-0">
