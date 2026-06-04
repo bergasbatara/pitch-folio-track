@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { withCsrf } from '@/shared/lib/csrf';
+import { setCsrfToken, withCsrf } from '@/shared/lib/csrf';
 
 interface User {
   id: string;
@@ -14,6 +14,16 @@ interface User {
 
 interface AuthResponse {
   user: User;
+  csrfToken?: string;
+}
+
+interface CsrfResponse {
+  csrfToken: string;
+}
+
+interface RefreshResponse {
+  success: true;
+  csrfToken?: string;
 }
 
 interface AuthContextType {
@@ -40,7 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const init = async () => {
       try {
-        await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
+        const csrf = await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
+        if (csrf.ok) {
+          const body = (await csrf.json()) as CsrfResponse;
+          setCsrfToken(body.csrfToken);
+        }
         const me = await fetchJson<User>('/auth/me', { method: 'GET' });
         setUser(me);
       } catch {
@@ -69,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    setCsrfToken(response.csrfToken ?? null);
     setUser(response.user);
     return true;
   };
@@ -78,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     });
+    setCsrfToken(response.csrfToken ?? null);
     setUser(response.user);
     return true;
   };
@@ -99,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     fetchJson('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setCsrfToken(null);
     clearAuth();
   };
 
@@ -117,43 +134,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const tryRefresh = async (): Promise<{ user: User } | { error: Error } | null> => {
     try {
-        await fetchJson<{ success: true }>('/auth/refresh', {
-          method: 'POST',
-        });
-        const me = await fetchJson<User>('/auth/me', {
-          method: 'GET',
-        });
-        return { user: me };
-      } catch (err) {
-        if (err instanceof Error) {
-          if ((err as Error & { status?: number }).status === 401) {
-            clearAuth();
-            // Don't hard-reload the whole app on auth failure.
-            // ProtectedRoute will redirect to /login as needed.
-          }
-          return { error: err };
+      const refreshed = await fetchJson<RefreshResponse>('/auth/refresh', {
+        method: 'POST',
+      });
+      setCsrfToken(refreshed.csrfToken ?? null);
+      const me = await fetchJson<User>('/auth/me', {
+        method: 'GET',
+      });
+      return { user: me };
+    } catch (err) {
+      if (err instanceof Error) {
+        if ((err as Error & { status?: number }).status === 401) {
+          clearAuth();
+          // Don't hard-reload the whole app on auth failure.
+          // ProtectedRoute will redirect to /login as needed.
         }
-        return { error: new Error('Request failed') };
+        return { error: err };
       }
-    };
+      return { error: new Error('Request failed') };
+    }
+  };
 
   const isNetworkError = (err: Error) => {
     return /failed to fetch|networkerror|net::err/i.test(err.message);
   };
 
-  const getCsrfCookie = () => {
-    if (typeof document === 'undefined') return null;
-    const match = document.cookie
-      .split(';')
-      .map((c) => c.trim())
-      .find((c) => c.startsWith('csrf_token='));
-    if (!match) return null;
-    return decodeURIComponent(match.split('=').slice(1).join('='));
-  };
-
   const ensureCsrfCookie = async () => {
-    if (getCsrfCookie()) return;
-    await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
+    const response = await fetch(`${API_URL}/auth/csrf`, { credentials: 'include' });
+    if (!response.ok) return;
+    const body = (await response.json()) as CsrfResponse;
+    setCsrfToken(body.csrfToken);
   };
 
   const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

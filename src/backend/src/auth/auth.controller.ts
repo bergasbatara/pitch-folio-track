@@ -13,6 +13,8 @@ import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
+type CookieSameSite = "lax" | "none";
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -24,16 +26,16 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60 } })
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(dto);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken);
-    return { user: result.user };
+    const csrfToken = this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user, csrfToken };
   }
 
   @Post("login")
   @Throttle({ default: { limit: 5, ttl: 60 } })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken);
-    return { user: result.user };
+    const csrfToken = this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user, csrfToken };
   }
 
   @Post("refresh")
@@ -48,8 +50,8 @@ export class AuthController {
       throw new UnauthorizedException("Missing refresh token");
     }
     const tokens = await this.authService.refresh(refreshToken);
-    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-    return { success: true };
+    const csrfToken = this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return { success: true, csrfToken };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,26 +103,30 @@ export class AuthController {
     const accessTtl = this.configService.get<string>("JWT_ACCESS_TTL") ?? "15m";
     const refreshTtl = this.configService.get<string>("JWT_REFRESH_TTL") ?? "7d";
     const secure = (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
+    const sameSite = this.getCookieSameSite();
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite,
       secure,
       maxAge: this.parseTtl(accessTtl, 15 * 60 * 1000),
     });
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite,
       secure,
       maxAge: this.parseTtl(refreshTtl, 7 * 24 * 60 * 60 * 1000),
     });
     const csrfToken = this.generateCsrfToken();
     this.setCsrfCookie(res, csrfToken, secure);
+    return csrfToken;
   }
 
   private clearAuthCookies(res: Response) {
-    res.cookie("access_token", "", { httpOnly: true, sameSite: "lax", maxAge: 0 });
-    res.cookie("refresh_token", "", { httpOnly: true, sameSite: "lax", maxAge: 0 });
-    res.cookie("csrf_token", "", { httpOnly: false, sameSite: "lax", maxAge: 0 });
+    const secure = (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
+    const sameSite = this.getCookieSameSite();
+    res.cookie("access_token", "", { httpOnly: true, sameSite, secure, maxAge: 0 });
+    res.cookie("refresh_token", "", { httpOnly: true, sameSite, secure, maxAge: 0 });
+    res.cookie("csrf_token", "", { httpOnly: false, sameSite, secure, maxAge: 0 });
   }
 
   private generateCsrfToken() {
@@ -131,10 +137,15 @@ export class AuthController {
     const secure = secureOverride ?? (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
     res.cookie("csrf_token", token, {
       httpOnly: false,
-      sameSite: "lax",
+      sameSite: this.getCookieSameSite(),
       secure,
       maxAge: 24 * 60 * 60 * 1000,
     });
+  }
+
+  private getCookieSameSite(): CookieSameSite {
+    const isProd = (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
+    return isProd ? "none" : "lax";
   }
 
   private parseTtl(input: string, fallbackMs: number) {
