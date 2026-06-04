@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcrypt";
@@ -6,14 +6,15 @@ import type { StringValue } from "ms";
 import { PrismaService } from "../prisma/prisma.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
-import { RefreshDto } from "./dto/refresh.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { AuthTokens, JwtPayload } from "./auth.types";
 import type { User } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
-import { randomBytes } from "crypto";
+import { MailService } from "../mail/mail.service";
+import { createHash, randomBytes } from "crypto";
 import { getJwtKid, parseJwtKeys } from "./jwt-keys";
 
 function unsafeDecodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -38,6 +39,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -226,24 +228,93 @@ export class AuthService {
     return { success: true };
   }
 
-  async resetPassword(dto: ResetPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const prisma = this.prisma as PrismaService & { passwordResetToken: any };
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (!user) {
-      throw new NotFoundException("User not found");
+      return { success: true };
     }
-    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: passwordHash,
-        refreshTokenHash: null,
-        refreshTokenJti: null,
-        failedLoginAttempts: 0,
-        lockoutUntil: null,
+
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = this.hashResetToken(token);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        userId: user.id,
+        usedAt: null,
       },
     });
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    const frontendUrl = (this.configService.get<string>("FRONTEND_URL") ?? "http://localhost:8080").replace(/\/$/, "");
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const isProduction = (this.configService.get<string>("NODE_ENV") ?? "development") === "production";
+    const emailSent = await this.mailService.sendPasswordResetEmail(user.email, resetUrl);
+
+    return {
+      success: true,
+      emailSent,
+      ...(isProduction || emailSent ? {} : { resetUrl }),
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const prisma = this.prisma as PrismaService & { passwordResetToken: any };
+    const tokenHash = this.hashResetToken(dto.token);
+    const record = await prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      include: {
+        user: true,
+      },
+    });
+    if (!record) {
+      throw new UnauthorizedException("Invalid or expired reset token");
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: {
+          password: passwordHash,
+          refreshTokenHash: null,
+          refreshTokenJti: null,
+          failedLoginAttempts: 0,
+          lockoutUntil: null,
+        },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: {
+          usedAt: new Date(),
+        },
+      }),
+      prisma.passwordResetToken.deleteMany({
+        where: {
+          userId: record.userId,
+          id: {
+            not: record.id,
+          },
+        },
+      }),
+    ]);
+
     return { success: true };
   }
 
@@ -330,5 +401,9 @@ export class AuthService {
   private sanitizeUser(user: User) {
     const { password, refreshTokenHash, failedLoginAttempts, lockoutUntil, ...safe } = user;
     return safe;
+  }
+
+  private hashResetToken(token: string) {
+    return createHash("sha256").update(token).digest("hex");
   }
 }

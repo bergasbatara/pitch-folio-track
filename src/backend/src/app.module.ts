@@ -26,6 +26,7 @@ import { ReportsModule } from "./reports/reports.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PlanModule } from "./common/plan/plan.module";
 import { OpeningBalanceItemsModule } from "./opening-balance-items/opening-balance-items.module";
+import { MailModule } from "./mail/mail.module";
 
 const parseKeyPairs = (raw: unknown): Array<{ kid: string; secret: string }> => {
   const input = String(raw ?? "").trim();
@@ -117,6 +118,7 @@ const parseKeyPairs = (raw: unknown): Array<{ kid: string; secret: string }> => 
     ReportsModule,
     PaymentsModule,
     OpeningBalanceItemsModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

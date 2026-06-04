@@ -41,15 +41,19 @@ describe("AuthService", () => {
     const auditService = {
       log: jest.fn(),
     };
+    const mailService = {
+      sendPasswordResetEmail: jest.fn(),
+    };
 
     const service = new AuthService(
       prisma as any,
       jwtService as any,
       configService as any,
       auditService as any,
+      mailService as any,
     );
 
-    return { service, prisma, jwtService, configService, auditService };
+    return { service, prisma, jwtService, configService, auditService, mailService };
   };
 
   beforeEach(() => {
@@ -119,5 +123,24 @@ describe("AuthService", () => {
       }),
     );
     expect(bcryptMock.compare).not.toHaveBeenCalled();
+  });
+
+  it("returns a development reset URL when mail is not configured", async () => {
+    const { service, prisma, mailService } = makeService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "u1",
+      email: "user@test.com",
+    } as any);
+    prisma.passwordResetToken = {
+      deleteMany: jest.fn(),
+      create: jest.fn(),
+    };
+    mailService.sendPasswordResetEmail.mockResolvedValue(false);
+
+    const result = await service.forgotPassword({ email: "user@test.com" });
+
+    expect(result.success).toBe(true);
+    expect(result.resetUrl).toContain("/reset-password?token=");
+    expect(mailService.sendPasswordResetEmail).toHaveBeenCalled();
   });
 });

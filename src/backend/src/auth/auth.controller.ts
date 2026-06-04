@@ -9,6 +9,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
@@ -70,6 +71,12 @@ export class AuthController {
   @Get("me")
   me(@Req() req: { user: { sub: string } }) {
     return this.authService.me(req.user.sub);
+  }
+
+  @Post("forgot-password")
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   @Post("reset-password")
