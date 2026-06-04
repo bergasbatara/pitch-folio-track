@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcrypt";
@@ -9,6 +9,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { AuthTokens, JwtPayload } from "./auth.types";
 import type { User } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
@@ -214,6 +215,27 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.user.update({
       where: { id: userId },
+      data: {
+        password: passwordHash,
+        refreshTokenHash: null,
+        refreshTokenJti: null,
+        failedLoginAttempts: 0,
+        lockoutUntil: null,
+      },
+    });
+    return { success: true };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
       data: {
         password: passwordHash,
         refreshTokenHash: null,

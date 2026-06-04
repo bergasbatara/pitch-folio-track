@@ -9,6 +9,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller("auth")
@@ -69,6 +70,12 @@ export class AuthController {
   @Get("me")
   me(@Req() req: { user: { sub: string } }) {
     return this.authService.me(req.user.sub);
+  }
+
+  @Post("reset-password")
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)
