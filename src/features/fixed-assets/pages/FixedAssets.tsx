@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, Wallet, TrendingDown, Landmark } from 'lucide-react';
 import { useFixedAssets } from '../hooks/useFixedAssets';
 import { FixedAsset, FixedAssetFormData, calculateDepreciation } from '../types';
 import { AddAssetModal } from '../components/AddAssetModal';
 import { AssetsTable } from '../components/AssetsTable';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { PageHeader, StatCard, EmptyState } from '@/shared';
 
 const fmt = (v: number) => {
   const abs = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Math.abs(v));
@@ -38,33 +39,32 @@ export default function FixedAssets() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-          <h1 className="text-2xl font-bold text-foreground">Aset</h1>
-            <p className="text-muted-foreground">Kelola aset tetap, aset lancar, dan penyusutan</p>
-          </div>
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Aset</Button>
-        </div>
+        <PageHeader
+          icon={Building2}
+          title="Aset"
+          description="Kelola aset tetap, aset lancar, dan penyusutan"
+          tip="Catat setiap barang berharga milik usaha Anda seperti kendaraan, peralatan, atau gedung. Sistem akan menghitung penyusutannya secara otomatis."
+          action={
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Aset</Button>
+          }
+        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { label: 'Total Nilai Perolehan', value: fmt(totalCost) },
-            { label: 'Total Akum. Penyusutan', value: fmt(totalDepreciation) },
-            { label: 'Total Nilai Buku', value: fmt(totalBookValue) },
-          ].map(s => (
-            <div key={s.label} className="p-4 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-muted text-primary"><Building2 className="h-5 w-5" /></div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                  <p className="text-xl font-bold text-foreground">{s.value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+          <StatCard icon={Wallet} tone="primary" label="Total Nilai Perolehan" value={fmt(totalCost)} hint="Harga beli semua aset" />
+          <StatCard icon={TrendingDown} tone="warning" label="Total Akum. Penyusutan" value={fmt(totalDepreciation)} hint="Nilai yang sudah disusutkan" />
+          <StatCard icon={Landmark} tone="success" label="Total Nilai Buku" value={fmt(totalBookValue)} hint="Nilai aset saat ini" />
         </div>
-        <div className="bg-card rounded-xl border border-border p-6">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-[var(--shadow-card)]">
           <h2 className="text-lg font-semibold mb-4">Daftar Aset</h2>
-          <AssetsTable assets={assets} onEdit={handleEdit} onDelete={deleteAsset} />
+          {assets.length === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title="Belum ada aset"
+              description="Mulai dengan menambahkan aset pertama Anda agar penyusutan dan nilai buku terhitung otomatis."
+              action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Aset</Button>}
+            />
+          ) : (
+            <AssetsTable assets={assets} onEdit={handleEdit} onDelete={deleteAsset} />
+          )}
         </div>
       </div>
       <AddAssetModal isOpen={isModalOpen} onClose={handleClose} onSubmit={handleSubmit} editingAsset={editing} />
