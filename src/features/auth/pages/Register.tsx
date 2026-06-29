@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from '@/components/ui/use-toast';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
 
+const PASSWORD_POLICY_MESSAGE =
+  'Password minimal 8 karakter dan harus mengandung huruf besar, huruf kecil, angka, dan simbol.';
+
 export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,10 +35,10 @@ export function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(password)) {
       toast({
-        title: "Password Terlalu Pendek",
-        description: "Password minimal 6 karakter.",
+        title: "Password Tidak Memenuhi Syarat",
+        description: PASSWORD_POLICY_MESSAGE,
         variant: "destructive",
       });
       return;
@@ -52,9 +55,10 @@ export function RegisterPage() {
       });
       navigate('/onboarding/welcome');
     } catch (error) {
+      const description = error instanceof Error ? error.message : 'Terjadi kesalahan saat registrasi.';
       toast({
         title: "Error",
-        description: "Terjadi kesalahan saat registrasi.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -117,11 +121,14 @@ export function RegisterPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
+                  placeholder="Minimal 8 karakter, huruf besar/kecil, angka, simbol"
                   className="pl-10"
                   required
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Minimum 8 karakter, harus mengandung huruf besar, huruf kecil, angka, dan simbol.
+              </p>
             </div>
 
             <div className="space-y-2">

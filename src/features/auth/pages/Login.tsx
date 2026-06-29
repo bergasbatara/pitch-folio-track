@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { Mail, Lock, User, LogIn } from 'lucide-react';
 
+const PASSWORD_POLICY_MESSAGE =
+  'Password minimal 8 karakter dan harus mengandung huruf besar, huruf kecil, angka, dan simbol.';
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, register } = useAuth();
@@ -42,6 +45,16 @@ export default function Login() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (registerPassword.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(registerPassword)) {
+      toast({
+        title: 'Password tidak memenuhi syarat',
+        description: PASSWORD_POLICY_MESSAGE,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -50,7 +63,8 @@ export default function Login() {
       toast({ title: 'Registrasi berhasil', description: 'Akun Anda telah dibuat' });
       navigate('/onboarding/welcome');
     } catch (error) {
-      toast({ title: 'Registrasi gagal', description: 'Email sudah terdaftar', variant: 'destructive' });
+      const description = error instanceof Error ? error.message : 'Registrasi gagal';
+      toast({ title: 'Registrasi gagal', description, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -164,14 +178,17 @@ export default function Login() {
                     <Input
                       id="register-password"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="Min. 8 karakter + huruf besar/kecil, angka, simbol"
                       value={registerPassword}
                       onChange={(e) => setRegisterPassword(e.target.value)}
                       className="pl-10"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Minimum 8 karakter, harus mengandung huruf besar, huruf kecil, angka, dan simbol.
+                  </p>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   Daftar
