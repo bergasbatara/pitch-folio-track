@@ -64,17 +64,12 @@ export class ReportsService {
     end.setHours(23, 59, 59, 999);
 
     const report = await this.buildReport(companyId, start, end);
-    const products = await this.prisma.product.findMany({
-      where: { companyId },
-      select: { price: true, stock: true },
-    });
-    const inventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
 
     return {
       ...report,
       totals: {
         ...report.totals,
-        inventoryValue,
+        inventoryValue: report.totals.inventoryValue,
       },
     };
   }
@@ -170,6 +165,7 @@ export class ReportsService {
     const revenue = totalsByType.revenue ?? 0;
     const expense = totalsByType.expense ?? 0;
     const netProfit = revenue - expense;
+    const balanceCategories = this.buildBalanceCategories(Array.from(accountMap.values()), netProfit);
 
     return {
       from: start.toISOString().slice(0, 10),
@@ -183,6 +179,7 @@ export class ReportsService {
         netCash: cashIn - cashOut,
         receivableChange,
         payableChange,
+        inventoryValue: balanceCategories.inventory,
       },
       byType: totalsByType,
       accounts: Array.from(accountMap.values()).sort((a, b) => a.code.localeCompare(b.code)),
@@ -244,12 +241,8 @@ export class ReportsService {
     }
 
     const accounts = Array.from(accountMap.values()).sort((a, b) => a.code.localeCompare(b.code));
-    const products = await this.prisma.product.findMany({
-      where: { companyId },
-      select: { price: true, stock: true },
-    });
-    const inventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
-    const categories = this.buildBalanceCategories(accounts, inventoryValue);
+    const currentEarnings = (totalsByType.revenue ?? 0) - (totalsByType.expense ?? 0);
+    const categories = this.buildBalanceCategories(accounts, currentEarnings);
 
     return {
       asOf: end.toISOString().slice(0, 10),
@@ -259,7 +252,7 @@ export class ReportsService {
     };
   }
 
-  private buildBalanceCategories(accounts: AccountSummary[], inventoryValue: number): BalanceCategories {
+  private buildBalanceCategories(accounts: AccountSummary[], currentEarnings: number): BalanceCategories {
     const lower = (value: string) => value.toLowerCase();
     const hasName = (acc: AccountSummary, keywords: string[]) =>
       keywords.some((kw) => lower(acc.name).includes(kw));
@@ -272,6 +265,9 @@ export class ReportsService {
     ));
     const receivable = sum(accounts.filter((acc) =>
       acc.code === DEFAULT_ACCOUNT_CODES.receivable || hasName(acc, ["piutang"])
+    ));
+    const inventory = sum(accounts.filter((acc) =>
+      acc.code === DEFAULT_ACCOUNT_CODES.inventory || hasPrefix(acc, ["12"]) || hasName(acc, ["persediaan"])
     ));
     const fixedAssetsGross = sum(accounts.filter((acc) =>
       acc.code === DEFAULT_ACCOUNT_CODES.fixedAsset || hasPrefix(acc, ["13"]) || hasName(acc, ["aset tetap", "peralatan"])
@@ -286,14 +282,13 @@ export class ReportsService {
       hasName(acc, ["pajak dibayar dimuka"])
     ));
 
-    const inventory = inventoryValue;
-
     const assetAccounts = accounts.filter((acc) => acc.type === "asset");
     const excludedAssetIds = new Set(
       accounts
         .filter((acc) =>
           acc.code === DEFAULT_ACCOUNT_CODES.cash ||
           acc.code === DEFAULT_ACCOUNT_CODES.receivable ||
+          acc.code === DEFAULT_ACCOUNT_CODES.inventory ||
           acc.code === DEFAULT_ACCOUNT_CODES.fixedAsset ||
           acc.code === DEFAULT_ACCOUNT_CODES.accumulatedDepreciation ||
           hasPrefix(acc, ["12", "13", "14", "15"]) ||
@@ -325,9 +320,12 @@ export class ReportsService {
     const equityCapital = sum(accounts.filter((acc) =>
       acc.type === "equity" && (hasName(acc, ["modal", "saham"]) || hasPrefix(acc, ["30"]))
     ));
-    const retainedEarnings = sum(accounts.filter((acc) =>
-      acc.type === "equity" && !hasName(acc, ["modal", "saham"])
-    ));
+    const retainedEarnings =
+      sum(accounts.filter((acc) =>
+        acc.type === "equity" &&
+        acc.code !== DEFAULT_ACCOUNT_CODES.openingBalanceSuspense &&
+        !hasName(acc, ["modal", "saham"])
+      )) + currentEarnings;
 
     const fixedAssetsNet = fixedAssetsGross - accumulatedDepreciation;
     const totalCurrentAssets = cash + receivable + inventory + prepaid + prepaidTax + otherCurrentAssets;

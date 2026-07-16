@@ -321,6 +321,7 @@ export class PurchasesService {
           memo: `Pembelian #${purchaseId}`,
           source: "purchase",
           sourceId: purchaseId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({
@@ -334,7 +335,7 @@ export class PurchasesService {
 
     await tx.journalEntry.update({
       where: { id: existing.id },
-      data: { date, memo: `Pembelian #${purchaseId}` },
+      data: { date, memo: `Pembelian #${purchaseId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
     await tx.journalLine.createMany({

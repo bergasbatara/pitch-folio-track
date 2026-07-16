@@ -236,6 +236,7 @@ export class SalesService {
           memo: `Penjualan #${saleId}`,
           source: "sale",
           sourceId: saleId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({
@@ -249,7 +250,7 @@ export class SalesService {
 
     await tx.journalEntry.update({
       where: { id: existing.id },
-      data: { date: soldAt, memo: `Penjualan #${saleId}` },
+      data: { date: soldAt, memo: `Penjualan #${saleId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
     await tx.journalLine.createMany({

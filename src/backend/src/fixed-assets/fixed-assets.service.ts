@@ -128,6 +128,7 @@ export class FixedAssetsService {
             memo: `Penyusutan ${asset.name} (${periodKey})`,
             source: "depreciation",
             sourceId,
+            status: "posted",
           },
         });
         await tx.journalLine.createMany({
@@ -141,7 +142,7 @@ export class FixedAssetsService {
 
       await tx.journalEntry.update({
         where: { id: existing.id },
-        data: { date: entryDate, memo: `Penyusutan ${asset.name} (${periodKey})` },
+        data: { date: entryDate, memo: `Penyusutan ${asset.name} (${periodKey})`, status: "posted" },
       });
       await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
       await tx.journalLine.createMany({
@@ -208,6 +209,7 @@ export class FixedAssetsService {
           memo: `Perolehan Aset #${assetId}`,
           source: "fixed_asset",
           sourceId: assetId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({
@@ -221,7 +223,7 @@ export class FixedAssetsService {
 
     await tx.journalEntry.update({
       where: { id: existing.id },
-      data: { date, memo: `Perolehan Aset #${assetId}` },
+      data: { date, memo: `Perolehan Aset #${assetId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
     await tx.journalLine.createMany({

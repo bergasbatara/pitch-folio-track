@@ -175,6 +175,7 @@ export class PayablesService {
           memo: `Hutang #${payableId}`,
           source: "payable",
           sourceId: payableId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({
@@ -188,7 +189,7 @@ export class PayablesService {
 
     await tx.journalEntry.update({
       where: { id: existing.id },
-      data: { date, memo: `Hutang #${payableId}` },
+      data: { date, memo: `Hutang #${payableId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
     await tx.journalLine.createMany({
@@ -229,6 +230,7 @@ export class PayablesService {
           memo: `Pembayaran Hutang #${payableId}`,
           source: "payable_payment",
           sourceId: payableId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({
@@ -242,7 +244,7 @@ export class PayablesService {
 
     await tx.journalEntry.update({
       where: { id: existing.id },
-      data: { date, memo: `Pembayaran Hutang #${payableId}` },
+      data: { date, memo: `Pembayaran Hutang #${payableId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
     await tx.journalLine.createMany({

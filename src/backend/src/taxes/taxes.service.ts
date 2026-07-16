@@ -123,6 +123,7 @@ export class TaxesService {
           memo: dto.memo ?? "Pembayaran Pajak",
           source: "tax_settlement",
           taxCodeId,
+          status: "posted",
         },
       });
       await tx.journalLine.createMany({

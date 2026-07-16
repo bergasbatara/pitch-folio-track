@@ -16,10 +16,12 @@ export const DEFAULT_ACCOUNTS = [
 export const DEFAULT_ACCOUNT_CODES = {
   cash: "1001",
   receivable: "1101",
+  inventory: "1201",
   fixedAsset: "1301",
   accumulatedDepreciation: "1401",
   payable: "2001",
   taxPayable: "2101",
+  openingBalanceSuspense: "3999",
   revenue: "4001",
   purchases: "5001",
   depreciationExpense: "6001",
