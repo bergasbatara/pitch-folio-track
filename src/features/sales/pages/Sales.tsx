@@ -32,7 +32,7 @@ export default function Sales() {
           icon={ShoppingCart}
           title="Penjualan"
           description="Lacak dan kelola penjualan produk Anda"
-          tip="Pilih produk, tentukan jumlah dan tanggal penjualan. Pendapatan dan stok akan diperbarui secara otomatis."
+          tip="Secara default penjualan dicatat sebagai Piutang Usaha. Pilih metode tunai hanya jika pelanggan langsung membayar."
           action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Catat Penjualan</Button>}
         />
 

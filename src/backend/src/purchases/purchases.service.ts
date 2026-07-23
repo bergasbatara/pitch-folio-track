@@ -73,12 +73,14 @@ export class PurchasesService {
       if ((dto.productId || dto.productCode) && !product) {
         throw new NotFoundException("Product not found");
       }
+      const settlementType = dto.settlementType ?? "payable";
 
       const purchase = await tx.purchase.create({
         data: {
           companyId,
           categoryId: ensuredCategory.id,
           productId: product?.id,
+          settlementType,
           itemName: String(dto.itemName ?? "").trim(),
           supplier: dto.supplier ? String(dto.supplier).trim() : undefined,
           quantity: dto.quantity,
@@ -100,7 +102,7 @@ export class PurchasesService {
         });
       }
 
-      await this.upsertPurchaseJournal(tx, companyId, purchase.id, purchase.totalCost, purchase.date);
+      await this.syncPurchaseSettlement(tx, companyId, purchase);
 
       return {
         ...purchase,
@@ -143,6 +145,7 @@ export class PurchasesService {
       const nextProductId = resolvedProductId ?? purchase.productId;
       const nextQuantity = dto.quantity ?? purchase.quantity;
       const nextUnitCost = dto.unitCost ?? purchase.unitCost;
+      const settlementType = dto.settlementType ?? purchase.settlementType;
 
       if (nextProductId !== purchase.productId) {
         if (purchase.productId) {
@@ -199,6 +202,7 @@ export class PurchasesService {
         data: {
           categoryId: nextCategoryId,
           productId: nextProductId,
+          settlementType,
           itemName: dto.itemName !== undefined ? String(dto.itemName).trim() : undefined,
           supplier: dto.supplier !== undefined ? String(dto.supplier).trim() : undefined,
           quantity: nextQuantity,
@@ -208,8 +212,6 @@ export class PurchasesService {
           notes: dto.notes !== undefined ? String(dto.notes).trim() : undefined,
         },
       });
-
-      await this.upsertPurchaseJournal(tx, companyId, purchase.id, nextQuantity * nextUnitCost, dto.date ?? purchase.date);
 
       const refreshed = await tx.purchase.findFirst({
         where: { id: purchase.id, companyId },
@@ -222,6 +224,8 @@ export class PurchasesService {
       if (!refreshed) {
         throw new NotFoundException("Purchase not found");
       }
+
+      await this.syncPurchaseSettlement(tx, companyId, refreshed);
 
       return {
         ...refreshed,
@@ -259,6 +263,15 @@ export class PurchasesService {
         });
       }
 
+      const payable = await tx.payable.findFirst({
+        where: { companyId, purchaseId: purchase.id },
+      });
+      if (payable) {
+        if (payable.paidAmount > 0) {
+          throw new BadRequestException("Cannot delete a purchase with recorded payable payments");
+        }
+        await this.deletePayableForPurchase(tx, companyId, payable.id);
+      }
       await tx.journalEntry.deleteMany({
         where: { companyId, source: "purchase", sourceId: purchase.id },
       });
@@ -344,5 +357,194 @@ export class PurchasesService {
         { entryId: existing.id, accountId: cashId, debit: 0, credit: total },
       ],
     });
+  }
+
+  private async syncPurchaseSettlement(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    purchase: {
+      id: string;
+      itemName: string;
+      supplier: string | null;
+      totalCost: number;
+      date: Date;
+      settlementType: string;
+    },
+  ) {
+    const linkedPayable = await tx.payable.findFirst({
+      where: { companyId, purchaseId: purchase.id },
+    });
+
+    if (purchase.settlementType === "cash") {
+      if (linkedPayable) {
+        if (linkedPayable.paidAmount > 0) {
+          throw new BadRequestException("Cannot convert a settled payable purchase to cash");
+        }
+        await this.deletePayableForPurchase(tx, companyId, linkedPayable.id);
+      }
+      await this.upsertPurchaseJournal(tx, companyId, purchase.id, purchase.totalCost, purchase.date);
+      return;
+    }
+
+    await tx.journalEntry.deleteMany({
+      where: { companyId, source: "purchase", sourceId: purchase.id },
+    });
+    await this.upsertPayableForPurchase(tx, companyId, purchase, linkedPayable ?? undefined);
+  }
+
+  private async deletePayableForPurchase(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    payableId: string,
+  ) {
+    await tx.journalEntry.deleteMany({
+      where: {
+        companyId,
+        OR: [
+          { source: "payable", sourceId: payableId },
+          { source: "payable_payment", sourceId: payableId },
+        ],
+      },
+    });
+    await tx.payable.delete({ where: { id: payableId } });
+  }
+
+  private async upsertPayableForPurchase(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    purchase: {
+      id: string;
+      itemName: string;
+      supplier: string | null;
+      totalCost: number;
+      date: Date;
+    },
+    existing?: {
+      id: string;
+      paidAmount: number;
+    },
+  ) {
+    await this.ensureDefaultAccounts(tx, companyId);
+    const expenseId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.purchases);
+    const payableAccountId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.payable);
+    const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+    const paidAmount = Math.min(existing?.paidAmount ?? 0, purchase.totalCost);
+    const dueDate = purchase.date;
+    const description = purchase.itemName;
+
+    const payable = existing
+      ? await tx.payable.update({
+          where: { id: existing.id },
+          data: {
+            supplierName: purchase.supplier || "Supplier Umum",
+            description,
+            amount: purchase.totalCost,
+            paidAmount,
+            dueDate,
+            status: this.getSettlementStatus(paidAmount, purchase.totalCost, dueDate),
+          },
+        })
+      : await tx.payable.create({
+          data: {
+            companyId,
+            purchaseId: purchase.id,
+            supplierName: purchase.supplier || "Supplier Umum",
+            description,
+            amount: purchase.totalCost,
+            paidAmount: 0,
+            dueDate,
+            status: this.getSettlementStatus(0, purchase.totalCost, dueDate),
+          },
+        });
+
+    const payableEntry = await tx.journalEntry.findFirst({
+      where: { companyId, source: "payable", sourceId: payable.id },
+    });
+
+    const payableJournalId = payableEntry
+      ? payableEntry.id
+      : (
+          await tx.journalEntry.create({
+            data: {
+              companyId,
+              date: dueDate,
+              memo: `Pembelian ${description}`,
+              source: "payable",
+              sourceId: payable.id,
+              status: "posted",
+            },
+          })
+        ).id;
+
+    if (payableEntry) {
+      await tx.journalEntry.update({
+        where: { id: payableEntry.id },
+        data: {
+          date: dueDate,
+          memo: `Pembelian ${description}`,
+          status: "posted",
+        },
+      });
+      await tx.journalLine.deleteMany({ where: { entryId: payableEntry.id } });
+    }
+
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: payableJournalId, accountId: expenseId, debit: purchase.totalCost, credit: 0 },
+        { entryId: payableJournalId, accountId: payableAccountId, debit: 0, credit: purchase.totalCost },
+      ],
+    });
+
+    const paymentEntry = await tx.journalEntry.findFirst({
+      where: { companyId, source: "payable_payment", sourceId: payable.id },
+    });
+
+    if (paidAmount <= 0) {
+      if (paymentEntry) {
+        await tx.journalEntry.delete({ where: { id: paymentEntry.id } });
+      }
+      return;
+    }
+
+    const paymentJournalId = paymentEntry
+      ? paymentEntry.id
+      : (
+          await tx.journalEntry.create({
+            data: {
+              companyId,
+              date: dueDate,
+              memo: `Pembayaran ${description}`,
+              source: "payable_payment",
+              sourceId: payable.id,
+              status: "posted",
+            },
+          })
+        ).id;
+
+    if (paymentEntry) {
+      await tx.journalEntry.update({
+        where: { id: paymentEntry.id },
+        data: {
+          date: dueDate,
+          memo: `Pembayaran ${description}`,
+          status: "posted",
+        },
+      });
+      await tx.journalLine.deleteMany({ where: { entryId: paymentEntry.id } });
+    }
+
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: paymentJournalId, accountId: payableAccountId, debit: paidAmount, credit: 0 },
+        { entryId: paymentJournalId, accountId: cashId, debit: 0, credit: paidAmount },
+      ],
+    });
+  }
+
+  private getSettlementStatus(paidAmount: number, amount: number, dueDate: Date) {
+    if (paidAmount >= amount) return "paid";
+    if (paidAmount > 0) return "partial";
+    if (dueDate.getTime() < Date.now()) return "overdue";
+    return "pending";
   }
 }

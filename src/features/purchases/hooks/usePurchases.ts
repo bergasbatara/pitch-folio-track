@@ -123,6 +123,7 @@ export function usePurchases(companyId?: string) {
       categoryId: '',
       itemName: data.itemName,
       supplier: data.supplier,
+      settlementType: data.settlementType ?? 'payable',
       quantity: data.quantity,
       unitCost: data.unitCost,
       totalCost: data.unitCost * data.quantity,

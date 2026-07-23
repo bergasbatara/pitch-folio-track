@@ -114,6 +114,7 @@ model Sale {
   id           String   @id @default(uuid())
   companyId    String
   productId    String
+  settlementType String @default("receivable")
   quantity     Int
   pricePerUnit Int
   totalPrice   Int
@@ -122,6 +123,7 @@ model Sale {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  receivable Receivable?
 
   @@index([companyId])
   @@index([productId])
@@ -145,6 +147,7 @@ model Purchase {
   companyId  String
   categoryId String
   productId  String?
+  settlementType String @default("payable")
   itemName   String
   supplier   String?
   quantity   Int
@@ -157,6 +160,7 @@ model Purchase {
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category PurchaseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   product  Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  payable  Payable?
 
   @@index([companyId])
   @@index([categoryId])
@@ -166,6 +170,7 @@ model Purchase {
 model Receivable {
   id           String   @id @default(uuid())
   companyId    String
+  saleId       String?  @unique
   customerName String
   description  String
   amount       Int
@@ -176,6 +181,7 @@ model Receivable {
   updatedAt    DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sale    Sale?   @relation(fields: [saleId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
 }
@@ -183,6 +189,7 @@ model Receivable {
 model Payable {
   id           String   @id @default(uuid())
   companyId    String
+  purchaseId   String?  @unique
   supplierName String
   description  String
   amount       Int
@@ -193,6 +200,7 @@ model Payable {
   updatedAt    DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
 }

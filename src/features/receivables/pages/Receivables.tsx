@@ -187,14 +187,16 @@ export default function Receivables() {
                     <TableCell>{formatDateId(receivable.dueDate)}</TableCell>
                     <TableCell>{getStatusBadge(receivable.status)}</TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           disabled={receivable.amount <= receivable.paidAmount}
                           onClick={() => openPayment(receivable)}
+                          className="gap-2"
                         >
                           <Banknote className="h-4 w-4" />
+                          Bayar
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => deleteReceivable(receivable.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />

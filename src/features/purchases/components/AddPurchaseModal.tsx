@@ -39,6 +39,7 @@ export function AddPurchaseModal({
   const [date, setDate] = useState(defaultDate());
   const [itemName, setItemName] = useState('');
   const [productCode, setProductCode] = useState('');
+  const [settlementType, setSettlementType] = useState<'cash' | 'payable'>('payable');
   const [supplier, setSupplier] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unitCost, setUnitCost] = useState('');
@@ -49,6 +50,7 @@ export function AddPurchaseModal({
       setDate(toInputDate(editingPurchase.date));
       setItemName(editingPurchase.itemName ?? '');
       setProductCode(editingPurchase.productCode ?? '');
+      setSettlementType(editingPurchase.settlementType ?? 'payable');
       setSupplier(editingPurchase.supplier ?? '');
       setQuantity(editingPurchase.quantity?.toString() ?? '');
       setUnitCost(editingPurchase.unitCost?.toString() ?? '');
@@ -64,6 +66,7 @@ export function AddPurchaseModal({
     setDate(defaultDate());
     setItemName('');
     setProductCode('');
+    setSettlementType('payable');
     setSupplier('');
     setQuantity('');
     setUnitCost('');
@@ -78,6 +81,7 @@ export function AddPurchaseModal({
     const purchaseData: PurchaseFormData = {
       date,
       productCode: productCode.trim() || undefined,
+      settlementType,
       itemName: itemName.trim(),
       supplier: supplier.trim() || undefined,
       quantity: parseFloat(quantity),
@@ -140,6 +144,22 @@ export function AddPurchaseModal({
               onChange={(e) => setProductCode(e.target.value)}
               placeholder="cth., PRD-AB12"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="settlementType">Metode Pencatatan</Label>
+            <Select value={settlementType} onValueChange={(value: 'cash' | 'payable') => setSettlementType(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih metode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payable">Hutang Usaha (default)</SelectItem>
+                <SelectItem value="cash">Tunai / langsung keluar Kas</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Pembelian kredit akan otomatis masuk ke Hutang Usaha. Pilih tunai hanya jika transaksi langsung dibayar.
+            </p>
           </div>
 
           <div className="space-y-2">

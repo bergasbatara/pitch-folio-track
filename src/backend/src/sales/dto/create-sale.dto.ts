@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateSaleDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
@@ -25,6 +25,15 @@ export class CreateSaleDto {
   @IsInt()
   @Min(0)
   pricePerUnit: number;
+
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return "receivable";
+    const normalized = String(value).trim().toLowerCase();
+    return normalized || "receivable";
+  })
+  @IsOptional()
+  @IsIn(["cash", "receivable"])
+  settlementType?: "cash" | "receivable";
 
   @IsOptional()
   @Transform(({ value }) => parseDateInput(value))

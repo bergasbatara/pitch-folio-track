@@ -12,6 +12,7 @@ export interface Purchase {
   productId?: string | null;
   productName?: string | null;
   productCode?: string | null;
+  settlementType: 'cash' | 'payable';
   itemName: string;
   supplier?: string;
   quantity: number;
@@ -25,6 +26,7 @@ export interface PurchaseFormData {
   date: string;
   productId?: string | null;
   productCode?: string | null;
+  settlementType?: 'cash' | 'payable';
   itemName: string;
   supplier?: string;
   quantity: number;

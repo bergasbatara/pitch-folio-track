@@ -52,10 +52,12 @@ export class SalesService {
         throw new BadRequestException("Insufficient stock");
       }
       const totalPrice = dto.quantity * dto.pricePerUnit;
+      const settlementType = dto.settlementType ?? "receivable";
       const sale = await tx.sale.create({
         data: {
           companyId,
           productId: product.id,
+          settlementType,
           quantity: dto.quantity,
           pricePerUnit: dto.pricePerUnit,
           totalPrice,
@@ -66,7 +68,7 @@ export class SalesService {
         where: { id: product.id },
         data: { stock: product.stock - dto.quantity },
       });
-      await this.upsertSaleJournal(tx, companyId, sale.id, totalPrice, sale.soldAt);
+      await this.syncSaleSettlement(tx, companyId, sale, product.name);
       return { ...sale, productName: product.name };
     });
   }
@@ -93,6 +95,7 @@ export class SalesService {
       const targetProductId = resolvedProductId ?? sale.productId;
       const quantity = dto.quantity ?? sale.quantity;
       const pricePerUnit = dto.pricePerUnit ?? sale.pricePerUnit;
+      const settlementType = dto.settlementType ?? sale.settlementType;
 
       if (targetProductId !== sale.productId) {
         const oldProduct = await tx.product.findFirst({
@@ -136,6 +139,7 @@ export class SalesService {
         where: { id: sale.id },
         data: {
           productId: targetProductId,
+          settlementType,
           quantity,
           pricePerUnit,
           totalPrice: quantity * pricePerUnit,
@@ -143,11 +147,11 @@ export class SalesService {
         },
       });
 
-      await this.upsertSaleJournal(tx, companyId, updated.id, updated.totalPrice, updated.soldAt);
-
       const product = await tx.product.findFirst({
         where: { id: updated.productId, companyId },
       });
+
+      await this.syncSaleSettlement(tx, companyId, updated, product?.name ?? "Produk");
 
       return {
         ...updated,
@@ -173,6 +177,15 @@ export class SalesService {
           where: { id: product.id },
           data: { stock: product.stock + sale.quantity },
         });
+      }
+      const receivable = await tx.receivable.findFirst({
+        where: { companyId, saleId: sale.id },
+      });
+      if (receivable) {
+        if (receivable.paidAmount > 0) {
+          throw new BadRequestException("Cannot delete a sale with recorded receivable payments");
+        }
+        await this.deleteReceivableForSale(tx, companyId, receivable.id);
       }
       await tx.journalEntry.deleteMany({
         where: { companyId, source: "sale", sourceId: sale.id },
@@ -259,5 +272,183 @@ export class SalesService {
         { entryId: existing.id, accountId: revenueId, debit: 0, credit: total },
       ],
     });
+  }
+
+  private async syncSaleSettlement(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    sale: { id: string; totalPrice: number; soldAt: Date; settlementType: string },
+    productName: string,
+  ) {
+    const linkedReceivable = await tx.receivable.findFirst({
+      where: { companyId, saleId: sale.id },
+    });
+
+    if (sale.settlementType === "cash") {
+      if (linkedReceivable) {
+        if (linkedReceivable.paidAmount > 0) {
+          throw new BadRequestException("Cannot convert a settled receivable sale to cash");
+        }
+        await this.deleteReceivableForSale(tx, companyId, linkedReceivable.id);
+      }
+      await this.upsertSaleJournal(tx, companyId, sale.id, sale.totalPrice, sale.soldAt);
+      return;
+    }
+
+    await tx.journalEntry.deleteMany({
+      where: { companyId, source: "sale", sourceId: sale.id },
+    });
+    await this.upsertReceivableForSale(tx, companyId, sale, productName, linkedReceivable ?? undefined);
+  }
+
+  private async deleteReceivableForSale(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    receivableId: string,
+  ) {
+    await tx.journalEntry.deleteMany({
+      where: {
+        companyId,
+        OR: [
+          { source: "receivable", sourceId: receivableId },
+          { source: "receivable_payment", sourceId: receivableId },
+        ],
+      },
+    });
+    await tx.receivable.delete({ where: { id: receivableId } });
+  }
+
+  private async upsertReceivableForSale(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    sale: { id: string; totalPrice: number; soldAt: Date },
+    productName: string,
+    existing?: {
+      id: string;
+      paidAmount: number;
+    },
+  ) {
+    await this.ensureDefaultAccounts(tx, companyId);
+    const receivableAccountId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.receivable);
+    const revenueId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.revenue);
+    const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
+    const paidAmount = Math.min(existing?.paidAmount ?? 0, sale.totalPrice);
+    const dueDate = sale.soldAt;
+    const description = `Penjualan ${productName}`;
+
+    const receivable = existing
+      ? await tx.receivable.update({
+          where: { id: existing.id },
+          data: {
+            customerName: "Pelanggan Umum",
+            description,
+            amount: sale.totalPrice,
+            paidAmount,
+            dueDate,
+            status: this.getSettlementStatus(paidAmount, sale.totalPrice, dueDate),
+          },
+        })
+      : await tx.receivable.create({
+          data: {
+            companyId,
+            saleId: sale.id,
+            customerName: "Pelanggan Umum",
+            description,
+            amount: sale.totalPrice,
+            paidAmount: 0,
+            dueDate,
+            status: this.getSettlementStatus(0, sale.totalPrice, dueDate),
+          },
+        });
+
+    const receivableEntry = await tx.journalEntry.findFirst({
+      where: { companyId, source: "receivable", sourceId: receivable.id },
+    });
+
+    const receivableJournalId = receivableEntry
+      ? receivableEntry.id
+      : (
+          await tx.journalEntry.create({
+            data: {
+              companyId,
+              date: dueDate,
+              memo: description,
+              source: "receivable",
+              sourceId: receivable.id,
+              status: "posted",
+            },
+          })
+        ).id;
+
+    if (receivableEntry) {
+      await tx.journalEntry.update({
+        where: { id: receivableEntry.id },
+        data: {
+          date: dueDate,
+          memo: description,
+          status: "posted",
+        },
+      });
+      await tx.journalLine.deleteMany({ where: { entryId: receivableEntry.id } });
+    }
+
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: receivableJournalId, accountId: receivableAccountId, debit: sale.totalPrice, credit: 0 },
+        { entryId: receivableJournalId, accountId: revenueId, debit: 0, credit: sale.totalPrice },
+      ],
+    });
+
+    const paymentEntry = await tx.journalEntry.findFirst({
+      where: { companyId, source: "receivable_payment", sourceId: receivable.id },
+    });
+
+    if (paidAmount <= 0) {
+      if (paymentEntry) {
+        await tx.journalEntry.delete({ where: { id: paymentEntry.id } });
+      }
+      return;
+    }
+
+    const paymentJournalId = paymentEntry
+      ? paymentEntry.id
+      : (
+          await tx.journalEntry.create({
+            data: {
+              companyId,
+              date: dueDate,
+              memo: `Pembayaran ${description}`,
+              source: "receivable_payment",
+              sourceId: receivable.id,
+              status: "posted",
+            },
+          })
+        ).id;
+
+    if (paymentEntry) {
+      await tx.journalEntry.update({
+        where: { id: paymentEntry.id },
+        data: {
+          date: dueDate,
+          memo: `Pembayaran ${description}`,
+          status: "posted",
+        },
+      });
+      await tx.journalLine.deleteMany({ where: { entryId: paymentEntry.id } });
+    }
+
+    await tx.journalLine.createMany({
+      data: [
+        { entryId: paymentJournalId, accountId: cashId, debit: paidAmount, credit: 0 },
+        { entryId: paymentJournalId, accountId: receivableAccountId, debit: 0, credit: paidAmount },
+      ],
+    });
+  }
+
+  private getSettlementStatus(paidAmount: number, amount: number, dueDate: Date) {
+    if (paidAmount >= amount) return "paid";
+    if (paidAmount > 0) return "partial";
+    if (dueDate.getTime() < Date.now()) return "overdue";
+    return "pending";
   }
 }

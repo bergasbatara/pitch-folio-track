@@ -187,14 +187,16 @@ export default function Payables() {
                     <TableCell>{formatDateId(payable.dueDate)}</TableCell>
                     <TableCell>{getStatusBadge(payable.status)}</TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           disabled={payable.amount <= payable.paidAmount}
                           onClick={() => openPayment(payable)}
+                          className="gap-2"
                         >
                           <Banknote className="h-4 w-4" />
+                          Bayar
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => deletePayable(payable.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />

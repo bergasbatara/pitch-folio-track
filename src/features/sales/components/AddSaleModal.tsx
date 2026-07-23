@@ -30,6 +30,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
   const today = todayInputValue();
   const [formData, setFormData] = useState<SaleFormData>({
     productId: '',
+    settlementType: 'receivable',
     quantity: 1,
     pricePerUnit: 0,
     soldAt: today,
@@ -67,7 +68,8 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
     
     onSubmit({ ...formData, productCode: productCode.trim() || undefined });
     onClose();
-    setFormData({ productId: '', quantity: 1, pricePerUnit: 0, soldAt: today });
+    setProductCode('');
+    setFormData({ productId: '', settlementType: 'receivable', quantity: 1, pricePerUnit: 0, soldAt: today });
   };
 
   const totalPrice = formData.quantity * formData.pricePerUnit;
@@ -117,6 +119,25 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="settlementType">Metode Pencatatan</Label>
+            <Select
+              value={formData.settlementType ?? 'receivable'}
+              onValueChange={(value: 'cash' | 'receivable') => setFormData({ ...formData, settlementType: value })}
+            >
+              <SelectTrigger className="bg-background border-border">
+                <SelectValue placeholder="Pilih metode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="receivable">Piutang Usaha (default)</SelectItem>
+                <SelectItem value="cash">Tunai / langsung masuk Kas</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Penjualan kredit akan otomatis masuk ke Piutang Usaha. Gunakan opsi tunai hanya jika transaksi langsung dibayar.
+            </p>
           </div>
 
           <div className="space-y-2">

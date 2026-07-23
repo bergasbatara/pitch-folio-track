@@ -56,7 +56,7 @@ export default function Purchases() {
           icon={ShoppingBag}
           title="Pembelian"
           description="Lacak pengeluaran dan persediaan bisnis Anda"
-          tip="Catat setiap pembelian barang atau biaya operasional. Pilih tanggal dan kategori agar laporan pengeluaran Anda akurat."
+          tip="Secara default pembelian dicatat sebagai Hutang Usaha. Pilih metode tunai hanya jika pembayaran langsung dilakukan."
           action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Pembelian</Button>}
         />
 
