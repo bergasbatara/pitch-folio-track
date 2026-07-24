@@ -6,6 +6,7 @@ import { usePurchases } from '../hooks/usePurchases';
 import { Purchase, PurchaseFormData } from '../types';
 import { Plus, TrendingDown, ShoppingBag, Layers } from 'lucide-react';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useTaxCodes } from '@/features/taxes';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { Button } from '@/components/ui/button';
 import { PageHeader, StatCard, EmptyState } from '@/shared';
@@ -16,8 +17,10 @@ export default function Purchases() {
   const { company, error: companyError } = useCompanyProfile();
 
   const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend, error: purchasesError } = usePurchases(company?.id);
+  const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(purchasesError, 'Gagal memuat pembelian');
+  useErrorToast(taxCodesError, 'Gagal memuat kode pajak');
 
   const handleEdit = (purchase: Purchase) => {
     setEditingPurchase(purchase);
@@ -86,6 +89,7 @@ export default function Purchases() {
           onAddPurchase={handleAddPurchase}
           editingPurchase={editingPurchase}
           onUpdatePurchase={handleUpdatePurchase}
+          taxCodes={taxCodes}
         />
       </div>
     </MainLayout>

@@ -18,6 +18,7 @@ export class PurchasesService {
       include: {
         category: { select: { name: true } },
         product: { select: { name: true, code: true } },
+        taxCode: { select: { name: true } },
       },
       orderBy: { date: "desc" },
     });
@@ -26,6 +27,7 @@ export class PurchasesService {
       categoryName: purchase.category.name,
       productName: purchase.product?.name ?? null,
       productCode: purchase.product?.code ?? null,
+      taxCodeName: purchase.taxCode?.name ?? null,
     }));
   }
 
@@ -36,6 +38,7 @@ export class PurchasesService {
       include: {
         category: { select: { name: true } },
         product: { select: { name: true, code: true } },
+        taxCode: { select: { name: true } },
       },
     });
     if (!purchase) {
@@ -46,6 +49,7 @@ export class PurchasesService {
       categoryName: purchase.category.name,
       productName: purchase.product?.name ?? null,
       productCode: purchase.product?.code ?? null,
+      taxCodeName: purchase.taxCode?.name ?? null,
     };
   }
 
@@ -73,25 +77,34 @@ export class PurchasesService {
       if ((dto.productId || dto.productCode) && !product) {
         throw new NotFoundException("Product not found");
       }
+      const taxCode = await this.resolveTaxCode(tx, companyId, dto.taxCodeId);
       const settlementType = dto.settlementType ?? "payable";
+      const subtotalCost = dto.quantity * dto.unitCost;
+      const taxRate = taxCode?.rate ?? 0;
+      const taxAmount = this.calculateTaxAmount(subtotalCost, taxRate);
 
       const purchase = await tx.purchase.create({
         data: {
           companyId,
           categoryId: ensuredCategory.id,
           productId: product?.id,
+          taxCodeId: taxCode?.id,
           settlementType,
           itemName: String(dto.itemName ?? "").trim(),
           supplier: dto.supplier ? String(dto.supplier).trim() : undefined,
           quantity: dto.quantity,
           unitCost: dto.unitCost,
-          totalCost: dto.quantity * dto.unitCost,
+          subtotalCost,
+          taxRate,
+          taxAmount,
+          totalCost: subtotalCost + taxAmount,
           date: dto.date ?? new Date(),
           notes: dto.notes ? String(dto.notes).trim() : undefined,
         },
         include: {
           category: { select: { name: true } },
           product: { select: { name: true, code: true } },
+          taxCode: { select: { name: true } },
         },
       });
 
@@ -109,6 +122,7 @@ export class PurchasesService {
         categoryName: purchase.category.name,
         productName: purchase.product?.name ?? null,
         productCode: purchase.product?.code ?? null,
+        taxCodeName: purchase.taxCode?.name ?? null,
       };
     });
   }
@@ -145,6 +159,11 @@ export class PurchasesService {
       const nextProductId = resolvedProductId ?? purchase.productId;
       const nextQuantity = dto.quantity ?? purchase.quantity;
       const nextUnitCost = dto.unitCost ?? purchase.unitCost;
+      const nextTaxCodeId = dto.taxCodeId === undefined ? purchase.taxCodeId : dto.taxCodeId;
+      const taxCode = await this.resolveTaxCode(tx, companyId, nextTaxCodeId);
+      const subtotalCost = nextQuantity * nextUnitCost;
+      const taxRate = taxCode?.rate ?? 0;
+      const taxAmount = this.calculateTaxAmount(subtotalCost, taxRate);
       const settlementType = dto.settlementType ?? purchase.settlementType;
 
       if (nextProductId !== purchase.productId) {
@@ -202,12 +221,16 @@ export class PurchasesService {
         data: {
           categoryId: nextCategoryId,
           productId: nextProductId,
+          taxCodeId: taxCode?.id ?? null,
           settlementType,
           itemName: dto.itemName !== undefined ? String(dto.itemName).trim() : undefined,
           supplier: dto.supplier !== undefined ? String(dto.supplier).trim() : undefined,
           quantity: nextQuantity,
           unitCost: nextUnitCost,
-          totalCost: nextQuantity * nextUnitCost,
+          subtotalCost,
+          taxRate,
+          taxAmount,
+          totalCost: subtotalCost + taxAmount,
           date: dto.date ?? purchase.date,
           notes: dto.notes !== undefined ? String(dto.notes).trim() : undefined,
         },
@@ -218,6 +241,7 @@ export class PurchasesService {
         include: {
           category: { select: { name: true } },
           product: { select: { name: true, code: true } },
+          taxCode: { select: { name: true } },
         },
       });
 
@@ -232,6 +256,7 @@ export class PurchasesService {
         categoryName: refreshed.category.name,
         productName: refreshed.product?.name ?? null,
         productCode: refreshed.product?.code ?? null,
+        taxCodeName: refreshed.taxCode?.name ?? null,
       };
     });
   }
@@ -311,16 +336,34 @@ export class PurchasesService {
     return account.id;
   }
 
+  private async resolveTaxCode(tx: Prisma.TransactionClient, companyId: string, taxCodeId?: string | null) {
+    if (!taxCodeId) return null;
+    const taxCode = await tx.taxCode.findFirst({
+      where: { id: taxCodeId, companyId },
+    });
+    if (!taxCode) {
+      throw new NotFoundException("Tax code not found");
+    }
+    return taxCode;
+  }
+
+  private calculateTaxAmount(baseAmount: number, taxRate: number) {
+    return Math.round(baseAmount * (taxRate / 100));
+  }
+
   private async upsertPurchaseJournal(
     tx: Prisma.TransactionClient,
     companyId: string,
     purchaseId: string,
-    total: number,
+    subtotalCost: number,
+    taxAmount: number,
+    totalCost: number,
     date: Date,
   ) {
     await this.ensureDefaultAccounts(tx, companyId);
     const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
     const expenseId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.purchases);
+    const taxInputId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxInput);
 
     const existing = await tx.journalEntry.findFirst({
       where: { companyId, source: "purchase", sourceId: purchaseId },
@@ -337,12 +380,7 @@ export class PurchasesService {
           status: "posted",
         },
       });
-      await tx.journalLine.createMany({
-        data: [
-          { entryId: entry.id, accountId: expenseId, debit: total, credit: 0 },
-          { entryId: entry.id, accountId: cashId, debit: 0, credit: total },
-        ],
-      });
+      await tx.journalLine.createMany({ data: this.buildCashPurchaseJournalLines(entry.id, expenseId, taxInputId, cashId, subtotalCost, taxAmount, totalCost) });
       return;
     }
 
@@ -351,12 +389,7 @@ export class PurchasesService {
       data: { date, memo: `Pembelian #${purchaseId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
-    await tx.journalLine.createMany({
-      data: [
-        { entryId: existing.id, accountId: expenseId, debit: total, credit: 0 },
-        { entryId: existing.id, accountId: cashId, debit: 0, credit: total },
-      ],
-    });
+    await tx.journalLine.createMany({ data: this.buildCashPurchaseJournalLines(existing.id, expenseId, taxInputId, cashId, subtotalCost, taxAmount, totalCost) });
   }
 
   private async syncPurchaseSettlement(
@@ -366,6 +399,8 @@ export class PurchasesService {
       id: string;
       itemName: string;
       supplier: string | null;
+      subtotalCost: number;
+      taxAmount: number;
       totalCost: number;
       date: Date;
       settlementType: string;
@@ -382,7 +417,15 @@ export class PurchasesService {
         }
         await this.deletePayableForPurchase(tx, companyId, linkedPayable.id);
       }
-      await this.upsertPurchaseJournal(tx, companyId, purchase.id, purchase.totalCost, purchase.date);
+      await this.upsertPurchaseJournal(
+        tx,
+        companyId,
+        purchase.id,
+        purchase.subtotalCost,
+        purchase.taxAmount,
+        purchase.totalCost,
+        purchase.date,
+      );
       return;
     }
 
@@ -416,6 +459,8 @@ export class PurchasesService {
       id: string;
       itemName: string;
       supplier: string | null;
+      subtotalCost: number;
+      taxAmount: number;
       totalCost: number;
       date: Date;
     },
@@ -426,6 +471,7 @@ export class PurchasesService {
   ) {
     await this.ensureDefaultAccounts(tx, companyId);
     const expenseId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.purchases);
+    const taxInputId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxInput);
     const payableAccountId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.payable);
     const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
     const paidAmount = Math.min(existing?.paidAmount ?? 0, purchase.totalCost);
@@ -489,10 +535,15 @@ export class PurchasesService {
     }
 
     await tx.journalLine.createMany({
-      data: [
-        { entryId: payableJournalId, accountId: expenseId, debit: purchase.totalCost, credit: 0 },
-        { entryId: payableJournalId, accountId: payableAccountId, debit: 0, credit: purchase.totalCost },
-      ],
+      data: this.buildPayablePurchaseJournalLines(
+        payableJournalId,
+        expenseId,
+        taxInputId,
+        payableAccountId,
+        purchase.subtotalCost,
+        purchase.taxAmount,
+        purchase.totalCost,
+      ),
     });
 
     const paymentEntry = await tx.journalEntry.findFirst({
@@ -546,5 +597,37 @@ export class PurchasesService {
     if (paidAmount > 0) return "partial";
     if (dueDate.getTime() < Date.now()) return "overdue";
     return "pending";
+  }
+
+  private buildCashPurchaseJournalLines(
+    entryId: string,
+    expenseId: string,
+    taxInputId: string,
+    cashId: string,
+    subtotalCost: number,
+    taxAmount: number,
+    totalCost: number,
+  ) {
+    return [
+      { entryId, accountId: expenseId, debit: subtotalCost, credit: 0 },
+      ...(taxAmount > 0 ? [{ entryId, accountId: taxInputId, debit: taxAmount, credit: 0 }] : []),
+      { entryId, accountId: cashId, debit: 0, credit: totalCost },
+    ];
+  }
+
+  private buildPayablePurchaseJournalLines(
+    entryId: string,
+    expenseId: string,
+    taxInputId: string,
+    payableAccountId: string,
+    subtotalCost: number,
+    taxAmount: number,
+    totalCost: number,
+  ) {
+    return [
+      { entryId, accountId: expenseId, debit: subtotalCost, credit: 0 },
+      ...(taxAmount > 0 ? [{ entryId, accountId: taxInputId, debit: taxAmount, credit: 0 }] : []),
+      { entryId, accountId: payableAccountId, debit: 0, credit: totalCost },
+    ];
   }
 }

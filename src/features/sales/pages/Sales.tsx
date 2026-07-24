@@ -5,6 +5,7 @@ import { Plus, DollarSign, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useProducts } from '@/features/products/hooks/useProducts';
 import { useCompanyProfile } from '@/features/onboarding';
+import { useTaxCodes } from '@/features/taxes';
 import { SaleFormData } from '../types';
 import { AddSaleModal } from '../components/AddSaleModal';
 import { SalesTable } from '../components/SalesTable';
@@ -16,9 +17,11 @@ export default function Sales() {
   const { company, error: companyError } = useCompanyProfile();
   const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue, error: salesError } = useSales(company?.id);
   const { products, error: productsError } = useProducts(company?.id);
+  const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(salesError, 'Gagal memuat penjualan');
   useErrorToast(productsError, 'Gagal memuat produk');
+  useErrorToast(taxCodesError, 'Gagal memuat kode pajak');
 
   const handleAddSale = async (data: SaleFormData) => {
     if (!company?.id) return;
@@ -62,6 +65,7 @@ export default function Sales() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddSale}
         products={products}
+        taxCodes={taxCodes}
       />
     </MainLayout>
   );

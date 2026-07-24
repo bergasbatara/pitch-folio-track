@@ -13,12 +13,16 @@ export class SalesService {
     await this.assertMember(userId, companyId);
     const sales = await this.prisma.sale.findMany({
       where: { companyId },
-      include: { product: { select: { name: true } } },
+      include: {
+        product: { select: { name: true } },
+        taxCode: { select: { name: true } },
+      },
       orderBy: { soldAt: "desc" },
     });
     return sales.map((sale) => ({
       ...sale,
       productName: sale.product.name,
+      taxCodeName: sale.taxCode?.name ?? null,
     }));
   }
 
@@ -26,12 +30,15 @@ export class SalesService {
     await this.assertMember(userId, companyId);
     const sale = await this.prisma.sale.findFirst({
       where: { id: saleId, companyId },
-      include: { product: { select: { name: true } } },
+      include: {
+        product: { select: { name: true } },
+        taxCode: { select: { name: true } },
+      },
     });
     if (!sale) {
       throw new NotFoundException("Sale not found");
     }
-    return { ...sale, productName: sale.product.name };
+    return { ...sale, productName: sale.product.name, taxCodeName: sale.taxCode?.name ?? null };
   }
 
   async createSale(userId: string, companyId: string, dto: CreateSaleDto) {
@@ -51,17 +58,29 @@ export class SalesService {
       if (product.stock < dto.quantity) {
         throw new BadRequestException("Insufficient stock");
       }
-      const totalPrice = dto.quantity * dto.pricePerUnit;
+      const taxCode = await this.resolveTaxCode(tx, companyId, dto.taxCodeId);
+      const subtotalAmount = dto.quantity * dto.pricePerUnit;
+      const taxRate = taxCode?.rate ?? 0;
+      const taxAmount = this.calculateTaxAmount(subtotalAmount, taxRate);
+      const totalPrice = subtotalAmount + taxAmount;
       const settlementType = dto.settlementType ?? "receivable";
       const sale = await tx.sale.create({
         data: {
           companyId,
           productId: product.id,
+          taxCodeId: taxCode?.id,
           settlementType,
           quantity: dto.quantity,
           pricePerUnit: dto.pricePerUnit,
+          subtotalAmount,
+          taxRate,
+          taxAmount,
           totalPrice,
           soldAt: dto.soldAt ?? new Date(),
+        },
+        include: {
+          product: { select: { name: true } },
+          taxCode: { select: { name: true } },
         },
       });
       await tx.product.update({
@@ -69,7 +88,7 @@ export class SalesService {
         data: { stock: product.stock - dto.quantity },
       });
       await this.syncSaleSettlement(tx, companyId, sale, product.name);
-      return { ...sale, productName: product.name };
+      return { ...sale, productName: product.name, taxCodeName: sale.taxCode?.name ?? null };
     });
   }
 
@@ -95,6 +114,11 @@ export class SalesService {
       const targetProductId = resolvedProductId ?? sale.productId;
       const quantity = dto.quantity ?? sale.quantity;
       const pricePerUnit = dto.pricePerUnit ?? sale.pricePerUnit;
+      const nextTaxCodeId = dto.taxCodeId === undefined ? sale.taxCodeId : dto.taxCodeId;
+      const taxCode = await this.resolveTaxCode(tx, companyId, nextTaxCodeId);
+      const subtotalAmount = quantity * pricePerUnit;
+      const taxRate = taxCode?.rate ?? 0;
+      const taxAmount = this.calculateTaxAmount(subtotalAmount, taxRate);
       const settlementType = dto.settlementType ?? sale.settlementType;
 
       if (targetProductId !== sale.productId) {
@@ -139,23 +163,28 @@ export class SalesService {
         where: { id: sale.id },
         data: {
           productId: targetProductId,
+          taxCodeId: taxCode?.id ?? null,
           settlementType,
           quantity,
           pricePerUnit,
-          totalPrice: quantity * pricePerUnit,
+          subtotalAmount,
+          taxRate,
+          taxAmount,
+          totalPrice: subtotalAmount + taxAmount,
           soldAt: dto.soldAt ?? sale.soldAt,
+        },
+        include: {
+          product: { select: { name: true } },
+          taxCode: { select: { name: true } },
         },
       });
 
-      const product = await tx.product.findFirst({
-        where: { id: updated.productId, companyId },
-      });
-
-      await this.syncSaleSettlement(tx, companyId, updated, product?.name ?? "Produk");
+      await this.syncSaleSettlement(tx, companyId, updated, updated.product.name);
 
       return {
         ...updated,
-        productName: product?.name ?? "",
+        productName: updated.product.name,
+        taxCodeName: updated.taxCode?.name ?? null,
       };
     });
   }
@@ -226,16 +255,34 @@ export class SalesService {
     return account.id;
   }
 
+  private async resolveTaxCode(tx: Prisma.TransactionClient, companyId: string, taxCodeId?: string | null) {
+    if (!taxCodeId) return null;
+    const taxCode = await tx.taxCode.findFirst({
+      where: { id: taxCodeId, companyId },
+    });
+    if (!taxCode) {
+      throw new NotFoundException("Tax code not found");
+    }
+    return taxCode;
+  }
+
+  private calculateTaxAmount(baseAmount: number, taxRate: number) {
+    return Math.round(baseAmount * (taxRate / 100));
+  }
+
   private async upsertSaleJournal(
     tx: Prisma.TransactionClient,
     companyId: string,
     saleId: string,
-    total: number,
+    subtotalAmount: number,
+    taxAmount: number,
+    totalPrice: number,
     soldAt: Date,
   ) {
     await this.ensureDefaultAccounts(tx, companyId);
     const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
     const revenueId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.revenue);
+    const taxPayableId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxPayable);
 
     const existing = await tx.journalEntry.findFirst({
       where: { companyId, source: "sale", sourceId: saleId },
@@ -252,12 +299,7 @@ export class SalesService {
           status: "posted",
         },
       });
-      await tx.journalLine.createMany({
-        data: [
-          { entryId: entry.id, accountId: cashId, debit: total, credit: 0 },
-          { entryId: entry.id, accountId: revenueId, debit: 0, credit: total },
-        ],
-      });
+      await tx.journalLine.createMany({ data: this.buildCashSaleJournalLines(entry.id, cashId, revenueId, taxPayableId, subtotalAmount, taxAmount, totalPrice) });
       return;
     }
 
@@ -266,18 +308,20 @@ export class SalesService {
       data: { date: soldAt, memo: `Penjualan #${saleId}`, status: "posted" },
     });
     await tx.journalLine.deleteMany({ where: { entryId: existing.id } });
-    await tx.journalLine.createMany({
-      data: [
-        { entryId: existing.id, accountId: cashId, debit: total, credit: 0 },
-        { entryId: existing.id, accountId: revenueId, debit: 0, credit: total },
-      ],
-    });
+    await tx.journalLine.createMany({ data: this.buildCashSaleJournalLines(existing.id, cashId, revenueId, taxPayableId, subtotalAmount, taxAmount, totalPrice) });
   }
 
   private async syncSaleSettlement(
     tx: Prisma.TransactionClient,
     companyId: string,
-    sale: { id: string; totalPrice: number; soldAt: Date; settlementType: string },
+    sale: {
+      id: string;
+      subtotalAmount: number;
+      taxAmount: number;
+      totalPrice: number;
+      soldAt: Date;
+      settlementType: string;
+    },
     productName: string,
   ) {
     const linkedReceivable = await tx.receivable.findFirst({
@@ -291,7 +335,15 @@ export class SalesService {
         }
         await this.deleteReceivableForSale(tx, companyId, linkedReceivable.id);
       }
-      await this.upsertSaleJournal(tx, companyId, sale.id, sale.totalPrice, sale.soldAt);
+      await this.upsertSaleJournal(
+        tx,
+        companyId,
+        sale.id,
+        sale.subtotalAmount,
+        sale.taxAmount,
+        sale.totalPrice,
+        sale.soldAt,
+      );
       return;
     }
 
@@ -321,7 +373,7 @@ export class SalesService {
   private async upsertReceivableForSale(
     tx: Prisma.TransactionClient,
     companyId: string,
-    sale: { id: string; totalPrice: number; soldAt: Date },
+    sale: { id: string; subtotalAmount: number; taxAmount: number; totalPrice: number; soldAt: Date },
     productName: string,
     existing?: {
       id: string;
@@ -331,6 +383,7 @@ export class SalesService {
     await this.ensureDefaultAccounts(tx, companyId);
     const receivableAccountId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.receivable);
     const revenueId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.revenue);
+    const taxPayableId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.taxPayable);
     const cashId = await this.getAccountIdByCode(tx, companyId, DEFAULT_ACCOUNT_CODES.cash);
     const paidAmount = Math.min(existing?.paidAmount ?? 0, sale.totalPrice);
     const dueDate = sale.soldAt;
@@ -393,10 +446,15 @@ export class SalesService {
     }
 
     await tx.journalLine.createMany({
-      data: [
-        { entryId: receivableJournalId, accountId: receivableAccountId, debit: sale.totalPrice, credit: 0 },
-        { entryId: receivableJournalId, accountId: revenueId, debit: 0, credit: sale.totalPrice },
-      ],
+      data: this.buildReceivableSaleJournalLines(
+        receivableJournalId,
+        receivableAccountId,
+        revenueId,
+        taxPayableId,
+        sale.subtotalAmount,
+        sale.taxAmount,
+        sale.totalPrice,
+      ),
     });
 
     const paymentEntry = await tx.journalEntry.findFirst({
@@ -450,5 +508,37 @@ export class SalesService {
     if (paidAmount > 0) return "partial";
     if (dueDate.getTime() < Date.now()) return "overdue";
     return "pending";
+  }
+
+  private buildCashSaleJournalLines(
+    entryId: string,
+    cashId: string,
+    revenueId: string,
+    taxPayableId: string,
+    subtotalAmount: number,
+    taxAmount: number,
+    totalPrice: number,
+  ) {
+    return [
+      { entryId, accountId: cashId, debit: totalPrice, credit: 0 },
+      { entryId, accountId: revenueId, debit: 0, credit: subtotalAmount },
+      ...(taxAmount > 0 ? [{ entryId, accountId: taxPayableId, debit: 0, credit: taxAmount }] : []),
+    ];
+  }
+
+  private buildReceivableSaleJournalLines(
+    entryId: string,
+    receivableAccountId: string,
+    revenueId: string,
+    taxPayableId: string,
+    subtotalAmount: number,
+    taxAmount: number,
+    totalPrice: number,
+  ) {
+    return [
+      { entryId, accountId: receivableAccountId, debit: totalPrice, credit: 0 },
+      { entryId, accountId: revenueId, debit: 0, credit: subtotalAmount },
+      ...(taxAmount > 0 ? [{ entryId, accountId: taxPayableId, debit: 0, credit: taxAmount }] : []),
+    ];
   }
 }

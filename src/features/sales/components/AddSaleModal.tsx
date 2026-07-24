@@ -17,19 +17,30 @@ import {
 } from '@/components/ui/select';
 import { SaleFormData } from '../types';
 import { Product } from '@/features/products/types';
+import { TaxCode } from '@/features/taxes';
 import { todayInputValue } from '@/shared/lib/date';
+
+const NO_TAX = '__none__';
 
 interface AddSaleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: SaleFormData) => void;
+  onSubmit: (data: SaleFormData) => Promise<void> | void;
   products: Product[];
+  taxCodes: TaxCode[];
 }
 
-export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleModalProps) {
+export function AddSaleModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  products,
+  taxCodes,
+}: AddSaleModalProps) {
   const today = todayInputValue();
   const [formData, setFormData] = useState<SaleFormData>({
     productId: '',
+    taxCodeId: null,
     settlementType: 'receivable',
     quantity: 1,
     pricePerUnit: 0,
@@ -37,11 +48,16 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
   });
   const [productCode, setProductCode] = useState('');
 
-  const selectedProduct = products.find(p => p.id === formData.productId);
+  const selectedProduct = products.find((p) => p.id === formData.productId);
+  const selectedTaxCode = taxCodes.find((taxCode) => taxCode.id === formData.taxCodeId);
+  const subtotalAmount = formData.quantity * formData.pricePerUnit;
+  const taxRate = selectedTaxCode?.rate ?? 0;
+  const taxAmount = Math.round(subtotalAmount * (taxRate / 100));
+  const totalPrice = subtotalAmount + taxAmount;
 
   useEffect(() => {
     if (selectedProduct) {
-      setFormData(prev => ({ ...prev, pricePerUnit: selectedProduct.price }));
+      setFormData((prev) => ({ ...prev, pricePerUnit: selectedProduct.price }));
       setProductCode(selectedProduct.code ?? '');
     }
   }, [selectedProduct]);
@@ -49,34 +65,47 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
   useEffect(() => {
     const normalized = productCode.trim().toUpperCase();
     if (!normalized) return;
-    const matched = products.find(product => (product.code ?? '').toUpperCase() === normalized);
+    const matched = products.find((product) => (product.code ?? '').toUpperCase() === normalized);
     if (matched) {
-      setFormData(prev => ({ ...prev, productId: matched.id }));
+      setFormData((prev) => ({ ...prev, productId: matched.id }));
     } else {
-      setFormData(prev => ({ ...prev, productId: '' }));
+      setFormData((prev) => ({ ...prev, productId: '' }));
     }
   }, [productCode, products]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setProductCode('');
+    setFormData({
+      productId: '',
+      taxCodeId: null,
+      settlementType: 'receivable',
+      quantity: 1,
+      pricePerUnit: 0,
+      soldAt: today,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
-    
+
     if (formData.quantity > selectedProduct.stock) {
       alert(`Stok tidak cukup! Hanya tersedia ${selectedProduct.stock} unit.`);
       return;
     }
-    
-    onSubmit({ ...formData, productCode: productCode.trim() || undefined });
-    onClose();
-    setProductCode('');
-    setFormData({ productId: '', settlementType: 'receivable', quantity: 1, pricePerUnit: 0, soldAt: today });
-  };
 
-  const totalPrice = formData.quantity * formData.pricePerUnit;
+    await onSubmit({
+      ...formData,
+      productCode: productCode.trim() || undefined,
+      taxCodeId: formData.taxCodeId ?? null,
+    });
+    onClose();
+    resetForm();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-card border-border">
+      <DialogContent className="sm:max-w-[480px] bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Catat Penjualan Baru</DialogTitle>
         </DialogHeader>
@@ -92,6 +121,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="productCode">Kode Produk (opsional)</Label>
             <Input
@@ -102,6 +132,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
               className="bg-background border-border"
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="product">Produk</Label>
             <Select
@@ -136,8 +167,28 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Penjualan kredit akan otomatis masuk ke Piutang Usaha. Gunakan opsi tunai hanya jika transaksi langsung dibayar.
+              Penjualan kredit akan otomatis masuk ke Piutang Usaha. Gunakan opsi tunai hanya jika pelanggan langsung membayar.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="taxCode">Pajak</Label>
+            <Select
+              value={formData.taxCodeId ?? NO_TAX}
+              onValueChange={(value) => setFormData({ ...formData, taxCodeId: value === NO_TAX ? null : value })}
+            >
+              <SelectTrigger className="bg-background border-border">
+                <SelectValue placeholder="Pilih kode pajak" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_TAX}>Tanpa pajak</SelectItem>
+                {taxCodes.map((taxCode) => (
+                  <SelectItem key={taxCode.id} value={taxCode.id}>
+                    {taxCode.name} ({taxCode.rate.toLocaleString('id-ID')}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -148,7 +199,7 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
               min="1"
               max={selectedProduct?.stock || 999}
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value, 10) || 1 })}
               className="bg-background border-border"
             />
             {selectedProduct && (
@@ -171,12 +222,24 @@ export function AddSaleModal({ isOpen, onClose, onSubmit, products }: AddSaleMod
             />
           </div>
 
-          <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Penjualan</span>
-              <span className="text-lg font-bold text-primary">
-                Rp{totalPrice.toLocaleString('id-ID')}
-              </span>
+          <div className="rounded-lg border border-primary/20 bg-primary/10 p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">DPP</span>
+                <span className="font-medium text-foreground">Rp{subtotalAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Pajak {taxRate > 0 ? `(${taxRate.toLocaleString('id-ID')}%)` : ''}
+                </span>
+                <span className="font-medium text-foreground">Rp{taxAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-primary/20 pt-2">
+                <span className="text-sm text-muted-foreground">Grand Total</span>
+                <span className="text-lg font-bold text-primary">
+                  Rp{totalPrice.toLocaleString('id-ID')}
+                </span>
+              </div>
             </div>
           </div>
 

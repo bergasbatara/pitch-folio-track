@@ -16,8 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { TaxCode } from '@/features/taxes';
 import { Purchase, PurchaseFormData } from '../types';
 import { todayInputValue } from '@/shared/lib/date';
+
+const NO_TAX = '__none__';
 
 interface AddPurchaseModalProps {
   open: boolean;
@@ -25,6 +28,7 @@ interface AddPurchaseModalProps {
   onAddPurchase: (purchase: PurchaseFormData) => Promise<void> | void;
   editingPurchase?: Purchase | null;
   onUpdatePurchase?: (id: string, updates: Partial<PurchaseFormData>) => Promise<void> | void;
+  taxCodes: TaxCode[];
 }
 
 const defaultDate = () => todayInputValue();
@@ -35,21 +39,30 @@ export function AddPurchaseModal({
   onAddPurchase,
   editingPurchase,
   onUpdatePurchase,
+  taxCodes,
 }: AddPurchaseModalProps) {
   const [date, setDate] = useState(defaultDate());
   const [itemName, setItemName] = useState('');
   const [productCode, setProductCode] = useState('');
+  const [taxCodeId, setTaxCodeId] = useState<string | null>(null);
   const [settlementType, setSettlementType] = useState<'cash' | 'payable'>('payable');
   const [supplier, setSupplier] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unitCost, setUnitCost] = useState('');
   const [notes, setNotes] = useState('');
 
+  const selectedTaxCode = taxCodes.find((taxCode) => taxCode.id === taxCodeId);
+  const subtotalCost = quantity && unitCost ? parseFloat(quantity) * parseFloat(unitCost) : 0;
+  const taxRate = selectedTaxCode?.rate ?? 0;
+  const taxAmount = Math.round(subtotalCost * (taxRate / 100));
+  const totalCost = subtotalCost + taxAmount;
+
   useEffect(() => {
     if (editingPurchase && open) {
       setDate(toInputDate(editingPurchase.date));
       setItemName(editingPurchase.itemName ?? '');
       setProductCode(editingPurchase.productCode ?? '');
+      setTaxCodeId(editingPurchase.taxCodeId ?? null);
       setSettlementType(editingPurchase.settlementType ?? 'payable');
       setSupplier(editingPurchase.supplier ?? '');
       setQuantity(editingPurchase.quantity?.toString() ?? '');
@@ -66,6 +79,7 @@ export function AddPurchaseModal({
     setDate(defaultDate());
     setItemName('');
     setProductCode('');
+    setTaxCodeId(null);
     setSettlementType('payable');
     setSupplier('');
     setQuantity('');
@@ -81,6 +95,7 @@ export function AddPurchaseModal({
     const purchaseData: PurchaseFormData = {
       date,
       productCode: productCode.trim() || undefined,
+      taxCodeId,
       settlementType,
       itemName: itemName.trim(),
       supplier: supplier.trim() || undefined,
@@ -98,10 +113,6 @@ export function AddPurchaseModal({
     resetForm();
     onOpenChange(false);
   };
-
-  const totalCost = quantity && unitCost
-    ? (parseFloat(quantity) * parseFloat(unitCost)).toFixed(2)
-    : '0.00';
 
   const canSubmit = !!itemName.trim() && Number(quantity) > 0 && Number(unitCost) > 0;
 
@@ -163,6 +174,23 @@ export function AddPurchaseModal({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="taxCode">Pajak</Label>
+            <Select value={taxCodeId ?? NO_TAX} onValueChange={(value) => setTaxCodeId(value === NO_TAX ? null : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih kode pajak" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_TAX}>Tanpa pajak</SelectItem>
+                {taxCodes.map((taxCode) => (
+                  <SelectItem key={taxCode.id} value={taxCode.id}>
+                    {taxCode.name} ({taxCode.rate.toLocaleString('id-ID')}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="supplier">Pemasok (opsional)</Label>
             <Input
               id="supplier"
@@ -202,8 +230,25 @@ export function AddPurchaseModal({
             <div className="space-y-2">
               <Label>Total</Label>
               <div className="flex h-10 items-center rounded-lg border border-border bg-muted px-3 text-sm font-medium">
-                Rp{parseInt(totalCost).toLocaleString('id-ID')}
+                Rp{Math.round(totalCost).toLocaleString('id-ID')}
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">DPP</span>
+              <span className="font-medium">Rp{subtotalCost.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Pajak {taxRate > 0 ? `(${taxRate.toLocaleString('id-ID')}%)` : ''}
+              </span>
+              <span className="font-medium">Rp{taxAmount.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <span className="text-sm text-muted-foreground">Grand Total</span>
+              <span className="text-base font-semibold">Rp{Math.round(totalCost).toLocaleString('id-ID')}</span>
             </div>
           </div>
 

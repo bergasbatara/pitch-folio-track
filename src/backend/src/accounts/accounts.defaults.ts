@@ -1,6 +1,7 @@
 export const DEFAULT_ACCOUNTS = [
   { code: "1001", name: "Kas", type: "asset", normalBalance: "debit", isSystem: true },
   { code: "1101", name: "Piutang Usaha", type: "asset", normalBalance: "debit", isSystem: true },
+  { code: "1102", name: "Pajak Masukan", type: "asset", normalBalance: "debit", isSystem: true },
   { code: "1201", name: "Persediaan", type: "asset", normalBalance: "debit", isSystem: true },
   { code: "1301", name: "Aset Tetap", type: "asset", normalBalance: "debit", isSystem: true },
   { code: "1401", name: "Akumulasi Penyusutan", type: "asset", normalBalance: "credit", isSystem: true },
@@ -16,6 +17,7 @@ export const DEFAULT_ACCOUNTS = [
 export const DEFAULT_ACCOUNT_CODES = {
   cash: "1001",
   receivable: "1101",
+  taxInput: "1102",
   inventory: "1201",
   fixedAsset: "1301",
   accumulatedDepreciation: "1401",

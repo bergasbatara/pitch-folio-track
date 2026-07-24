@@ -47,6 +47,14 @@ export class UpdatePurchaseDto {
   unitCost?: number;
 
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    return String(value);
+  })
+  @IsOptional()
+  @IsString()
+  taxCodeId?: string;
+
+  @Transform(({ value }) => {
     if (value === undefined || value === null) return undefined;
     const normalized = String(value).trim().toLowerCase();
     return normalized || undefined;

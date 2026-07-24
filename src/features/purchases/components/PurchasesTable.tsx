@@ -49,6 +49,7 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
             <TableHead>Tanggal</TableHead>
             <TableHead>Barang</TableHead>
             <TableHead>Pemasok</TableHead>
+            <TableHead>Pajak</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -65,12 +66,26 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
               <TableCell className="text-muted-foreground">
                 {purchase.supplier || '-'}
               </TableCell>
+              <TableCell className="text-muted-foreground">
+                {purchase.taxCodeName ? (
+                  <div className="space-y-1">
+                    <div className="font-medium text-foreground">{purchase.taxCodeName}</div>
+                    <div className="text-xs">{purchase.taxRate.toLocaleString('id-ID')}%</div>
+                  </div>
+                ) : (
+                  '-'
+                )}
+              </TableCell>
               <TableCell className="text-right">{purchase.quantity}</TableCell>
               <TableCell className="text-right text-muted-foreground">
                 {formatCurrency(purchase.unitCost)}
               </TableCell>
-              <TableCell className="text-right font-medium">
-                {formatCurrency(purchase.totalCost)}
+              <TableCell className="text-right">
+                <div className="font-medium">{formatCurrency(purchase.totalCost)}</div>
+                <div className="text-xs text-muted-foreground">
+                  DPP {formatCurrency(purchase.subtotalCost)}
+                  {purchase.taxAmount > 0 ? ` + Pajak ${formatCurrency(purchase.taxAmount)}` : ''}
+                </div>
               </TableCell>
               <TableCell>
                 <DropdownMenu>

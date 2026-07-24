@@ -33,6 +33,7 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
           <TableRow className="bg-muted/50">
             <TableHead>Tanggal</TableHead>
             <TableHead>Produk</TableHead>
+            <TableHead>Pajak</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -46,12 +47,28 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
                 {formatDateId(sale.soldAt)}
               </TableCell>
               <TableCell className="font-medium">{sale.productName}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {sale.taxCodeName ? (
+                  <div className="space-y-1">
+                    <div className="font-medium text-foreground">{sale.taxCodeName}</div>
+                    <div className="text-xs">{sale.taxRate.toLocaleString('id-ID')}%</div>
+                  </div>
+                ) : (
+                  '-'
+                )}
+              </TableCell>
               <TableCell className="text-right">{sale.quantity}</TableCell>
               <TableCell className="text-right">
                 Rp{sale.pricePerUnit.toLocaleString('id-ID')}
               </TableCell>
-              <TableCell className="text-right font-semibold text-primary">
-                Rp{sale.totalPrice.toLocaleString('id-ID')}
+              <TableCell className="text-right">
+                <div className="font-semibold text-primary">
+                  Rp{sale.totalPrice.toLocaleString('id-ID')}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  DPP Rp{sale.subtotalAmount.toLocaleString('id-ID')}
+                  {sale.taxAmount > 0 ? ` + Pajak Rp${sale.taxAmount.toLocaleString('id-ID')}` : ''}
+                </div>
               </TableCell>
               <TableCell>
                 <Button

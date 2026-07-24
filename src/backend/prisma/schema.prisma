@@ -114,19 +114,25 @@ model Sale {
   id           String   @id @default(uuid())
   companyId    String
   productId    String
+  taxCodeId    String?
   settlementType String @default("receivable")
   quantity     Int
   pricePerUnit Int
+  subtotalAmount Int
+  taxRate      Float    @default(0)
+  taxAmount    Int      @default(0)
   totalPrice   Int
   soldAt       DateTime
   createdAt    DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  taxCode TaxCode? @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
   receivable Receivable?
 
   @@index([companyId])
   @@index([productId])
+  @@index([taxCodeId])
 }
 
 model PurchaseCategory {
@@ -147,11 +153,15 @@ model Purchase {
   companyId  String
   categoryId String
   productId  String?
+  taxCodeId  String?
   settlementType String @default("payable")
   itemName   String
   supplier   String?
   quantity   Int
   unitCost   Int
+  subtotalCost Int
+  taxRate    Float    @default(0)
+  taxAmount  Int      @default(0)
   totalCost  Int
   date       DateTime
   notes      String?
@@ -160,11 +170,13 @@ model Purchase {
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category PurchaseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   product  Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCode  TaxCode?         @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
   payable  Payable?
 
   @@index([companyId])
   @@index([categoryId])
   @@index([productId])
+  @@index([taxCodeId])
 }
 
 model Receivable {
@@ -279,6 +291,8 @@ model TaxCode {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   journalEntries JournalEntry[]
+  sales    Sale[]
+  purchases Purchase[]
 
   @@unique([companyId, code])
   @@index([companyId])
