@@ -130,3 +130,5 @@ Current Playwright flows cover:
 
 - Vite env vars are baked in at build time (set `VITE_API_URL` correctly before building).
 - The backend expects `FRONTEND_URL` (comma-separated origins in production) for CORS/CSRF configuration.
+
+Edit
