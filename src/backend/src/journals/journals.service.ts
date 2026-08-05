@@ -118,6 +118,9 @@ export class JournalsService {
     if (existing.source) {
       throw new BadRequestException("Operational journal entries cannot be edited directly. Use reversal or adjustment journal.");
     }
+    if (existing.status === "posted") {
+      throw new BadRequestException("Posted journal entries cannot be edited directly. Use reversal or a new adjustment journal.");
+    }
     await this.assertPeriodOpen(companyId, existing.date);
     await this.assertPeriodOpen(companyId, dto.date ?? existing.date);
 
@@ -141,7 +144,7 @@ export class JournalsService {
         if (normalizedLines.totalDebit !== normalizedLines.totalCredit) {
           throw new BadRequestException("Journal entry is not balanced");
         }
-      } else if (dto.status === "posted" && existing.status !== "posted") {
+      } else if (dto.status === "posted") {
         // Posting without changing lines: validate existing lines are balanced.
         const currentLines = await this.prisma.journalLine.findMany({
           where: { entryId },
@@ -203,10 +206,80 @@ export class JournalsService {
     if (existing.source) {
       throw new BadRequestException("Operational journal entries cannot be deleted directly. Use reversal or adjustment journal.");
     }
+    if (existing.status === "posted") {
+      throw new BadRequestException("Posted journal entries cannot be deleted directly. Use reversal or a new adjustment journal.");
+    }
     await this.assertPeriodOpen(companyId, existing.date);
 
     await this.prisma.journalEntry.delete({ where: { id: entryId } });
     return { success: true };
+  }
+
+  async reverseEntry(userId: string, companyId: string, entryId: string) {
+    await this.assertOwner(userId, companyId);
+    const existing = await this.prisma.journalEntry.findFirst({
+      where: { id: entryId, companyId },
+      include: {
+        lines: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException("Journal entry not found");
+    }
+    if (existing.source) {
+      throw new BadRequestException("Only manually posted journal entries can be reversed here.");
+    }
+    if (existing.status !== "posted") {
+      throw new BadRequestException("Only posted journal entries can be reversed.");
+    }
+    const duplicateReversal = await this.prisma.journalEntry.findFirst({
+      where: {
+        companyId,
+        source: "journal_reversal",
+        sourceId: existing.id,
+      },
+      select: { id: true },
+    });
+    if (duplicateReversal) {
+      throw new BadRequestException("This journal entry has already been reversed.");
+    }
+
+    const reversalDate = new Date();
+    await this.assertPeriodOpen(companyId, reversalDate);
+
+    return this.prisma.$transaction(async (tx) => {
+      const reversal = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date: reversalDate,
+          memo: existing.memo ? `Reversal - ${existing.memo}` : `Reversal - ${existing.id}`,
+          source: "journal_reversal",
+          sourceId: existing.id,
+          status: "posted",
+        },
+      });
+
+      await tx.journalLine.createMany({
+        data: existing.lines.map((line) => ({
+          entryId: reversal.id,
+          accountId: line.accountId,
+          debit: line.credit,
+          credit: line.debit,
+          memo: line.memo ? `Reversal - ${line.memo}` : "Reversal line",
+        })),
+      });
+
+      return tx.journalEntry.findFirst({
+        where: { id: reversal.id },
+        include: {
+          lines: {
+            include: {
+              account: { select: { id: true, code: true, name: true } },
+            },
+          },
+        },
+      });
+    });
   }
 
   private async assertPeriodOpen(companyId: string, effectiveDate: Date) {

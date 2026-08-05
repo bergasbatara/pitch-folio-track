@@ -68,7 +68,18 @@ export function useJournals(companyId?: string) {
     });
   }, [companyId, entries, runMutate]);
 
-  return { entries, isLoading, isMutating, error, addEntry, updateEntry, deleteEntry };
+  const reverseEntry = useCallback(async (id: string) => {
+    if (!companyId) throw new Error('Missing company');
+    const created = await runMutate(async () => {
+      return fetchJson<JournalEntry>(`/companies/${companyId}/journals/${id}/reverse`, {
+        method: 'POST',
+      });
+    });
+    setEntries((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, runMutate]);
+
+  return { entries, isLoading, isMutating, error, addEntry, updateEntry, deleteEntry, reverseEntry };
 }
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {

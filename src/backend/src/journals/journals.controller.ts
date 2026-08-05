@@ -45,6 +45,15 @@ export class JournalsController {
     return this.journalsService.updateEntry(req.user.sub, companyId, entryId, dto);
   }
 
+  @Post(":entryId/reverse")
+  reverse(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Param("entryId") entryId: string,
+  ) {
+    return this.journalsService.reverseEntry(req.user.sub, companyId, entryId);
+  }
+
   @Delete(":entryId")
   remove(
     @Req() req: { user: { sub: string } },
