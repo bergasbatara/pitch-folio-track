@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,9 +63,18 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[760px] bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-foreground">{entry ? 'Edit Jurnal' : 'Tambah Jurnal'}</DialogTitle>
+          <DialogTitle className="text-foreground">
+            {entry ? 'Edit Jurnal Penyesuaian' : 'Tambah Jurnal Penyesuaian'}
+          </DialogTitle>
+          <DialogDescription>
+            Gunakan form ini hanya untuk koreksi, reklasifikasi, atau penyesuaian akhir periode. Transaksi operasional sebaiknya dibalik dari modul asalnya.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+            Jurnal akan <span className="font-medium text-foreground">langsung diposting</span> bila total Debit dan Kredit seimbang.
+            Jika belum seimbang, jurnal disimpan sebagai <span className="font-medium text-foreground">Draft</span> sampai dilengkapi.
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tanggal</Label>
@@ -120,7 +129,7 @@ export function JournalModal({ isOpen, onClose, onSubmit, accounts, entry }: Jou
               <Plus className="h-3 w-3" /> Tambah Baris
             </Button>
             <p className="text-xs text-muted-foreground">
-              Isi salah satu kolom Debit atau Kredit pada setiap baris. Akun aset/beban yang bertambah masuk Debit; liabilitas/ekuitas/pendapatan yang bertambah masuk Kredit.
+              Isi pasangan koreksi dengan lengkap. Akun aset/beban yang bertambah masuk Debit; liabilitas/ekuitas/pendapatan yang bertambah masuk Kredit.
             </p>
           </div>
 

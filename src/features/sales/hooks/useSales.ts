@@ -9,6 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 export function useSales(companyId?: string) {
   const [sales, setSales] = useState<Sale[]>([]);
   const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
+  const postedSales = useMemo(() => sales.filter((sale) => sale.status === 'posted'), [sales]);
 
   useEffect(() => {
     const load = async () => {
@@ -53,27 +54,41 @@ export function useSales(companyId?: string) {
     });
   }, [companyId, sales, runMutate]);
 
+  const reverseSale = useCallback(async (id: string) => {
+    if (!companyId) {
+      throw new Error('Missing company');
+    }
+    const reversed = await runMutate(async () => {
+      const result = await fetchJson<Sale>(`/companies/${companyId}/sales/${id}/reverse`, {
+        method: 'POST',
+      });
+      return hydrateSale(result);
+    });
+    setSales((prev) => prev.map((sale) => (sale.id === id ? reversed : sale)));
+    return reversed;
+  }, [companyId, runMutate]);
+
   const totalRevenue = useMemo(() => {
-    return sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-  }, [sales]);
+    return postedSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+  }, [postedSales]);
 
   const totalUnitsSold = useMemo(() => {
-    return sales.reduce((sum, sale) => sum + sale.quantity, 0);
-  }, [sales]);
+    return postedSales.reduce((sum, sale) => sum + sale.quantity, 0);
+  }, [postedSales]);
 
   const todaysSales = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return sales.filter((sale) => parseApiDateToLocalDate(sale.soldAt) >= today);
-  }, [sales]);
+    return postedSales.filter((sale) => parseApiDateToLocalDate(sale.soldAt) >= today);
+  }, [postedSales]);
 
   const todaysRevenue = useMemo(() => {
     return todaysSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
   }, [todaysSales]);
 
   const getSalesByProduct = useCallback((productId: string) => {
-    return sales.filter((sale) => sale.productId === productId);
-  }, [sales]);
+    return postedSales.filter((sale) => sale.productId === productId);
+  }, [postedSales]);
 
   return {
     sales,
@@ -82,6 +97,7 @@ export function useSales(companyId?: string) {
     error,
     addSale,
     deleteSale,
+    reverseSale,
     totalRevenue,
     totalUnitsSold,
     todaysSales,

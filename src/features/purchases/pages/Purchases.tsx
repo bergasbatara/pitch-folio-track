@@ -9,14 +9,16 @@ import { useCompanyProfile } from '@/features/onboarding';
 import { useTaxCodes } from '@/features/taxes';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
 import { Button } from '@/components/ui/button';
-import { PageHeader, StatCard, EmptyState } from '@/shared';
+import { PageHeader, StatCard, EmptyState, TransactionReversalDialog } from '@/shared';
+import { formatDateId } from '@/shared/lib/date';
 
 export default function Purchases() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
+  const [reversingPurchase, setReversingPurchase] = useState<Purchase | null>(null);
   const { company, error: companyError } = useCompanyProfile();
 
-  const { purchases, addPurchase, updatePurchase, deletePurchase, getTotalSpend, error: purchasesError } = usePurchases(company?.id);
+  const { purchases, addPurchase, updatePurchase, deletePurchase, reversePurchase, getTotalSpend, isMutating, error: purchasesError } = usePurchases(company?.id);
   const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(purchasesError, 'Gagal memuat pembelian');
@@ -42,6 +44,10 @@ export default function Purchases() {
   const handleUpdatePurchase = async (id: string, updates: Partial<PurchaseFormData>) => {
     if (!company?.id) return;
     await updatePurchase(id, updates);
+  };
+
+  const handleReversePurchase = async (purchase: Purchase) => {
+    setReversingPurchase(purchase);
   };
 
   const formatCurrency = (value: number) => {
@@ -79,7 +85,12 @@ export default function Purchases() {
               action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Tambah Pembelian</Button>}
             />
           ) : (
-            <PurchasesTable purchases={purchases} onEdit={handleEdit} onDelete={deletePurchase} />
+            <PurchasesTable
+              purchases={purchases}
+              onEdit={handleEdit}
+              onDelete={deletePurchase}
+              onReverse={handleReversePurchase}
+            />
           )}
         </div>
 
@@ -90,6 +101,25 @@ export default function Purchases() {
           editingPurchase={editingPurchase}
           onUpdatePurchase={handleUpdatePurchase}
           taxCodes={taxCodes}
+        />
+        <TransactionReversalDialog
+          open={!!reversingPurchase}
+          onOpenChange={(open) => !open && setReversingPurchase(null)}
+          title="Reverse Pembelian"
+          description="Gunakan reversal jika transaksi pembelian posted perlu dibatalkan tanpa menghapus transaksi dan jurnal aslinya."
+          transactionLabel={reversingPurchase ? `${reversingPurchase.itemName} • ${formatCurrency(reversingPurchase.totalCost)}` : ''}
+          transactionDate={reversingPurchase ? formatDateId(reversingPurchase.date) : undefined}
+          impactLines={[
+            'Status pembelian akan berubah menjadi voided.',
+            'Sistem membuat jurnal pembalik yang menetralkan hutang/kas, persediaan atau beban, dan pajak masukan terkait.',
+            'Transaksi asli tetap tersimpan untuk kebutuhan audit, vendor tracing, dan rekonsiliasi.',
+          ]}
+          onConfirm={async () => {
+            if (!reversingPurchase) return;
+            await reversePurchase(reversingPurchase.id);
+            setReversingPurchase(null);
+          }}
+          isSubmitting={isMutating}
         />
       </div>
     </MainLayout>

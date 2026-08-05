@@ -13,17 +13,31 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { Purchase } from '../types';
 import { formatDateId } from '@/shared/lib/date';
+import { Badge } from '@/components/ui/badge';
 
 interface PurchasesTableProps {
   purchases: Purchase[];
   onEdit: (purchase: Purchase) => void;
   onDelete: (id: string) => void;
+  onReverse: (purchase: Purchase) => void;
 }
 
-export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTableProps) {
+const statusLabel: Record<Purchase['status'], string> = {
+  draft: 'Draft',
+  posted: 'Posted',
+  voided: 'Void',
+};
+
+const statusVariant: Record<Purchase['status'], 'secondary' | 'default' | 'destructive'> = {
+  draft: 'secondary',
+  posted: 'default',
+  voided: 'destructive',
+};
+
+export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: PurchasesTableProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -50,6 +64,7 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
             <TableHead>Barang</TableHead>
             <TableHead>Pemasok</TableHead>
             <TableHead>Pajak</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -76,6 +91,11 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
                   '-'
                 )}
               </TableCell>
+              <TableCell>
+                <Badge variant={statusVariant[purchase.status]}>
+                  {statusLabel[purchase.status]}
+                </Badge>
+              </TableCell>
               <TableCell className="text-right">{purchase.quantity}</TableCell>
               <TableCell className="text-right text-muted-foreground">
                 {formatCurrency(purchase.unitCost)}
@@ -95,17 +115,27 @@ export function PurchasesTable({ purchases, onEdit, onDelete }: PurchasesTablePr
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(purchase)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete(purchase.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Hapus
-                    </DropdownMenuItem>
+                    {purchase.status === 'draft' && (
+                      <>
+                        <DropdownMenuItem onClick={() => onEdit(purchase)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onDelete(purchase.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Hapus
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {purchase.status === 'posted' && (
+                      <DropdownMenuItem onClick={() => onReverse(purchase)}>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Reverse
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

@@ -44,6 +44,8 @@ export class SalesService {
   async createSale(userId: string, companyId: string, dto: CreateSaleDto) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
+      const effectiveDate = dto.soldAt ?? new Date();
+      await this.assertPeriodOpen(tx, companyId, effectiveDate);
       if (!dto.productId && !dto.productCode) {
         throw new BadRequestException("Product is required");
       }
@@ -69,6 +71,7 @@ export class SalesService {
           companyId,
           productId: product.id,
           taxCodeId: taxCode?.id,
+          status: "posted",
           settlementType,
           quantity: dto.quantity,
           pricePerUnit: dto.pricePerUnit,
@@ -76,7 +79,7 @@ export class SalesService {
           taxRate,
           taxAmount,
           totalPrice,
-          soldAt: dto.soldAt ?? new Date(),
+          soldAt: effectiveDate,
         },
         include: {
           product: { select: { name: true } },
@@ -101,6 +104,9 @@ export class SalesService {
       if (!sale) {
         throw new NotFoundException("Sale not found");
       }
+      this.assertTransactionMutable(sale.status, "Sale");
+      await this.assertPeriodOpen(tx, companyId, sale.soldAt);
+      await this.assertPeriodOpen(tx, companyId, dto.soldAt ?? sale.soldAt);
 
       const resolvedProductId = dto.productCode
         ? (await tx.product.findFirst({
@@ -198,6 +204,8 @@ export class SalesService {
       if (!sale) {
         throw new NotFoundException("Sale not found");
       }
+      this.assertTransactionMutable(sale.status, "Sale");
+      await this.assertPeriodOpen(tx, companyId, sale.soldAt);
       const product = await tx.product.findFirst({
         where: { id: sale.productId, companyId },
       });
@@ -221,6 +229,83 @@ export class SalesService {
       });
       await tx.sale.delete({ where: { id: sale.id } });
       return { success: true };
+    });
+  }
+
+  async reverseSale(userId: string, companyId: string, saleId: string) {
+    await this.assertMember(userId, companyId);
+    return this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findFirst({
+        where: { id: saleId, companyId },
+      });
+      if (!sale) {
+        throw new NotFoundException("Sale not found");
+      }
+      if (sale.status === "voided") {
+        throw new BadRequestException("Sale has already been reversed");
+      }
+      if (sale.status !== "posted") {
+        throw new BadRequestException("Only posted sales can be reversed");
+      }
+      await this.assertPeriodOpen(tx, companyId, sale.soldAt);
+
+      const receivable = await tx.receivable.findFirst({
+        where: { companyId, saleId: sale.id },
+      });
+      if (receivable && receivable.paidAmount > 0) {
+        throw new BadRequestException("Cannot reverse a receivable sale with recorded payments");
+      }
+
+      const product = await tx.product.findFirst({
+        where: { id: sale.productId, companyId },
+      });
+      if (product) {
+        await tx.product.update({
+          where: { id: product.id },
+          data: { stock: product.stock + sale.quantity },
+        });
+      }
+
+      if (sale.settlementType === "cash") {
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "sale", sourceId: sale.id },
+          `Reversal Penjualan #${sale.id}`,
+          "sale_reversal",
+          sale.id,
+          sale.soldAt,
+        );
+      } else if (receivable) {
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "receivable", sourceId: receivable.id },
+          `Reversal Piutang Penjualan #${sale.id}`,
+          "receivable_reversal",
+          receivable.id,
+          sale.soldAt,
+        );
+        await tx.receivable.update({
+          where: { id: receivable.id },
+          data: { status: "voided" },
+        });
+      }
+
+      const updated = await tx.sale.update({
+        where: { id: sale.id },
+        data: { status: "voided" },
+        include: {
+          product: { select: { name: true } },
+          taxCode: { select: { name: true } },
+        },
+      });
+
+      return {
+        ...updated,
+        productName: updated.product.name,
+        taxCodeName: updated.taxCode?.name ?? null,
+      };
     });
   }
 
@@ -268,6 +353,65 @@ export class SalesService {
 
   private calculateTaxAmount(baseAmount: number, taxRate: number) {
     return Math.round(baseAmount * (taxRate / 100));
+  }
+
+  private assertTransactionMutable(status: string, entityName: string) {
+    if (status !== "draft") {
+      throw new BadRequestException(`${entityName} is finalized and cannot be edited or deleted directly. Use reversal or adjustment journal.`);
+    }
+  }
+
+  private async assertPeriodOpen(tx: Prisma.TransactionClient, companyId: string, effectiveDate: Date) {
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { closedThrough: true },
+    });
+    if (!company?.closedThrough) return;
+
+    const boundary = new Date(company.closedThrough);
+    boundary.setHours(23, 59, 59, 999);
+    if (effectiveDate <= boundary) {
+      throw new BadRequestException("This accounting period is closed. Record the correction in an open period using adjustment or reversal flow.");
+    }
+  }
+
+  private async createReversalEntries(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    filter: { source: string; sourceId: string },
+    memoPrefix: string,
+    reversalSource: string,
+    reversalSourceId: string,
+    date: Date,
+  ) {
+    const originals = await tx.journalEntry.findMany({
+      where: { companyId, ...filter },
+      include: { lines: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    });
+
+    for (const original of originals) {
+      const reversal = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date,
+          memo: `${memoPrefix} (${original.id})`,
+          source: reversalSource,
+          sourceId: reversalSourceId,
+          status: "posted",
+        },
+      });
+
+      await tx.journalLine.createMany({
+        data: original.lines.map((line) => ({
+          entryId: reversal.id,
+          accountId: line.accountId,
+          debit: line.credit,
+          credit: line.debit,
+          memo: line.memo ?? undefined,
+        })),
+      });
+    }
   }
 
   private async upsertSaleJournal(

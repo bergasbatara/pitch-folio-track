@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsOptional, IsString } from "class-validator";
+import { IsEmail, IsISO8601, IsOptional, IsString } from "class-validator";
 
 export class UpdateCompanyDto {
   @Transform(({ value }) => (value === undefined || value === null ? undefined : String(value)))
@@ -33,4 +33,13 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return null;
+    return String(value);
+  })
+  @IsOptional()
+  @IsISO8601()
+  closedThrough?: string | null;
 }

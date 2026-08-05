@@ -1,3 +1,5 @@
+export type TransactionStatus = 'draft' | 'posted' | 'voided';
+
 export interface PurchaseCategory {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface Purchase {
   productCode?: string | null;
   taxCodeId?: string | null;
   taxCodeName?: string | null;
+  status: TransactionStatus;
   settlementType: 'cash' | 'payable';
   itemName: string;
   supplier?: string;

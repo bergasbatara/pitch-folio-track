@@ -1,9 +1,12 @@
+export type TransactionStatus = 'draft' | 'posted' | 'voided';
+
 export interface Sale {
   id: string;
   productId: string;
   productName: string;
   taxCodeId?: string | null;
   taxCodeName?: string | null;
+  status: TransactionStatus;
   settlementType: 'cash' | 'receivable';
   quantity: number;
   pricePerUnit: number;

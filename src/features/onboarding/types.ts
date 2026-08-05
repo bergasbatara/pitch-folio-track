@@ -7,6 +7,7 @@ export interface CompanyProfile {
   taxId?: string;
   logo?: string;
   currency: string;
+  closedThrough?: Date | null;
   categories: string[];
   createdAt: Date;
   updatedAt: Date;

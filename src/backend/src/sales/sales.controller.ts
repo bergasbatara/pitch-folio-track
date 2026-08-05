@@ -53,4 +53,13 @@ export class SalesController {
   ) {
     return this.salesService.deleteSale(req.user.sub, companyId, saleId);
   }
+
+  @Post(":saleId/reverse")
+  reverse(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Param("saleId") saleId: string,
+  ) {
+    return this.salesService.reverseSale(req.user.sub, companyId, saleId);
+  }
 }

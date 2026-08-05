@@ -69,11 +69,11 @@ export default function Journals() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Jurnal Umum</h1>
-            <p className="text-muted-foreground">Catatan semua transaksi dalam format double-entry</p>
+            <p className="text-muted-foreground">Jurnal operasional dibuat otomatis. Koreksi manual dicatat sebagai jurnal penyesuaian.</p>
           </div>
           <Button onClick={() => { setEditingEntry(null); setIsModalOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" />
-            Tambah Jurnal
+            Tambah Jurnal Penyesuaian
           </Button>
         </div>
 

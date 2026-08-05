@@ -43,6 +43,7 @@ export class JournalsService {
 
   async createEntry(userId: string, companyId: string, dto: CreateJournalEntryDto) {
     await this.assertOwner(userId, companyId);
+    await this.assertPeriodOpen(companyId, dto.date ?? new Date());
     const rawLines = dto.lines ?? [];
     if (rawLines.length === 0) {
       throw new BadRequestException("At least 1 journal line is required");
@@ -114,6 +115,11 @@ export class JournalsService {
     if (!existing) {
       throw new NotFoundException("Journal entry not found");
     }
+    if (existing.source) {
+      throw new BadRequestException("Operational journal entries cannot be edited directly. Use reversal or adjustment journal.");
+    }
+    await this.assertPeriodOpen(companyId, existing.date);
+    await this.assertPeriodOpen(companyId, dto.date ?? existing.date);
 
     let normalizedLines: ReturnType<typeof this.normalizeLines> | null = null;
     if (dto.lines) {
@@ -194,10 +200,27 @@ export class JournalsService {
     if (!existing) {
       throw new NotFoundException("Journal entry not found");
     }
-
+    if (existing.source) {
+      throw new BadRequestException("Operational journal entries cannot be deleted directly. Use reversal or adjustment journal.");
+    }
+    await this.assertPeriodOpen(companyId, existing.date);
 
     await this.prisma.journalEntry.delete({ where: { id: entryId } });
     return { success: true };
+  }
+
+  private async assertPeriodOpen(companyId: string, effectiveDate: Date) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { closedThrough: true },
+    });
+    if (!company?.closedThrough) return;
+
+    const boundary = new Date(company.closedThrough);
+    boundary.setHours(23, 59, 59, 999);
+    if (effectiveDate <= boundary) {
+      throw new BadRequestException("This accounting period is closed. Record the correction in an open period using adjustment or reversal flow.");
+    }
   }
 
   private normalizeLines(lines: JournalLineDto[]) {

@@ -54,6 +54,7 @@ model Company {
   email     String?
   taxId     String?
   currency  String   @default("IDR")
+  closedThrough DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -115,6 +116,7 @@ model Sale {
   companyId    String
   productId    String
   taxCodeId    String?
+  status       TransactionStatus @default(posted)
   settlementType String @default("receivable")
   quantity     Int
   pricePerUnit Int
@@ -154,6 +156,7 @@ model Purchase {
   categoryId String
   productId  String?
   taxCodeId  String?
+  status     TransactionStatus @default(posted)
   settlementType String @default("payable")
   itemName   String
   supplier   String?
@@ -342,6 +345,12 @@ model JournalEntry {
 enum JournalEntryStatus {
   draft
   posted
+}
+
+enum TransactionStatus {
+  draft
+  posted
+  voided
 }
 
 enum OpeningBalanceKind {

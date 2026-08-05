@@ -68,6 +68,13 @@ export class CompaniesService {
 
   async updateCompany(userId: string, companyId: string, dto: UpdateCompanyDto) {
     await this.assertOwner(userId, companyId);
+    const closedThrough =
+      dto.closedThrough === undefined
+        ? undefined
+        : dto.closedThrough === null
+          ? null
+          : new Date(dto.closedThrough);
+
     return this.prisma.company.update({
       where: { id: companyId },
       data: {
@@ -77,6 +84,7 @@ export class CompaniesService {
         email: dto.email,
         taxId: dto.taxId,
         currency: dto.currency,
+        closedThrough,
       },
     });
   }

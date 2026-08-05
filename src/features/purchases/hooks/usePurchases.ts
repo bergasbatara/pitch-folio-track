@@ -98,6 +98,7 @@ export function usePurchaseCategories(companyId?: string) {
 export function usePurchases(companyId?: string) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const { isLoading, isMutating, error, runLoad, runMutate } = useAsyncStatus();
+  const postedPurchases = purchases.filter((purchase) => purchase.status === 'posted');
 
   useEffect(() => {
     const load = async () => {
@@ -192,15 +193,29 @@ export function usePurchases(companyId?: string) {
     });
   }, [companyId, purchases, runMutate]);
 
+  const reversePurchase = useCallback(async (id: string) => {
+    if (!companyId) {
+      throw new Error('Missing company');
+    }
+    const reversed = await runMutate(async () => {
+      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}/reverse`, {
+        method: 'POST',
+      });
+      return hydratePurchase(result);
+    });
+    setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? reversed : purchase)));
+    return reversed;
+  }, [companyId, runMutate]);
+
   const getTotalSpend = useCallback(() => {
-    return purchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
-  }, [purchases]);
+    return postedPurchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
+  }, [postedPurchases]);
 
   const getSpendByCategory = useCallback((categoryId: string) => {
-    return purchases
+    return postedPurchases
       .filter((purchase) => purchase.categoryId === categoryId)
       .reduce((sum, purchase) => sum + purchase.totalCost, 0);
-  }, [purchases]);
+  }, [postedPurchases]);
 
   return {
     purchases,
@@ -210,6 +225,7 @@ export function usePurchases(companyId?: string) {
     addPurchase,
     updatePurchase,
     deletePurchase,
+    reversePurchase,
     getTotalSpend,
     getSpendByCategory,
   };

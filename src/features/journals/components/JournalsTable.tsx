@@ -56,7 +56,7 @@ export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTab
                 {isSystem ? (
                   <Badge variant="secondary">{SOURCE_LABELS[e.source!] ?? e.source}</Badge>
                 ) : (
-                  <Badge variant="outline">Manual</Badge>
+                  <Badge variant="outline">Penyesuaian</Badge>
                 )}
               </TableCell>
               <TableCell className="text-right">{fmt(totalDebit)}</TableCell>
@@ -64,8 +64,12 @@ export function JournalsTable({ entries, onView, onEdit, onDelete }: JournalsTab
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <Button size="icon" variant="ghost" onClick={() => onView(e)} title="Lihat"><Eye className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => onEdit(e)} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => onDelete(e.id)} className="text-destructive hover:text-destructive" title="Hapus"><Trash2 className="h-4 w-4" /></Button>
+                  {!isSystem ? (
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => onEdit(e)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => onDelete(e.id)} className="text-destructive hover:text-destructive" title="Hapus"><Trash2 className="h-4 w-4" /></Button>
+                    </>
+                  ) : null}
                 </div>
               </TableCell>
             </TableRow>

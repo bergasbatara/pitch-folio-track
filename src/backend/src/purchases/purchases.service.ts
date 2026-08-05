@@ -56,6 +56,8 @@ export class PurchasesService {
   async createPurchase(userId: string, companyId: string, dto: CreatePurchaseDto) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
+      const effectiveDate = dto.date ?? new Date();
+      await this.assertPeriodOpen(tx, companyId, effectiveDate);
       const ensuredCategory = dto.categoryId
         ? await tx.purchaseCategory.findFirst({ where: { id: dto.categoryId, companyId } })
         : await tx.purchaseCategory.upsert({
@@ -89,6 +91,7 @@ export class PurchasesService {
           categoryId: ensuredCategory.id,
           productId: product?.id,
           taxCodeId: taxCode?.id,
+          status: "posted",
           settlementType,
           itemName: String(dto.itemName ?? "").trim(),
           supplier: dto.supplier ? String(dto.supplier).trim() : undefined,
@@ -98,7 +101,7 @@ export class PurchasesService {
           taxRate,
           taxAmount,
           totalCost: subtotalCost + taxAmount,
-          date: dto.date ?? new Date(),
+          date: effectiveDate,
           notes: dto.notes ? String(dto.notes).trim() : undefined,
         },
         include: {
@@ -136,6 +139,9 @@ export class PurchasesService {
       if (!purchase) {
         throw new NotFoundException("Purchase not found");
       }
+      this.assertTransactionMutable(purchase.status, "Purchase");
+      await this.assertPeriodOpen(tx, companyId, purchase.date);
+      await this.assertPeriodOpen(tx, companyId, dto.date ?? purchase.date);
 
       const nextCategoryId = dto.categoryId ?? purchase.categoryId;
       if (dto.categoryId && dto.categoryId !== purchase.categoryId) {
@@ -270,6 +276,8 @@ export class PurchasesService {
       if (!purchase) {
         throw new NotFoundException("Purchase not found");
       }
+      this.assertTransactionMutable(purchase.status, "Purchase");
+      await this.assertPeriodOpen(tx, companyId, purchase.date);
 
       if (purchase.productId) {
         const product = await tx.product.findFirst({
@@ -302,6 +310,93 @@ export class PurchasesService {
       });
       await tx.purchase.delete({ where: { id: purchase.id } });
       return { success: true };
+    });
+  }
+
+  async reversePurchase(userId: string, companyId: string, purchaseId: string) {
+    await this.assertMember(userId, companyId);
+    return this.prisma.$transaction(async (tx) => {
+      const purchase = await tx.purchase.findFirst({
+        where: { id: purchaseId, companyId },
+      });
+      if (!purchase) {
+        throw new NotFoundException("Purchase not found");
+      }
+      if (purchase.status === "voided") {
+        throw new BadRequestException("Purchase has already been reversed");
+      }
+      if (purchase.status !== "posted") {
+        throw new BadRequestException("Only posted purchases can be reversed");
+      }
+      await this.assertPeriodOpen(tx, companyId, purchase.date);
+
+      const payable = await tx.payable.findFirst({
+        where: { companyId, purchaseId: purchase.id },
+      });
+      if (payable && payable.paidAmount > 0) {
+        throw new BadRequestException("Cannot reverse a payable purchase with recorded payments");
+      }
+
+      if (purchase.productId) {
+        const product = await tx.product.findFirst({
+          where: { id: purchase.productId, companyId },
+        });
+        if (!product) {
+          throw new NotFoundException("Product not found");
+        }
+        const newStock = product.stock - purchase.quantity;
+        if (newStock < 0) {
+          throw new BadRequestException("Stock would become negative");
+        }
+        await tx.product.update({
+          where: { id: product.id },
+          data: { stock: newStock },
+        });
+      }
+
+      if (purchase.settlementType === "cash") {
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "purchase", sourceId: purchase.id },
+          `Reversal Pembelian #${purchase.id}`,
+          "purchase_reversal",
+          purchase.id,
+          purchase.date,
+        );
+      } else if (payable) {
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "payable", sourceId: payable.id },
+          `Reversal Hutang Pembelian #${purchase.id}`,
+          "payable_reversal",
+          payable.id,
+          purchase.date,
+        );
+        await tx.payable.update({
+          where: { id: payable.id },
+          data: { status: "voided" },
+        });
+      }
+
+      const updated = await tx.purchase.update({
+        where: { id: purchase.id },
+        data: { status: "voided" },
+        include: {
+          category: { select: { name: true } },
+          product: { select: { name: true, code: true } },
+          taxCode: { select: { name: true } },
+        },
+      });
+
+      return {
+        ...updated,
+        categoryName: updated.category.name,
+        productName: updated.product?.name ?? null,
+        productCode: updated.product?.code ?? null,
+        taxCodeName: updated.taxCode?.name ?? null,
+      };
     });
   }
 
@@ -349,6 +444,65 @@ export class PurchasesService {
 
   private calculateTaxAmount(baseAmount: number, taxRate: number) {
     return Math.round(baseAmount * (taxRate / 100));
+  }
+
+  private assertTransactionMutable(status: string, entityName: string) {
+    if (status !== "draft") {
+      throw new BadRequestException(`${entityName} is finalized and cannot be edited or deleted directly. Use reversal or adjustment journal.`);
+    }
+  }
+
+  private async assertPeriodOpen(tx: Prisma.TransactionClient, companyId: string, effectiveDate: Date) {
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { closedThrough: true },
+    });
+    if (!company?.closedThrough) return;
+
+    const boundary = new Date(company.closedThrough);
+    boundary.setHours(23, 59, 59, 999);
+    if (effectiveDate <= boundary) {
+      throw new BadRequestException("This accounting period is closed. Record the correction in an open period using adjustment or reversal flow.");
+    }
+  }
+
+  private async createReversalEntries(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    filter: { source: string; sourceId: string },
+    memoPrefix: string,
+    reversalSource: string,
+    reversalSourceId: string,
+    date: Date,
+  ) {
+    const originals = await tx.journalEntry.findMany({
+      where: { companyId, ...filter },
+      include: { lines: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    });
+
+    for (const original of originals) {
+      const reversal = await tx.journalEntry.create({
+        data: {
+          companyId,
+          date,
+          memo: `${memoPrefix} (${original.id})`,
+          source: reversalSource,
+          sourceId: reversalSourceId,
+          status: "posted",
+        },
+      });
+
+      await tx.journalLine.createMany({
+        data: original.lines.map((line) => ({
+          entryId: reversal.id,
+          accountId: line.accountId,
+          debit: line.credit,
+          credit: line.debit,
+          memo: line.memo ?? undefined,
+        })),
+      });
+    }
   }
 
   private async upsertPurchaseJournal(

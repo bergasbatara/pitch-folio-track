@@ -11,6 +11,7 @@ const DEFAULT_COMPANY: CompanyProfile = {
   email: '',
   taxId: '',
   currency: 'IDR',
+  closedThrough: null,
   categories: ['Electronics', 'Food & Beverage', 'Clothing', 'Other'],
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -87,6 +88,7 @@ export function useCompanyProfile() {
       ...DEFAULT_COMPANY,
       ...data,
       categories: data.categories ?? DEFAULT_COMPANY.categories,
+      closedThrough: data.closedThrough ? new Date(data.closedThrough) : null,
       createdAt: new Date(data.createdAt),
       updatedAt: new Date(data.updatedAt),
     };

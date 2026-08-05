@@ -1,4 +1,5 @@
 import { Sale } from '../types';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -8,15 +9,28 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 import { formatDateId } from '@/shared/lib/date';
 
 interface SalesTableProps {
   sales: Sale[];
   onDelete: (id: string) => void;
+  onReverse: (sale: Sale) => void;
 }
 
-export function SalesTable({ sales, onDelete }: SalesTableProps) {
+const statusLabel: Record<Sale['status'], string> = {
+  draft: 'Draft',
+  posted: 'Posted',
+  voided: 'Void',
+};
+
+const statusVariant: Record<Sale['status'], 'secondary' | 'default' | 'destructive'> = {
+  draft: 'secondary',
+  posted: 'default',
+  voided: 'destructive',
+};
+
+export function SalesTable({ sales, onDelete, onReverse }: SalesTableProps) {
   if (sales.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -34,10 +48,11 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
             <TableHead>Tanggal</TableHead>
             <TableHead>Produk</TableHead>
             <TableHead>Pajak</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Jml</TableHead>
             <TableHead className="text-right">Harga Satuan</TableHead>
             <TableHead className="text-right">Total</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            <TableHead className="w-[110px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,6 +72,11 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
                   '-'
                 )}
               </TableCell>
+              <TableCell>
+                <Badge variant={statusVariant[sale.status]}>
+                  {statusLabel[sale.status]}
+                </Badge>
+              </TableCell>
               <TableCell className="text-right">{sale.quantity}</TableCell>
               <TableCell className="text-right">
                 Rp{sale.pricePerUnit.toLocaleString('id-ID')}
@@ -70,15 +90,30 @@ export function SalesTable({ sales, onDelete }: SalesTableProps) {
                   {sale.taxAmount > 0 ? ` + Pajak Rp${sale.taxAmount.toLocaleString('id-ID')}` : ''}
                 </div>
               </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete(sale.id)}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  {sale.status === 'draft' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(sale.id)}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {sale.status === 'posted' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onReverse(sale)}
+                      className="h-8 w-8 text-muted-foreground"
+                      title="Reverse penjualan"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -30,6 +30,7 @@ export class PayablesService {
 
   async createPayable(userId: string, companyId: string, dto: CreatePayableDto) {
     await this.assertMember(userId, companyId);
+    await this.assertPeriodOpen(companyId, dto.dueDate);
     const paidAmount = dto.paidAmount ?? 0;
     if (paidAmount > dto.amount) {
       throw new BadRequestException("Paid amount cannot exceed amount");
@@ -61,9 +62,11 @@ export class PayablesService {
     if (!existing) {
       throw new NotFoundException("Payable not found");
     }
+    await this.assertPeriodOpen(companyId, existing.dueDate);
     const amount = dto.amount ?? existing.amount;
     const paidAmount = dto.paidAmount ?? existing.paidAmount;
     const dueDate = dto.dueDate ?? existing.dueDate;
+    await this.assertPeriodOpen(companyId, dueDate);
 
     if (paidAmount > amount) {
       throw new BadRequestException("Paid amount cannot exceed amount");
@@ -97,6 +100,7 @@ export class PayablesService {
     if (!existing) {
       throw new NotFoundException("Payable not found");
     }
+    await this.assertPeriodOpen(companyId, existing.dueDate);
     return this.prisma.$transaction(async (tx) => {
       await tx.journalEntry.deleteMany({
         where: { companyId, sourceId: payableId, source: { in: ["payable", "payable_payment"] } },
@@ -127,6 +131,20 @@ export class PayablesService {
     });
     if (!membership) {
       throw new ForbiddenException("Not a member of this company");
+    }
+  }
+
+  private async assertPeriodOpen(companyId: string, effectiveDate: Date) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { closedThrough: true },
+    });
+    if (!company?.closedThrough) return;
+
+    const boundary = new Date(company.closedThrough);
+    boundary.setHours(23, 59, 59, 999);
+    if (effectiveDate <= boundary) {
+      throw new BadRequestException("This accounting period is closed. Record the correction in an open period using adjustment or reversal flow.");
     }
   }
 

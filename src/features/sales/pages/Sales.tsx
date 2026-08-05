@@ -6,16 +6,18 @@ import { useSales } from '../hooks/useSales';
 import { useProducts } from '@/features/products/hooks/useProducts';
 import { useCompanyProfile } from '@/features/onboarding';
 import { useTaxCodes } from '@/features/taxes';
-import { SaleFormData } from '../types';
+import { Sale, SaleFormData } from '../types';
 import { AddSaleModal } from '../components/AddSaleModal';
 import { SalesTable } from '../components/SalesTable';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
-import { PageHeader, StatCard, EmptyState } from '@/shared';
+import { PageHeader, StatCard, EmptyState, TransactionReversalDialog } from '@/shared';
+import { formatDateId } from '@/shared/lib/date';
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [reversingSale, setReversingSale] = useState<Sale | null>(null);
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, addSale, deleteSale, totalRevenue, totalUnitsSold, todaysRevenue, error: salesError } = useSales(company?.id);
+  const { sales, addSale, deleteSale, reverseSale, totalRevenue, totalUnitsSold, todaysRevenue, isMutating, error: salesError } = useSales(company?.id);
   const { products, error: productsError } = useProducts(company?.id);
   const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
@@ -26,6 +28,10 @@ export default function Sales() {
   const handleAddSale = async (data: SaleFormData) => {
     if (!company?.id) return;
     await addSale(data);
+  };
+
+  const handleReverseSale = async (sale: Sale) => {
+    setReversingSale(sale);
   };
 
   return (
@@ -55,7 +61,7 @@ export default function Sales() {
               action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Catat Penjualan</Button>}
             />
           ) : (
-            <SalesTable sales={sales} onDelete={deleteSale} />
+            <SalesTable sales={sales} onDelete={deleteSale} onReverse={handleReverseSale} />
           )}
         </div>
       </div>
@@ -66,6 +72,25 @@ export default function Sales() {
         onSubmit={handleAddSale}
         products={products}
         taxCodes={taxCodes}
+      />
+      <TransactionReversalDialog
+        open={!!reversingSale}
+        onOpenChange={(open) => !open && setReversingSale(null)}
+        title="Reverse Penjualan"
+        description="Gunakan reversal jika transaksi penjualan posted perlu dibatalkan tanpa menghapus jejak jurnal aslinya."
+        transactionLabel={reversingSale ? `${reversingSale.productName} • Rp${reversingSale.totalPrice.toLocaleString('id-ID')}` : ''}
+        transactionDate={reversingSale ? formatDateId(reversingSale.soldAt) : undefined}
+        impactLines={[
+          'Status penjualan akan berubah menjadi voided.',
+          'Sistem membuat jurnal pembalik yang menetralkan piutang/kas, pendapatan, dan pajak keluaran terkait.',
+          'Transaksi asli tetap tersimpan untuk kebutuhan audit dan rekonsiliasi.',
+        ]}
+        onConfirm={async () => {
+          if (!reversingSale) return;
+          await reverseSale(reversingSale.id);
+          setReversingSale(null);
+        }}
+        isSubmitting={isMutating}
       />
     </MainLayout>
   );

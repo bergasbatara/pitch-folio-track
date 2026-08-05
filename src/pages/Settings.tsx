@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -122,7 +123,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, requestPasswordReset, logout } = useAuth();
-  const { company } = useCompanyProfile();
+  const { company, saveCompanyProfile } = useCompanyProfile();
   const { plans, subscription, getCurrentPlan } = useSubscription(company?.id);
   const [preferences, setPreferences] = useState<SettingsPreferences>(DEFAULT_PREFERENCES);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
@@ -130,11 +131,24 @@ export default function SettingsPage() {
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [closedThroughInput, setClosedThroughInput] = useState('');
+  const [isSavingPeriodClose, setIsSavingPeriodClose] = useState(false);
   const importRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setPreferences(loadPreferences());
   }, []);
+
+  useEffect(() => {
+    if (!company?.closedThrough) {
+      setClosedThroughInput('');
+      return;
+    }
+    const year = company.closedThrough.getFullYear();
+    const month = `${company.closedThrough.getMonth() + 1}`.padStart(2, '0');
+    const day = `${company.closedThrough.getDate()}`.padStart(2, '0');
+    setClosedThroughInput(`${year}-${month}-${day}`);
+  }, [company?.closedThrough]);
 
   const currentPlan = getCurrentPlan();
   const currentPlanPrice = currentPlan?.price
@@ -279,6 +293,30 @@ export default function SettingsPage() {
       });
     } finally {
       event.target.value = '';
+    }
+  };
+
+  const handleSavePeriodClose = async () => {
+    setIsSavingPeriodClose(true);
+    try {
+      const nextValue = closedThroughInput
+        ? new Date(`${closedThroughInput}T23:59:59.999`)
+        : null;
+      await saveCompanyProfile({ closedThrough: nextValue });
+      toast({
+        title: 'Periode berhasil diperbarui',
+        description: nextValue
+          ? `Transaksi sampai ${formatDateId(nextValue)} sekarang terkunci untuk perubahan langsung.`
+          : 'Periode tutup buku dibuka kembali.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Gagal menyimpan periode',
+        description: error?.message ?? 'Periksa kembali tanggal period close.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingPeriodClose(false);
     }
   };
 
@@ -786,6 +824,44 @@ export default function SettingsPage() {
 
           <TabsContent value="system" className="space-y-6">
             <div className="grid gap-6 xl:grid-cols-2">
+              <Card className="border-border/70 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5 text-primary" />
+                    Period Close
+                  </CardTitle>
+                  <CardDescription>
+                    Tutup periode sampai tanggal tertentu agar transaksi posted tidak bisa diedit, dihapus, atau dibalikkan langsung.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Tutup buku sampai tanggal</div>
+                    <Input
+                      type="date"
+                      value={closedThroughInput}
+                      onChange={(event) => setClosedThroughInput(event.target.value)}
+                      className="max-w-xs"
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
+                    Setelah periode ditutup, koreksi hanya boleh dilakukan di periode terbuka melalui jurnal penyesuaian atau reversal yang sah.
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button onClick={handleSavePeriodClose} disabled={isSavingPeriodClose}>
+                      {isSavingPeriodClose ? 'Menyimpan...' : 'Simpan Period Close'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setClosedThroughInput('')}
+                      disabled={isSavingPeriodClose}
+                    >
+                      Buka Kembali
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="border-border/70 shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
