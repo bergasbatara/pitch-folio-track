@@ -117,6 +117,8 @@ model Sale {
   productId    String
   taxCodeId    String?
   status       TransactionStatus @default(posted)
+  transactionType SaleTransactionType @default(sale)
+  originSaleId  String?
   settlementType String @default("receivable")
   quantity     Int
   pricePerUnit Int
@@ -130,9 +132,13 @@ model Sale {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   taxCode TaxCode? @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  originSale Sale? @relation("SaleCorrections", fields: [originSaleId], references: [id], onDelete: SetNull)
+  corrections Sale[] @relation("SaleCorrections")
   receivable Receivable?
 
   @@index([companyId])
+  @@index([companyId, transactionType])
+  @@index([originSaleId])
   @@index([productId])
   @@index([taxCodeId])
 }
@@ -157,6 +163,8 @@ model Purchase {
   productId  String?
   taxCodeId  String?
   status     TransactionStatus @default(posted)
+  transactionType PurchaseTransactionType @default(purchase)
+  originPurchaseId String?
   settlementType String @default("payable")
   itemName   String
   supplier   String?
@@ -174,10 +182,14 @@ model Purchase {
   category PurchaseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   product  Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   taxCode  TaxCode?         @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  originPurchase Purchase?  @relation("PurchaseCorrections", fields: [originPurchaseId], references: [id], onDelete: SetNull)
+  corrections Purchase[]    @relation("PurchaseCorrections")
   payable  Payable?
 
   @@index([companyId])
+  @@index([companyId, transactionType])
   @@index([categoryId])
+  @@index([originPurchaseId])
   @@index([productId])
   @@index([taxCodeId])
 }
@@ -351,6 +363,18 @@ enum TransactionStatus {
   draft
   posted
   voided
+}
+
+enum SaleTransactionType {
+  sale
+  sale_return
+  sale_cancellation
+}
+
+enum PurchaseTransactionType {
+  purchase
+  purchase_return
+  purchase_cancellation
 }
 
 enum OpeningBalanceKind {

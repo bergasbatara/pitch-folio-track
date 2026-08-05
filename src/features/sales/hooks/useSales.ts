@@ -54,26 +54,40 @@ export function useSales(companyId?: string) {
     });
   }, [companyId, sales, runMutate]);
 
-  const reverseSale = useCallback(async (id: string) => {
+  const createSaleReturn = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const reversed = await runMutate(async () => {
-      const result = await fetchJson<Sale>(`/companies/${companyId}/sales/${id}/reverse`, {
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Sale>(`/companies/${companyId}/sales/${id}/return`, {
         method: 'POST',
       });
       return hydrateSale(result);
     });
-    setSales((prev) => prev.map((sale) => (sale.id === id ? reversed : sale)));
-    return reversed;
+    setSales((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, runMutate]);
+
+  const createSaleCancellation = useCallback(async (id: string) => {
+    if (!companyId) {
+      throw new Error('Missing company');
+    }
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Sale>(`/companies/${companyId}/sales/${id}/cancel`, {
+        method: 'POST',
+      });
+      return hydrateSale(result);
+    });
+    setSales((prev) => [created, ...prev]);
+    return created;
   }, [companyId, runMutate]);
 
   const totalRevenue = useMemo(() => {
-    return postedSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+    return postedSales.reduce((sum, sale) => sum + getSignedSaleTotal(sale), 0);
   }, [postedSales]);
 
   const totalUnitsSold = useMemo(() => {
-    return postedSales.reduce((sum, sale) => sum + sale.quantity, 0);
+    return postedSales.reduce((sum, sale) => sum + getSignedSaleQuantity(sale), 0);
   }, [postedSales]);
 
   const todaysSales = useMemo(() => {
@@ -83,7 +97,7 @@ export function useSales(companyId?: string) {
   }, [postedSales]);
 
   const todaysRevenue = useMemo(() => {
-    return todaysSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+    return todaysSales.reduce((sum, sale) => sum + getSignedSaleTotal(sale), 0);
   }, [todaysSales]);
 
   const getSalesByProduct = useCallback((productId: string) => {
@@ -97,7 +111,8 @@ export function useSales(companyId?: string) {
     error,
     addSale,
     deleteSale,
-    reverseSale,
+    createSaleReturn,
+    createSaleCancellation,
     totalRevenue,
     totalUnitsSold,
     todaysSales,
@@ -109,7 +124,13 @@ export function useSales(companyId?: string) {
 const hydrateSale = (sale: Sale) => ({
   ...sale,
   soldAt: sale.soldAt,
+  transactionType: sale.transactionType ?? 'sale',
+  originSaleId: sale.originSaleId ?? null,
 });
+
+const getSaleSign = (sale: Sale) => sale.transactionType === 'sale' ? 1 : -1;
+const getSignedSaleTotal = (sale: Sale) => sale.totalPrice * getSaleSign(sale);
+const getSignedSaleQuantity = (sale: Sale) => sale.quantity * getSaleSign(sale);
 
 const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => {
   const headers = {

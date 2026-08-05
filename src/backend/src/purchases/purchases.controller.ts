@@ -54,12 +54,21 @@ export class PurchasesController {
     return this.purchasesService.deletePurchase(req.user.sub, companyId, purchaseId);
   }
 
-  @Post(":purchaseId/reverse")
-  reverse(
+  @Post(":purchaseId/return")
+  createReturn(
     @Req() req: { user: { sub: string } },
     @Param("companyId") companyId: string,
     @Param("purchaseId") purchaseId: string,
   ) {
-    return this.purchasesService.reversePurchase(req.user.sub, companyId, purchaseId);
+    return this.purchasesService.createPurchaseReturn(req.user.sub, companyId, purchaseId);
+  }
+
+  @Post(":purchaseId/cancel")
+  cancel(
+    @Req() req: { user: { sub: string } },
+    @Param("companyId") companyId: string,
+    @Param("purchaseId") purchaseId: string,
+  ) {
+    return this.purchasesService.createPurchaseCancellation(req.user.sub, companyId, purchaseId);
   }
 }

@@ -19,6 +19,9 @@ interface TransactionReversalDialogProps {
   impactLines: string[];
   onConfirm: () => Promise<void> | void;
   isSubmitting?: boolean;
+  confirmLabel?: string;
+  warningText?: string;
+  impactTitle?: string;
 }
 
 export function TransactionReversalDialog({
@@ -31,6 +34,9 @@ export function TransactionReversalDialog({
   impactLines,
   onConfirm,
   isSubmitting = false,
+  confirmLabel = 'Buat Reversal',
+  warningText = 'Transaksi posted tidak dihapus langsung. Sistem akan membuat pembalikannya agar jejak audit tetap utuh.',
+  impactTitle = 'Dampak reversal',
 }: TransactionReversalDialogProps) {
   const handleConfirm = async () => {
     await onConfirm();
@@ -62,7 +68,7 @@ export function TransactionReversalDialog({
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="text-sm">
-                Transaksi posted tidak dihapus langsung. Sistem akan membuat pembalikannya agar jejak audit tetap utuh.
+                {warningText}
               </div>
             </div>
           </div>
@@ -70,7 +76,7 @@ export function TransactionReversalDialog({
           <div className="rounded-lg border border-border p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
               <BookOpenCheck className="h-4 w-4 text-primary" />
-              Dampak reversal
+              {impactTitle}
             </div>
             <ul className="space-y-2 text-sm text-muted-foreground">
               {impactLines.map((line) => (
@@ -90,7 +96,7 @@ export function TransactionReversalDialog({
             Batal
           </Button>
           <Button type="button" onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? 'Memproses...' : 'Buat Reversal'}
+            {isSubmitting ? 'Memproses...' : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

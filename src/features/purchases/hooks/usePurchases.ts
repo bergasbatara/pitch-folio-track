@@ -193,28 +193,42 @@ export function usePurchases(companyId?: string) {
     });
   }, [companyId, purchases, runMutate]);
 
-  const reversePurchase = useCallback(async (id: string) => {
+  const createPurchaseReturn = useCallback(async (id: string) => {
     if (!companyId) {
       throw new Error('Missing company');
     }
-    const reversed = await runMutate(async () => {
-      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}/reverse`, {
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}/return`, {
         method: 'POST',
       });
       return hydratePurchase(result);
     });
-    setPurchases((prev) => prev.map((purchase) => (purchase.id === id ? reversed : purchase)));
-    return reversed;
+    setPurchases((prev) => [created, ...prev]);
+    return created;
+  }, [companyId, runMutate]);
+
+  const createPurchaseCancellation = useCallback(async (id: string) => {
+    if (!companyId) {
+      throw new Error('Missing company');
+    }
+    const created = await runMutate(async () => {
+      const result = await fetchJson<Purchase>(`/companies/${companyId}/purchases/${id}/cancel`, {
+        method: 'POST',
+      });
+      return hydratePurchase(result);
+    });
+    setPurchases((prev) => [created, ...prev]);
+    return created;
   }, [companyId, runMutate]);
 
   const getTotalSpend = useCallback(() => {
-    return postedPurchases.reduce((sum, purchase) => sum + purchase.totalCost, 0);
+    return postedPurchases.reduce((sum, purchase) => sum + getSignedPurchaseTotal(purchase), 0);
   }, [postedPurchases]);
 
   const getSpendByCategory = useCallback((categoryId: string) => {
     return postedPurchases
       .filter((purchase) => purchase.categoryId === categoryId)
-      .reduce((sum, purchase) => sum + purchase.totalCost, 0);
+      .reduce((sum, purchase) => sum + getSignedPurchaseTotal(purchase), 0);
   }, [postedPurchases]);
 
   return {
@@ -225,7 +239,8 @@ export function usePurchases(companyId?: string) {
     addPurchase,
     updatePurchase,
     deletePurchase,
-    reversePurchase,
+    createPurchaseReturn,
+    createPurchaseCancellation,
     getTotalSpend,
     getSpendByCategory,
   };
@@ -254,6 +269,8 @@ const hydratePurchase = (purchase: Purchase): Purchase => ({
   ...purchase,
   date: normalizeDate(purchase.date),
   createdAt: purchase.createdAt,
+  transactionType: purchase.transactionType ?? 'purchase',
+  originPurchaseId: purchase.originPurchaseId ?? null,
 });
 
 const hydrateCategory = (category: PurchaseCategory): PurchaseCategory => ({
@@ -282,3 +299,6 @@ const fetchJson = async <T,>(path: string, options: RequestInit): Promise<T> => 
   }
   return response.json() as Promise<T>;
 };
+
+const getPurchaseSign = (purchase: Purchase) => purchase.transactionType === 'purchase' ? 1 : -1;
+const getSignedPurchaseTotal = (purchase: Purchase) => purchase.totalCost * getPurchaseSign(purchase);

@@ -313,28 +313,49 @@ export class PurchasesService {
     });
   }
 
-  async reversePurchase(userId: string, companyId: string, purchaseId: string) {
+  async createPurchaseReturn(userId: string, companyId: string, purchaseId: string) {
+    return this.createPurchaseCorrection(userId, companyId, purchaseId, "purchase_return");
+  }
+
+  async createPurchaseCancellation(userId: string, companyId: string, purchaseId: string) {
+    return this.createPurchaseCorrection(userId, companyId, purchaseId, "purchase_cancellation");
+  }
+
+  private async createPurchaseCorrection(
+    userId: string,
+    companyId: string,
+    purchaseId: string,
+    transactionType: "purchase_return" | "purchase_cancellation",
+  ) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
       const purchase = await tx.purchase.findFirst({
         where: { id: purchaseId, companyId },
+        include: {
+          category: { select: { name: true } },
+          product: { select: { name: true, code: true } },
+          taxCode: { select: { name: true } },
+        },
       });
       if (!purchase) {
         throw new NotFoundException("Purchase not found");
       }
-      if (purchase.status === "voided") {
-        throw new BadRequestException("Purchase has already been reversed");
+      if (purchase.transactionType !== "purchase") {
+        throw new BadRequestException("Only original posted purchases can create return or cancellation entries");
       }
       if (purchase.status !== "posted") {
-        throw new BadRequestException("Only posted purchases can be reversed");
+        throw new BadRequestException("Only posted purchases can create return or cancellation entries");
       }
-      await this.assertPeriodOpen(tx, companyId, purchase.date);
+      await this.assertNoExistingPurchaseCorrection(tx, companyId, purchase.id);
+
+      const correctionDate = new Date();
+      await this.assertPeriodOpen(tx, companyId, correctionDate);
 
       const payable = await tx.payable.findFirst({
         where: { companyId, purchaseId: purchase.id },
       });
       if (payable && payable.paidAmount > 0) {
-        throw new BadRequestException("Cannot reverse a payable purchase with recorded payments");
+        throw new BadRequestException("Cannot create a return/cancellation for a payable purchase with recorded payments");
       }
 
       if (purchase.productId) {
@@ -354,35 +375,27 @@ export class PurchasesService {
         });
       }
 
-      if (purchase.settlementType === "cash") {
-        await this.createReversalEntries(
-          tx,
+      const correction = await tx.purchase.create({
+        data: {
           companyId,
-          { source: "purchase", sourceId: purchase.id },
-          `Reversal Pembelian #${purchase.id}`,
-          "purchase_reversal",
-          purchase.id,
-          purchase.date,
-        );
-      } else if (payable) {
-        await this.createReversalEntries(
-          tx,
-          companyId,
-          { source: "payable", sourceId: payable.id },
-          `Reversal Hutang Pembelian #${purchase.id}`,
-          "payable_reversal",
-          payable.id,
-          purchase.date,
-        );
-        await tx.payable.update({
-          where: { id: payable.id },
-          data: { status: "voided" },
-        });
-      }
-
-      const updated = await tx.purchase.update({
-        where: { id: purchase.id },
-        data: { status: "voided" },
+          categoryId: purchase.categoryId,
+          productId: purchase.productId,
+          taxCodeId: purchase.taxCodeId,
+          status: "posted",
+          transactionType,
+          originPurchaseId: purchase.id,
+          settlementType: purchase.settlementType,
+          itemName: purchase.itemName,
+          supplier: purchase.supplier,
+          quantity: purchase.quantity,
+          unitCost: purchase.unitCost,
+          subtotalCost: purchase.subtotalCost,
+          taxRate: purchase.taxRate,
+          taxAmount: purchase.taxAmount,
+          totalCost: purchase.totalCost,
+          date: correctionDate,
+          notes: purchase.notes,
+        },
         include: {
           category: { select: { name: true } },
           product: { select: { name: true, code: true } },
@@ -390,12 +403,45 @@ export class PurchasesService {
         },
       });
 
+      const memoPrefix = transactionType === "purchase_return"
+        ? `Retur Pembelian #${purchase.id}`
+        : `Pembatalan Pembelian #${purchase.id}`;
+
+      if (purchase.settlementType === "cash") {
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "purchase", sourceId: purchase.id },
+          memoPrefix,
+          transactionType,
+          correction.id,
+          correctionDate,
+        );
+      } else {
+        if (!payable) {
+          throw new BadRequestException("Linked payable not found for this purchase");
+        }
+        await this.createReversalEntries(
+          tx,
+          companyId,
+          { source: "payable", sourceId: payable.id },
+          memoPrefix,
+          transactionType === "purchase_return" ? "payable_return" : "payable_cancellation",
+          correction.id,
+          correctionDate,
+        );
+        await tx.payable.update({
+          where: { id: payable.id },
+          data: { status: "voided" },
+        });
+      }
+
       return {
-        ...updated,
-        categoryName: updated.category.name,
-        productName: updated.product?.name ?? null,
-        productCode: updated.product?.code ?? null,
-        taxCodeName: updated.taxCode?.name ?? null,
+        ...correction,
+        categoryName: correction.category.name,
+        productName: correction.product?.name ?? null,
+        productCode: correction.product?.code ?? null,
+        taxCodeName: correction.taxCode?.name ?? null,
       };
     });
   }
@@ -444,6 +490,24 @@ export class PurchasesService {
 
   private calculateTaxAmount(baseAmount: number, taxRate: number) {
     return Math.round(baseAmount * (taxRate / 100));
+  }
+
+  private async assertNoExistingPurchaseCorrection(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    purchaseId: string,
+  ) {
+    const existing = await tx.purchase.findFirst({
+      where: {
+        companyId,
+        originPurchaseId: purchaseId,
+        status: "posted",
+      },
+      select: { id: true, transactionType: true },
+    });
+    if (existing) {
+      throw new BadRequestException("A return or cancellation has already been recorded for this purchase");
+    }
   }
 
   private assertTransactionMutable(status: string, entityName: string) {

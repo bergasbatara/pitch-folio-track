@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { Purchase } from '../types';
 import { formatDateId } from '@/shared/lib/date';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,8 @@ interface PurchasesTableProps {
   purchases: Purchase[];
   onEdit: (purchase: Purchase) => void;
   onDelete: (id: string) => void;
-  onReverse: (purchase: Purchase) => void;
+  onCreateReturn: (purchase: Purchase) => void;
+  onCreateCancellation: (purchase: Purchase) => void;
 }
 
 const statusLabel: Record<Purchase['status'], string> = {
@@ -37,7 +38,21 @@ const statusVariant: Record<Purchase['status'], 'secondary' | 'default' | 'destr
   voided: 'destructive',
 };
 
-export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: PurchasesTableProps) {
+const transactionTypeLabel: Record<Purchase['transactionType'], string> = {
+  purchase: 'Pembelian',
+  purchase_return: 'Retur',
+  purchase_cancellation: 'Pembatalan',
+};
+
+const transactionTypeVariant: Record<Purchase['transactionType'], 'default' | 'secondary' | 'destructive'> = {
+  purchase: 'default',
+  purchase_return: 'secondary',
+  purchase_cancellation: 'destructive',
+};
+
+const getPurchaseSign = (purchase: Purchase) => purchase.transactionType === 'purchase' ? 1 : -1;
+
+export function PurchasesTable({ purchases, onEdit, onDelete, onCreateReturn, onCreateCancellation }: PurchasesTableProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -62,6 +77,7 @@ export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: Purch
           <TableRow>
             <TableHead>Tanggal</TableHead>
             <TableHead>Barang</TableHead>
+            <TableHead>Jenis</TableHead>
             <TableHead>Pemasok</TableHead>
             <TableHead>Pajak</TableHead>
             <TableHead>Status</TableHead>
@@ -78,6 +94,11 @@ export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: Purch
                 {formatDateId(purchase.date)}
               </TableCell>
               <TableCell className="font-medium">{purchase.itemName}</TableCell>
+              <TableCell>
+                <Badge variant={transactionTypeVariant[purchase.transactionType]}>
+                  {transactionTypeLabel[purchase.transactionType]}
+                </Badge>
+              </TableCell>
               <TableCell className="text-muted-foreground">
                 {purchase.supplier || '-'}
               </TableCell>
@@ -96,15 +117,17 @@ export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: Purch
                   {statusLabel[purchase.status]}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">{purchase.quantity}</TableCell>
+              <TableCell className="text-right">{getPurchaseSign(purchase) * purchase.quantity}</TableCell>
               <TableCell className="text-right text-muted-foreground">
                 {formatCurrency(purchase.unitCost)}
               </TableCell>
               <TableCell className="text-right">
-                <div className="font-medium">{formatCurrency(purchase.totalCost)}</div>
+                <div className="font-medium">
+                  {getPurchaseSign(purchase) < 0 ? '-' : ''}{formatCurrency(purchase.totalCost)}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  DPP {formatCurrency(purchase.subtotalCost)}
-                  {purchase.taxAmount > 0 ? ` + Pajak ${formatCurrency(purchase.taxAmount)}` : ''}
+                  DPP {getPurchaseSign(purchase) < 0 ? '-' : ''}{formatCurrency(purchase.subtotalCost)}
+                  {purchase.taxAmount > 0 ? ` + Pajak ${getPurchaseSign(purchase) < 0 ? '-' : ''}${formatCurrency(purchase.taxAmount)}` : ''}
                 </div>
               </TableCell>
               <TableCell>
@@ -130,11 +153,17 @@ export function PurchasesTable({ purchases, onEdit, onDelete, onReverse }: Purch
                         </DropdownMenuItem>
                       </>
                     )}
-                    {purchase.status === 'posted' && (
-                      <DropdownMenuItem onClick={() => onReverse(purchase)}>
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Reverse
-                      </DropdownMenuItem>
+                    {purchase.status === 'posted' && purchase.transactionType === 'purchase' && (
+                      <>
+                        <DropdownMenuItem onClick={() => onCreateReturn(purchase)}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Catat Retur
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onCreateCancellation(purchase)}>
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Batalkan Pembelian
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

@@ -1,4 +1,5 @@
 export type TransactionStatus = 'draft' | 'posted' | 'voided';
+export type SaleTransactionType = 'sale' | 'sale_return' | 'sale_cancellation';
 
 export interface Sale {
   id: string;
@@ -7,6 +8,8 @@ export interface Sale {
   taxCodeId?: string | null;
   taxCodeName?: string | null;
   status: TransactionStatus;
+  transactionType: SaleTransactionType;
+  originSaleId?: string | null;
   settlementType: 'cash' | 'receivable';
   quantity: number;
   pricePerUnit: number;

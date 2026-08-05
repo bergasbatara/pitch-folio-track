@@ -232,28 +232,48 @@ export class SalesService {
     });
   }
 
-  async reverseSale(userId: string, companyId: string, saleId: string) {
+  async createSaleReturn(userId: string, companyId: string, saleId: string) {
+    return this.createSaleCorrection(userId, companyId, saleId, "sale_return");
+  }
+
+  async createSaleCancellation(userId: string, companyId: string, saleId: string) {
+    return this.createSaleCorrection(userId, companyId, saleId, "sale_cancellation");
+  }
+
+  private async createSaleCorrection(
+    userId: string,
+    companyId: string,
+    saleId: string,
+    transactionType: "sale_return" | "sale_cancellation",
+  ) {
     await this.assertMember(userId, companyId);
     return this.prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findFirst({
         where: { id: saleId, companyId },
+        include: {
+          product: { select: { name: true } },
+          taxCode: { select: { name: true } },
+        },
       });
       if (!sale) {
         throw new NotFoundException("Sale not found");
       }
-      if (sale.status === "voided") {
-        throw new BadRequestException("Sale has already been reversed");
+      if (sale.transactionType !== "sale") {
+        throw new BadRequestException("Only original posted sales can create return or cancellation entries");
       }
       if (sale.status !== "posted") {
-        throw new BadRequestException("Only posted sales can be reversed");
+        throw new BadRequestException("Only posted sales can create return or cancellation entries");
       }
-      await this.assertPeriodOpen(tx, companyId, sale.soldAt);
+      await this.assertNoExistingSaleCorrection(tx, companyId, sale.id);
+
+      const correctionDate = new Date();
+      await this.assertPeriodOpen(tx, companyId, correctionDate);
 
       const receivable = await tx.receivable.findFirst({
         where: { companyId, saleId: sale.id },
       });
       if (receivable && receivable.paidAmount > 0) {
-        throw new BadRequestException("Cannot reverse a receivable sale with recorded payments");
+        throw new BadRequestException("Cannot create a return/cancellation for a receivable sale with recorded payments");
       }
 
       const product = await tx.product.findFirst({
@@ -266,25 +286,55 @@ export class SalesService {
         });
       }
 
+      const correction = await tx.sale.create({
+        data: {
+          companyId,
+          productId: sale.productId,
+          taxCodeId: sale.taxCodeId,
+          status: "posted",
+          transactionType,
+          originSaleId: sale.id,
+          settlementType: sale.settlementType,
+          quantity: sale.quantity,
+          pricePerUnit: sale.pricePerUnit,
+          subtotalAmount: sale.subtotalAmount,
+          taxRate: sale.taxRate,
+          taxAmount: sale.taxAmount,
+          totalPrice: sale.totalPrice,
+          soldAt: correctionDate,
+        },
+        include: {
+          product: { select: { name: true } },
+          taxCode: { select: { name: true } },
+        },
+      });
+
+      const memoPrefix = transactionType === "sale_return"
+        ? `Retur Penjualan #${sale.id}`
+        : `Pembatalan Penjualan #${sale.id}`;
+
       if (sale.settlementType === "cash") {
         await this.createReversalEntries(
           tx,
           companyId,
           { source: "sale", sourceId: sale.id },
-          `Reversal Penjualan #${sale.id}`,
-          "sale_reversal",
-          sale.id,
-          sale.soldAt,
+          memoPrefix,
+          transactionType,
+          correction.id,
+          correctionDate,
         );
-      } else if (receivable) {
+      } else {
+        if (!receivable) {
+          throw new BadRequestException("Linked receivable not found for this sale");
+        }
         await this.createReversalEntries(
           tx,
           companyId,
           { source: "receivable", sourceId: receivable.id },
-          `Reversal Piutang Penjualan #${sale.id}`,
-          "receivable_reversal",
-          receivable.id,
-          sale.soldAt,
+          memoPrefix,
+          transactionType === "sale_return" ? "receivable_return" : "receivable_cancellation",
+          correction.id,
+          correctionDate,
         );
         await tx.receivable.update({
           where: { id: receivable.id },
@@ -292,19 +342,10 @@ export class SalesService {
         });
       }
 
-      const updated = await tx.sale.update({
-        where: { id: sale.id },
-        data: { status: "voided" },
-        include: {
-          product: { select: { name: true } },
-          taxCode: { select: { name: true } },
-        },
-      });
-
       return {
-        ...updated,
-        productName: updated.product.name,
-        taxCodeName: updated.taxCode?.name ?? null,
+        ...correction,
+        productName: correction.product.name,
+        taxCodeName: correction.taxCode?.name ?? null,
       };
     });
   }
@@ -353,6 +394,24 @@ export class SalesService {
 
   private calculateTaxAmount(baseAmount: number, taxRate: number) {
     return Math.round(baseAmount * (taxRate / 100));
+  }
+
+  private async assertNoExistingSaleCorrection(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    saleId: string,
+  ) {
+    const existing = await tx.sale.findFirst({
+      where: {
+        companyId,
+        originSaleId: saleId,
+        status: "posted",
+      },
+      select: { id: true, transactionType: true },
+    });
+    if (existing) {
+      throw new BadRequestException("A return or cancellation has already been recorded for this sale");
+    }
   }
 
   private assertTransactionMutable(status: string, entityName: string) {

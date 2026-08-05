@@ -15,10 +15,20 @@ import { formatDateId } from '@/shared/lib/date';
 export default function Purchases() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
-  const [reversingPurchase, setReversingPurchase] = useState<Purchase | null>(null);
+  const [purchaseCorrection, setPurchaseCorrection] = useState<{ purchase: Purchase; action: 'return' | 'cancel' } | null>(null);
   const { company, error: companyError } = useCompanyProfile();
 
-  const { purchases, addPurchase, updatePurchase, deletePurchase, reversePurchase, getTotalSpend, isMutating, error: purchasesError } = usePurchases(company?.id);
+  const {
+    purchases,
+    addPurchase,
+    updatePurchase,
+    deletePurchase,
+    createPurchaseReturn,
+    createPurchaseCancellation,
+    getTotalSpend,
+    isMutating,
+    error: purchasesError,
+  } = usePurchases(company?.id);
   const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
   useErrorToast(purchasesError, 'Gagal memuat pembelian');
@@ -46,8 +56,12 @@ export default function Purchases() {
     await updatePurchase(id, updates);
   };
 
-  const handleReversePurchase = async (purchase: Purchase) => {
-    setReversingPurchase(purchase);
+  const handleCreateReturn = async (purchase: Purchase) => {
+    setPurchaseCorrection({ purchase, action: 'return' });
+  };
+
+  const handleCreateCancellation = async (purchase: Purchase) => {
+    setPurchaseCorrection({ purchase, action: 'cancel' });
   };
 
   const formatCurrency = (value: number) => {
@@ -89,7 +103,8 @@ export default function Purchases() {
               purchases={purchases}
               onEdit={handleEdit}
               onDelete={deletePurchase}
-              onReverse={handleReversePurchase}
+              onCreateReturn={handleCreateReturn}
+              onCreateCancellation={handleCreateCancellation}
             />
           )}
         </div>
@@ -103,23 +118,38 @@ export default function Purchases() {
           taxCodes={taxCodes}
         />
         <TransactionReversalDialog
-          open={!!reversingPurchase}
-          onOpenChange={(open) => !open && setReversingPurchase(null)}
-          title="Reverse Pembelian"
-          description="Gunakan reversal jika transaksi pembelian posted perlu dibatalkan tanpa menghapus transaksi dan jurnal aslinya."
-          transactionLabel={reversingPurchase ? `${reversingPurchase.itemName} • ${formatCurrency(reversingPurchase.totalCost)}` : ''}
-          transactionDate={reversingPurchase ? formatDateId(reversingPurchase.date) : undefined}
+          open={!!purchaseCorrection}
+          onOpenChange={(open) => !open && setPurchaseCorrection(null)}
+          title={purchaseCorrection?.action === 'return' ? 'Catat Retur Pembelian' : 'Batalkan Pembelian'}
+          description={
+            purchaseCorrection?.action === 'return'
+              ? 'Retur pembelian dicatat sebagai transaksi koreksi terpisah agar pembelian asli tetap tersimpan di audit trail.'
+              : 'Pembatalan pembelian dicatat sebagai transaksi koreksi terpisah agar pembelian asli tetap tersimpan di audit trail.'
+          }
+          transactionLabel={purchaseCorrection ? `${purchaseCorrection.purchase.itemName} • ${formatCurrency(purchaseCorrection.purchase.totalCost)}` : ''}
+          transactionDate={purchaseCorrection ? formatDateId(purchaseCorrection.purchase.date) : undefined}
           impactLines={[
-            'Status pembelian akan berubah menjadi voided.',
-            'Sistem membuat jurnal pembalik yang menetralkan hutang/kas, persediaan atau beban, dan pajak masukan terkait.',
-            'Transaksi asli tetap tersimpan untuk kebutuhan audit, vendor tracing, dan rekonsiliasi.',
+            'Transaksi asli tetap posted dan tidak ditimpa.',
+            'Sistem membuat event koreksi baru yang membalik hutang/kas, persediaan atau beban, dan pajak masukan terkait.',
+            'Stok barang akan dikurangi kembali sesuai kuantitas transaksi asli agar audit trail dan rekonsiliasi tetap rapi.',
           ]}
           onConfirm={async () => {
-            if (!reversingPurchase) return;
-            await reversePurchase(reversingPurchase.id);
-            setReversingPurchase(null);
+            if (!purchaseCorrection) return;
+            if (purchaseCorrection.action === 'return') {
+              await createPurchaseReturn(purchaseCorrection.purchase.id);
+            } else {
+              await createPurchaseCancellation(purchaseCorrection.purchase.id);
+            }
+            setPurchaseCorrection(null);
           }}
           isSubmitting={isMutating}
+          confirmLabel={purchaseCorrection?.action === 'return' ? 'Catat Retur' : 'Batalkan Pembelian'}
+          warningText={
+            purchaseCorrection?.action === 'return'
+              ? 'Pembelian posted tidak dihapus. Sistem akan membuat transaksi retur terpisah untuk membalik dampak akuntansinya.'
+              : 'Pembelian posted tidak dihapus. Sistem akan membuat transaksi pembatalan terpisah untuk membalik dampak akuntansinya.'
+          }
+          impactTitle={purchaseCorrection?.action === 'return' ? 'Dampak retur' : 'Dampak pembatalan'}
         />
       </div>
     </MainLayout>

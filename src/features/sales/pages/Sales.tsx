@@ -15,9 +15,20 @@ import { formatDateId } from '@/shared/lib/date';
 
 export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [reversingSale, setReversingSale] = useState<Sale | null>(null);
+  const [saleCorrection, setSaleCorrection] = useState<{ sale: Sale; action: 'return' | 'cancel' } | null>(null);
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, addSale, deleteSale, reverseSale, totalRevenue, totalUnitsSold, todaysRevenue, isMutating, error: salesError } = useSales(company?.id);
+  const {
+    sales,
+    addSale,
+    deleteSale,
+    createSaleReturn,
+    createSaleCancellation,
+    totalRevenue,
+    totalUnitsSold,
+    todaysRevenue,
+    isMutating,
+    error: salesError,
+  } = useSales(company?.id);
   const { products, error: productsError } = useProducts(company?.id);
   const { taxCodes, error: taxCodesError } = useTaxCodes(company?.id);
   useErrorToast(companyError, 'Gagal memuat perusahaan');
@@ -30,9 +41,23 @@ export default function Sales() {
     await addSale(data);
   };
 
-  const handleReverseSale = async (sale: Sale) => {
-    setReversingSale(sale);
+  const handleCreateReturn = async (sale: Sale) => {
+    setSaleCorrection({ sale, action: 'return' });
   };
+
+  const handleCreateCancellation = async (sale: Sale) => {
+    setSaleCorrection({ sale, action: 'cancel' });
+  };
+
+  const correctionTitle = saleCorrection?.action === 'return' ? 'Catat Retur Penjualan' : 'Batalkan Penjualan';
+  const correctionDescription = saleCorrection?.action === 'return'
+    ? 'Retur dicatat sebagai transaksi koreksi terpisah agar penjualan asli tetap tersimpan di audit trail.'
+    : 'Pembatalan dicatat sebagai transaksi koreksi terpisah agar penjualan asli tetap tersimpan di audit trail.';
+  const correctionImpactTitle = saleCorrection?.action === 'return' ? 'Dampak retur' : 'Dampak pembatalan';
+  const correctionWarning = saleCorrection?.action === 'return'
+    ? 'Penjualan posted tidak dihapus. Sistem akan membuat transaksi retur terpisah untuk membalik dampak akuntansinya.'
+    : 'Penjualan posted tidak dihapus. Sistem akan membuat transaksi pembatalan terpisah untuk membalik dampak akuntansinya.';
+  const correctionConfirmLabel = saleCorrection?.action === 'return' ? 'Catat Retur' : 'Batalkan Penjualan';
 
   return (
     <MainLayout>
@@ -61,7 +86,12 @@ export default function Sales() {
               action={<Button onClick={() => setIsModalOpen(true)} className="gap-2"><Plus className="h-4 w-4" />Catat Penjualan</Button>}
             />
           ) : (
-            <SalesTable sales={sales} onDelete={deleteSale} onReverse={handleReverseSale} />
+            <SalesTable
+              sales={sales}
+              onDelete={deleteSale}
+              onCreateReturn={handleCreateReturn}
+              onCreateCancellation={handleCreateCancellation}
+            />
           )}
         </div>
       </div>
@@ -74,23 +104,30 @@ export default function Sales() {
         taxCodes={taxCodes}
       />
       <TransactionReversalDialog
-        open={!!reversingSale}
-        onOpenChange={(open) => !open && setReversingSale(null)}
-        title="Reverse Penjualan"
-        description="Gunakan reversal jika transaksi penjualan posted perlu dibatalkan tanpa menghapus jejak jurnal aslinya."
-        transactionLabel={reversingSale ? `${reversingSale.productName} • Rp${reversingSale.totalPrice.toLocaleString('id-ID')}` : ''}
-        transactionDate={reversingSale ? formatDateId(reversingSale.soldAt) : undefined}
+        open={!!saleCorrection}
+        onOpenChange={(open) => !open && setSaleCorrection(null)}
+        title={correctionTitle}
+        description={correctionDescription}
+        transactionLabel={saleCorrection ? `${saleCorrection.sale.productName} • Rp${saleCorrection.sale.totalPrice.toLocaleString('id-ID')}` : ''}
+        transactionDate={saleCorrection ? formatDateId(saleCorrection.sale.soldAt) : undefined}
         impactLines={[
-          'Status penjualan akan berubah menjadi voided.',
-          'Sistem membuat jurnal pembalik yang menetralkan piutang/kas, pendapatan, dan pajak keluaran terkait.',
-          'Transaksi asli tetap tersimpan untuk kebutuhan audit dan rekonsiliasi.',
+          'Transaksi asli tetap posted dan tidak ditimpa.',
+          'Sistem membuat event koreksi baru yang membalik piutang/kas, pendapatan, dan pajak keluaran terkait.',
+          'Stok barang akan dikembalikan sesuai kuantitas transaksi asli untuk menjaga jejak audit dan rekonsiliasi.',
         ]}
         onConfirm={async () => {
-          if (!reversingSale) return;
-          await reverseSale(reversingSale.id);
-          setReversingSale(null);
+          if (!saleCorrection) return;
+          if (saleCorrection.action === 'return') {
+            await createSaleReturn(saleCorrection.sale.id);
+          } else {
+            await createSaleCancellation(saleCorrection.sale.id);
+          }
+          setSaleCorrection(null);
         }}
         isSubmitting={isMutating}
+        confirmLabel={correctionConfirmLabel}
+        warningText={correctionWarning}
+        impactTitle={correctionImpactTitle}
       />
     </MainLayout>
   );
