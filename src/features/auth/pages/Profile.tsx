@@ -34,6 +34,9 @@ export function ProfilePage() {
   const planLabel = isLoadingSubscription
     ? 'Memuat...'
     : currentPlan?.name ?? 'Free';
+  const subscriptionLabel = subscription?.status
+    ? `${planLabel} (${subscription.status})`
+    : planLabel;
 
   useEffect(() => {
     if (!user) return;
@@ -124,7 +127,7 @@ export function ProfilePage() {
               Profil Pengguna
             </CardTitle>
             <CardDescription>
-              Lihat dan perbarui informasi akun Anda
+              Kelola informasi akun dan identitas perusahaan Anda dari satu halaman.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -151,6 +154,9 @@ export function ProfilePage() {
                     placeholder="https://example.com/avatar.jpg"
                     className="text-sm"
                   />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Gunakan URL foto profil atau logo personal yang ingin ditampilkan pada akun.
+                  </p>
                 </div>
               )}
               <h2 className="text-xl font-semibold">{user.name}</h2>
@@ -161,6 +167,13 @@ export function ProfilePage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+                <div className="text-sm font-medium text-foreground">Informasi Akun</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Data di bagian ini terkait identitas login dan tampilan akun pengguna.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -188,6 +201,13 @@ export function ProfilePage() {
                 />
               </div>
 
+              <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+                <div className="text-sm font-medium text-foreground">Informasi Perusahaan</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Data berikut dipakai pada profil perusahaan, langganan aktif, dan dokumen bisnis.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="companyName" className="flex items-center gap-1">
                   <Building2 className="h-3.5 w-3.5" /> Nama Perusahaan
@@ -203,19 +223,18 @@ export function ProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="plan" className="flex items-center gap-1">
-                  <Building2 className="h-3.5 w-3.5" /> Paket Langganan
+                  <Building2 className="h-3.5 w-3.5" /> Langganan Aktif
                 </Label>
                 <Input
                   id="plan"
                   type="text"
-                  value={
-                    subscription?.status
-                      ? `${planLabel} (${subscription.status})`
-                      : planLabel
-                  }
+                  value={subscriptionLabel}
                   disabled
                   className="bg-muted"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Untuk upgrade, downgrade, atau renewal paket, gunakan halaman Langganan.
+                </p>
               </div>
 
               <div className="space-y-2">

@@ -43,6 +43,15 @@ type BalanceCategories = {
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private isCashLikeAccount(account: Pick<AccountSummary, "code" | "name">) {
+    const name = account.name.toLowerCase();
+    return (
+      account.code === DEFAULT_ACCOUNT_CODES.cash ||
+      name.includes("kas") ||
+      name.includes("bank")
+    );
+  }
+
   async getRangeStatement(userId: string, companyId: string, fromStr: string, toStr: string) {
     await this.assertMember(userId, companyId);
     const from = this.parseDate(fromStr);
@@ -150,7 +159,7 @@ export class ReportsService {
           account.normalBalance === "credit" ? credit - debit : debit - credit;
       }
 
-      if (account.code === DEFAULT_ACCOUNT_CODES.cash) {
+      if (this.isCashLikeAccount(account)) {
         cashIn += debit;
         cashOut += credit;
       }
@@ -260,9 +269,7 @@ export class ReportsService {
       prefixes.some((prefix) => acc.code.startsWith(prefix));
     const sum = (items: AccountSummary[]) => items.reduce((total, acc) => total + (acc.net ?? 0), 0);
 
-    const cash = sum(accounts.filter((acc) =>
-      acc.code === DEFAULT_ACCOUNT_CODES.cash || hasName(acc, ["kas"])
-    ));
+    const cash = sum(accounts.filter((acc) => this.isCashLikeAccount(acc)));
     const receivable = sum(accounts.filter((acc) =>
       acc.code === DEFAULT_ACCOUNT_CODES.receivable || hasName(acc, ["piutang"])
     ));
@@ -286,13 +293,13 @@ export class ReportsService {
     const excludedAssetIds = new Set(
       accounts
         .filter((acc) =>
-          acc.code === DEFAULT_ACCOUNT_CODES.cash ||
+          this.isCashLikeAccount(acc) ||
           acc.code === DEFAULT_ACCOUNT_CODES.receivable ||
           acc.code === DEFAULT_ACCOUNT_CODES.inventory ||
           acc.code === DEFAULT_ACCOUNT_CODES.fixedAsset ||
           acc.code === DEFAULT_ACCOUNT_CODES.accumulatedDepreciation ||
           hasPrefix(acc, ["12", "13", "14", "15"]) ||
-          hasName(acc, ["kas", "piutang", "persediaan", "aset tetap", "peralatan", "akumulasi penyusutan", "dibayar dimuka", "prepaid"])
+          hasName(acc, ["kas", "bank", "piutang", "persediaan", "aset tetap", "peralatan", "akumulasi penyusutan", "dibayar dimuka", "prepaid"])
         )
         .map((acc) => acc.id),
     );

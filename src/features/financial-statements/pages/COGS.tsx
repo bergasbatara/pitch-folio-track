@@ -5,26 +5,43 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CalendarIcon, Download, Calculator } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { useSales } from '@/features/sales/hooks/useSales';
-import { usePurchases } from '@/features/purchases/hooks/usePurchases';
-import { useProducts } from '@/features/products/hooks/useProducts';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompanyProfile } from '@/features/onboarding';
 import jsPDF from 'jspdf';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { useToast } from '@/components/ui/use-toast';
+
+type ReportData = {
+  totals: {
+    revenue: number;
+  };
+  accounts: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    net: number;
+  }>;
+};
+
+type BalanceSnapshot = {
+  categories: {
+    inventory: number;
+  };
+};
 
 export default function COGS() {
   const [date, setDate] = useState<Date>(new Date());
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, error: salesError } = useSales(company?.id);
-  const { purchases, error: purchasesError } = usePurchases(company?.id);
-  const { products, error: productsError } = useProducts(company?.id);
+  const [report, setReport] = useState<ReportData | null>(null);
+  const [startBalance, setStartBalance] = useState<BalanceSnapshot | null>(null);
+  const [endBalance, setEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
-  useErrorToast(salesError, 'Gagal memuat penjualan');
-  useErrorToast(purchasesError, 'Gagal memuat pembelian');
-  useErrorToast(productsError, 'Gagal memuat produk');
+  useErrorToast(loadError, 'Gagal memuat HPP');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -32,41 +49,70 @@ export default function COGS() {
 
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(date);
+  const emptyCategories = useMemo(() => ({ inventory: 0 }), []);
 
-  const monthlySales = sales.filter((s) => {
-    const saleDate = new Date(s.soldAt);
-    return isWithinInterval(saleDate, { start: monthStart, end: monthEnd });
-  });
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id) return;
+      setLoadError(null);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const from = format(monthStart, 'yyyy-MM-dd');
+        const to = format(monthEnd, 'yyyy-MM-dd');
+        const startAsOf = format(subDays(monthStart, 1), 'yyyy-MM-dd');
+        const endAsOf = format(monthEnd, 'yyyy-MM-dd');
 
-  const monthlyPurchases = purchases.filter((p) => {
-    const purchaseDate = new Date(p.date);
-    return isWithinInterval(purchaseDate, { start: monthStart, end: monthEnd });
-  });
+        const fetchJson = async (url: string) => {
+          const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat HPP');
+          }
+          return res.json();
+        };
 
-  // Calculate beginning inventory (simplified - current inventory + sold - purchased)
-  const currentInventoryValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
-  const soldValue = monthlySales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const purchasedValue = monthlyPurchases.reduce((sum, p) => sum + p.totalCost, 0);
+        const [currentReport, openingSnap, closingSnap] = await Promise.all([
+          fetchJson(`${apiBase}/companies/${company.id}/reports/range?from=${from}&to=${to}&ts=${Date.now()}`),
+          fetchJson(`${apiBase}/companies/${company.id}/reports/balance?asOf=${startAsOf}&ts=${Date.now()}`),
+          fetchJson(`${apiBase}/companies/${company.id}/reports/balance?asOf=${endAsOf}&ts=${Date.now()}`),
+        ]);
 
-  // COGS = Beginning Inventory + Purchases - Ending Inventory
-  const beginningInventory = currentInventoryValue + soldValue - purchasedValue;
-  const endingInventory = currentInventoryValue;
-  const cogs = beginningInventory + purchasedValue - endingInventory;
+        setReport(currentReport);
+        setStartBalance(openingSnap);
+        setEndBalance(closingSnap);
+      } catch (err: any) {
+        setReport(null);
+        setStartBalance(null);
+        setEndBalance(null);
+        setLoadError(err.message ?? 'Gagal memuat HPP');
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      }
+    };
+    load();
+  }, [company?.id, monthStart, monthEnd, toast]);
 
-  // Gross Profit
-  const totalRevenue = soldValue;
+  const sumByKeywords = (keywords: string[]) =>
+    (report?.accounts ?? [])
+      .filter((acc) => acc.type === 'expense' && keywords.some((kw) => acc.name.toLowerCase().includes(kw)))
+      .reduce((sum, acc) => sum + acc.net, 0);
+
+  const startCategories = startBalance?.categories ?? emptyCategories;
+  const endCategories = endBalance?.categories ?? emptyCategories;
+  const beginningInventory = startCategories.inventory;
+  const endingInventory = endCategories.inventory;
+  const purchasedValue = sumByKeywords(['pembelian']);
+  const reportedCogs = sumByKeywords(['hpp', 'harga pokok penjualan']);
+  const calculatedCogs = beginningInventory + purchasedValue - endingInventory;
+  const cogs = reportedCogs !== 0 ? reportedCogs : calculatedCogs;
+  const totalRevenue = report?.totals.revenue ?? 0;
   const grossProfit = totalRevenue - cogs;
   const grossProfitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-
-  // Sales by product
-  const salesByProduct = monthlySales.reduce((acc, sale) => {
-    if (!acc[sale.productName]) {
-      acc[sale.productName] = { quantity: 0, revenue: 0 };
-    }
-    acc[sale.productName].quantity += sale.quantity;
-    acc[sale.productName].revenue += sale.totalPrice;
-    return acc;
-  }, {} as Record<string, { quantity: number; revenue: number }>);
+  const hppComponents = [
+    { label: 'Persediaan Awal', value: beginningInventory },
+    { label: 'Pembelian Bersih', value: purchasedValue },
+    { label: 'Persediaan Akhir', value: -endingInventory },
+    { label: reportedCogs !== 0 ? 'HPP dari Jurnal Expense' : 'HPP Terkalkulasi', value: cogs },
+  ];
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -177,35 +223,26 @@ export default function COGS() {
           </CardContent>
         </Card>
 
-        {/* Product Sales Detail */}
+        {/* COGS Detail */}
         <Card>
           <CardHeader>
-            <CardTitle>Detail Penjualan per Produk</CardTitle>
+            <CardTitle>Rincian Perhitungan HPP</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Produk</TableHead>
-                  <TableHead className="text-right">Kuantitas</TableHead>
-                  <TableHead className="text-right">Pendapatan</TableHead>
+                  <TableHead>Komponen</TableHead>
+                  <TableHead className="text-right">Nilai</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(salesByProduct).map(([productName, data]) => (
-                  <TableRow key={productName}>
-                    <TableCell className="font-medium">{productName}</TableCell>
-                    <TableCell className="text-right">{data.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(data.revenue)}</TableCell>
+                {hppComponents.map((item) => (
+                  <TableRow key={item.label}>
+                    <TableCell className="font-medium">{item.label}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.value)}</TableCell>
                   </TableRow>
                 ))}
-                {Object.keys(salesByProduct).length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                      Belum ada penjualan di bulan ini
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </CardContent>

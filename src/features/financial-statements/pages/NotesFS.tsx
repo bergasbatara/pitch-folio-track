@@ -272,7 +272,7 @@ export default function NotesFS() {
     const addPageNumber = () => {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(`${pageNum}+${totalPages}`, pageW / 2, 285, { align: 'center' });
+      doc.text(`${pageNum}/${totalPages}`, pageW / 2, 285, { align: 'center' });
     };
 
     const addHeader = () => {
@@ -577,7 +577,7 @@ export default function NotesFS() {
     const addFooter = () => {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(`${pageNum}+${totalPages}`, pageW / 2, 285, { align: 'center' });
+      doc.text(`${pageNum}/${totalPages}`, pageW / 2, 285, { align: 'center' });
     };
 
     const addHeader = () => {

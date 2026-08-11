@@ -2,6 +2,164 @@ import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 export const API_URL = 'http://localhost:3000';
 
+type CompanyRef = { id: string };
+
+type TaxCodeRef = {
+  id: string;
+  code: string;
+  name: string;
+  rate: number;
+};
+
+type JournalLineRef = {
+  id: string;
+  accountId: string;
+  debit: number;
+  credit: number;
+  account: {
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    normalBalance: string;
+  };
+};
+
+type JournalEntryRef = {
+  id: string;
+  date: string;
+  memo: string | null;
+  source: string | null;
+  sourceId: string | null;
+  status: string;
+  lines: JournalLineRef[];
+};
+
+type SaleRef = {
+  id: string;
+  soldAt: string;
+  productId: string;
+  productCode: string | null;
+  productName: string;
+  quantity: number;
+  pricePerUnit: number;
+  subtotalAmount: number;
+  taxCodeId: string | null;
+  taxCodeName: string | null;
+  taxRate: number;
+  taxAmount: number;
+  totalPrice: number;
+  settlementType: 'cash' | 'receivable';
+  status: string;
+};
+
+type PurchaseRef = {
+  id: string;
+  date: string;
+  itemName: string;
+  productId: string | null;
+  productCode: string | null;
+  productName: string | null;
+  supplier: string | null;
+  quantity: number;
+  unitCost: number;
+  subtotalCost: number;
+  taxCodeId: string | null;
+  taxCodeName: string | null;
+  taxRate: number;
+  taxAmount: number;
+  totalCost: number;
+  settlementType: 'cash' | 'payable';
+  status: string;
+};
+
+type ReceivableRef = {
+  id: string;
+  companyId: string;
+  description: string;
+  amount: number;
+  paidAmount: number;
+  dueDate: string;
+  status: string;
+};
+
+type PayableRef = {
+  id: string;
+  companyId: string;
+  description: string;
+  amount: number;
+  paidAmount: number;
+  dueDate: string;
+  status: string;
+};
+
+type RangeReport = {
+  from: string;
+  to: string;
+  totals: {
+    revenue: number;
+    expense: number;
+    netProfit: number;
+    cashIn: number;
+    cashOut: number;
+    netCash: number;
+    receivableChange: number;
+    payableChange: number;
+    inventoryValue: number;
+  };
+  byType: Record<string, number>;
+  accounts: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    normalBalance: string;
+    debit: number;
+    credit: number;
+    net: number;
+  }>;
+};
+
+type BalanceReport = {
+  asOf: string;
+  byType: Record<string, number>;
+  accounts: Array<{
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    normalBalance: string;
+    debit: number;
+    credit: number;
+    net: number;
+  }>;
+  categories: {
+    cash: number;
+    receivable: number;
+    inventory: number;
+    prepaid: number;
+    prepaidTax: number;
+    otherCurrentAssets: number;
+    fixedAssetsGross: number;
+    accumulatedDepreciation: number;
+    fixedAssetsNet: number;
+    payables: number;
+    bankDebtShort: number;
+    otherCurrentLiabilities: number;
+    bankDebtLong: number;
+    financingDebt: number;
+    equityCapital: number;
+    retainedEarnings: number;
+    totalCurrentAssets: number;
+    totalNonCurrentAssets: number;
+    totalAssets: number;
+    totalCurrentLiabilities: number;
+    totalLongTermLiabilities: number;
+    totalLiabilities: number;
+    totalEquity: number;
+  };
+};
+
 const uniqueEmail = () => `pw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`;
 
 export async function registerAndCompleteOnboarding(page: Page) {
@@ -269,6 +427,8 @@ export async function createPurchase(
     quantity: number;
     unitCost: number;
     notes?: string;
+    taxCodeId?: string | null;
+    settlementType?: 'cash' | 'payable';
   },
 ) {
   const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
@@ -283,7 +443,7 @@ export async function createPurchase(
   });
 
   expect(response.ok(), await response.text()).toBeTruthy();
-  return response.json() as Promise<{ id: string }>;
+  return response.json() as Promise<PurchaseRef>;
 }
 
 export async function createSale(
@@ -294,6 +454,8 @@ export async function createSale(
     productCode?: string;
     quantity: number;
     pricePerUnit: number;
+    taxCodeId?: string | null;
+    settlementType?: 'cash' | 'receivable';
   },
 ) {
   const csrfResponse = await page.context().request.get(`${API_URL}/auth/csrf`);
@@ -308,13 +470,59 @@ export async function createSale(
   });
 
   expect(response.ok(), await response.text()).toBeTruthy();
-  return response.json() as Promise<{ id: string }>;
+  return response.json() as Promise<SaleRef>;
+}
+
+export async function listTaxCodes(page: Page, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(`${API_URL}/companies/${company.id}/tax-codes`);
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<TaxCodeRef[]>;
+}
+
+export async function listJournals(page: Page, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(`${API_URL}/companies/${company.id}/journals`);
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<JournalEntryRef[]>;
+}
+
+export async function listReceivables(page: Page, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(`${API_URL}/companies/${company.id}/receivables`);
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<ReceivableRef[]>;
+}
+
+export async function listPayables(page: Page, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(`${API_URL}/companies/${company.id}/payables`);
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<PayableRef[]>;
+}
+
+export async function getRangeReport(page: Page, from: string, to: string, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(
+    `${API_URL}/companies/${company.id}/reports/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  );
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<RangeReport>;
+}
+
+export async function getBalanceReport(page: Page, asOf: string, companyId?: string) {
+  const company = companyId ? { id: companyId } : await getCurrentCompany(page);
+  const response = await page.context().request.get(
+    `${API_URL}/companies/${company.id}/reports/balance?asOf=${encodeURIComponent(asOf)}`,
+  );
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return response.json() as Promise<BalanceReport>;
 }
 
 export async function getCurrentCompany(page: Page) {
   const companyResponse = await page.context().request.get(`${API_URL}/companies/current`);
   expect(companyResponse.ok(), await companyResponse.text()).toBeTruthy();
-  return (await companyResponse.json()) as { id: string };
+  return (await companyResponse.json()) as CompanyRef;
 }
 
 async function getCsrfToken(page: Page) {

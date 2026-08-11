@@ -4,24 +4,41 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Download, Scale } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
+import { format, endOfMonth, startOfYear, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useState } from 'react';
-import { useSales } from '@/features/sales/hooks/useSales';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompanyProfile } from '@/features/onboarding';
-import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import jsPDF from 'jspdf';
 import { cn } from '@/lib/utils';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
+import { useToast } from '@/components/ui/use-toast';
+
+type ReportData = {
+  totals: {
+    revenue: number;
+    expense: number;
+    netProfit: number;
+  };
+};
+
+type BalanceSnapshot = {
+  categories: {
+    equityCapital: number;
+    retainedEarnings: number;
+    totalEquity: number;
+  };
+};
 
 export default function EquityStatement() {
   const [date, setDate] = useState<Date>(new Date());
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, error: salesError } = useSales(company?.id);
-  const { purchases, error: purchasesError } = usePurchases(company?.id);
+  const [report, setReport] = useState<ReportData | null>(null);
+  const [startBalance, setStartBalance] = useState<BalanceSnapshot | null>(null);
+  const [endBalance, setEndBalance] = useState<BalanceSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
-  useErrorToast(salesError, 'Gagal memuat penjualan');
-  useErrorToast(purchasesError, 'Gagal memuat pembelian');
+  useErrorToast(loadError, 'Gagal memuat perubahan ekuitas');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
@@ -29,32 +46,62 @@ export default function EquityStatement() {
 
   const yearStart = startOfYear(date);
   const monthEnd = endOfMonth(date);
+  const emptyCategories = useMemo(
+    () => ({ equityCapital: 0, retainedEarnings: 0, totalEquity: 0 }),
+    [],
+  );
 
-  // Calculate beginning equity (all transactions before current year)
-  const previousYearSales = sales.filter((s) => new Date(s.soldAt) < yearStart);
-  const previousYearPurchases = purchases.filter((p) => new Date(p.date) < yearStart);
-  const beginningEquity = previousYearSales.reduce((sum, s) => sum + s.totalPrice, 0) - 
-                          previousYearPurchases.reduce((sum, p) => sum + p.totalCost, 0);
+  useEffect(() => {
+    const load = async () => {
+      if (!company?.id) return;
+      setLoadError(null);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const from = format(yearStart, 'yyyy-MM-dd');
+        const to = format(monthEnd, 'yyyy-MM-dd');
+        const startAsOf = format(subDays(yearStart, 1), 'yyyy-MM-dd');
+        const endAsOf = format(monthEnd, 'yyyy-MM-dd');
 
-  // Calculate net income for current period (year to date)
-  const ytdSales = sales.filter((s) => {
-    const saleDate = new Date(s.soldAt);
-    return isWithinInterval(saleDate, { start: yearStart, end: monthEnd });
-  });
-  const ytdPurchases = purchases.filter((p) => {
-    const purchaseDate = new Date(p.date);
-    return isWithinInterval(purchaseDate, { start: yearStart, end: monthEnd });
-  });
+        const fetchJson = async (url: string) => {
+          const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message ?? 'Gagal memuat perubahan ekuitas');
+          }
+          return res.json();
+        };
 
-  const totalRevenue = ytdSales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const totalExpenses = ytdPurchases.reduce((sum, p) => sum + p.totalCost, 0);
-  const netIncome = totalRevenue - totalExpenses;
+        const [currentReport, openingSnap, closingSnap] = await Promise.all([
+          fetchJson(`${apiBase}/companies/${company.id}/reports/range?from=${from}&to=${to}&ts=${Date.now()}`),
+          fetchJson(`${apiBase}/companies/${company.id}/reports/balance?asOf=${startAsOf}&ts=${Date.now()}`),
+          fetchJson(`${apiBase}/companies/${company.id}/reports/balance?asOf=${endAsOf}&ts=${Date.now()}`),
+        ]);
 
-  // For simplicity, assume no additional capital or withdrawals
-  const additionalCapital = 0;
-  const withdrawals = 0;
+        setReport(currentReport);
+        setStartBalance(openingSnap);
+        setEndBalance(closingSnap);
+      } catch (err: any) {
+        setReport(null);
+        setStartBalance(null);
+        setEndBalance(null);
+        setLoadError(err.message ?? 'Gagal memuat perubahan ekuitas');
+        toast({ title: 'Gagal memuat', description: err.message, variant: 'destructive' });
+      }
+    };
+    load();
+  }, [company?.id, yearStart, monthEnd, toast]);
 
-  const endingEquity = beginningEquity + netIncome + additionalCapital - withdrawals;
+  const startCategories = startBalance?.categories ?? emptyCategories;
+  const endCategories = endBalance?.categories ?? emptyCategories;
+  const beginningEquity = startCategories.totalEquity;
+  const totalRevenue = report?.totals.revenue ?? 0;
+  const totalExpenses = report?.totals.expense ?? 0;
+  const netIncome = report?.totals.netProfit ?? 0;
+  const capitalMovement = endCategories.equityCapital - startCategories.equityCapital;
+  const additionalCapital = capitalMovement > 0 ? capitalMovement : 0;
+  const endingEquity = endCategories.totalEquity;
+  const withdrawals = Math.max(beginningEquity + additionalCapital + netIncome - endingEquity, 0);
+  const retainedEarnings = endCategories.retainedEarnings;
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -66,7 +113,9 @@ export default function EquityStatement() {
     doc.setFontSize(12);
     doc.text(`Ekuitas Awal: ${formatCurrency(beginningEquity)}`, 20, 50);
     doc.text(`Tambah: Laba Bersih: ${formatCurrency(netIncome)}`, 20, 65);
-    doc.text(`Ekuitas Akhir: ${formatCurrency(endingEquity)}`, 20, 85);
+    doc.text(`Tambah: Setoran Modal: ${formatCurrency(additionalCapital)}`, 20, 75);
+    doc.text(`Kurang: Penarikan/Reverse: ${formatCurrency(withdrawals)}`, 20, 85);
+    doc.text(`Ekuitas Akhir: ${formatCurrency(endingEquity)}`, 20, 100);
     
     doc.save(`Ekuitas_${format(date, 'yyyy-MM')}.pdf`);
   };
@@ -136,23 +185,34 @@ export default function EquityStatement() {
         </Card>
 
         {/* Summary breakdown */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ringkasan Pendapatan</CardTitle>
+              <CardTitle className="text-base">Modal Disetor</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-1">Total dari {ytdSales.length} transaksi penjualan</p>
-              <p className="text-2xl font-bold text-emerald-500">{formatCurrency(totalRevenue)}</p>
+              <p className="text-sm text-muted-foreground mb-1">Saldo modal pemilik per akhir periode</p>
+              <p className="text-2xl font-bold text-emerald-500">{formatCurrency(endCategories.equityCapital)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ringkasan Beban</CardTitle>
+              <CardTitle className="text-base">Saldo Laba</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-1">Total dari {ytdPurchases.length} transaksi pembelian</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
+              <p className="text-sm text-muted-foreground mb-1">Akumulasi laba ditahan dan laba berjalan</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(retainedEarnings)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Laba Bersih YTD</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-1">Pendapatan {formatCurrency(totalRevenue)} dikurangi beban {formatCurrency(totalExpenses)}</p>
+              <p className={cn('text-2xl font-bold', netIncome >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                {formatCurrency(netIncome)}
+              </p>
             </CardContent>
           </Card>
         </div>

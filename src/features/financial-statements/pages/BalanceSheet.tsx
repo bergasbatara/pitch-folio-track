@@ -268,9 +268,9 @@ export default function BalanceSheet() {
     // Page number
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('1+1', pageW / 2, 285, { align: 'center' });
+    doc.text('1/1', pageW / 2, 285, { align: 'center' });
 
-    doc.save(`Neraca_${format(date, 'yyyy-MM-dd')}.pdf`);
+    doc.save(`Laporan_Neraca_${format(date, 'yyyy-MM-dd')}.pdf`);
   };
 
   return (

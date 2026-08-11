@@ -101,7 +101,7 @@ export function CashFlowChart({ sales, purchases }: CashFlowChartProps) {
                   const labels: Record<string, string> = {
                     kasuk: 'Total Kas Masuk',
                     keluar: 'Total Kas Keluar',
-                    bersih: 'Perpindahan Kas Bersih'
+                    bersih: 'Arus Kas Bersih'
                   };
                   return labels[value] || value;
                 }}

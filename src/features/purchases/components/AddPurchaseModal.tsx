@@ -252,6 +252,22 @@ export function AddPurchaseModal({
             </div>
           </div>
 
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3">
+            <div className="mb-2 text-sm font-medium text-foreground">Rincian Perhitungan</div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                DPP = {Number(quantity || 0).toLocaleString('id-ID')} x Rp
+                {Number(unitCost || 0).toLocaleString('id-ID')}
+              </p>
+              <p>
+                Pajak = Rp{subtotalCost.toLocaleString('id-ID')} x {taxRate.toLocaleString('id-ID')}%
+              </p>
+              <p>
+                Grand Total = DPP + Pajak = Rp{Math.round(totalCost).toLocaleString('id-ID')}
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="notes">Catatan (opsional)</Label>
             <Textarea

@@ -334,7 +334,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-3 py-1 text-sm font-medium text-primary shadow-sm backdrop-blur">
                 <Settings2 className="h-4 w-4" />
-                Pengaturan Produk
+                Pengaturan Aplikasi
               </div>
               <div className="space-y-3">
                 <h1 className="text-4xl font-semibold tracking-tight text-foreground">Pengaturan</h1>
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                     {canReadAuditLogs ? 'Audit siap' : 'Audit terbatas'}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Reset password dan sesi akun
+                    Reset password, audit, dan sesi akun
                   </div>
                 </div>
                 <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur">
@@ -389,7 +389,7 @@ export default function SettingsPage() {
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-foreground">Operasional Cepat</div>
                     <p className="text-sm leading-6 text-muted-foreground">
-                      Renewal paket, audit log, dan preferensi utama ditempatkan dalam satu alur.
+                      Renewal paket, audit log, dan preferensi utama ditempatkan dalam satu alur yang lebih ringkas.
                     </p>
                   </div>
                 </div>
@@ -487,8 +487,8 @@ export default function SettingsPage() {
                         Riwayat Tagihan / Invoice
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Modul invoice langganan belum dipublikasikan. Untuk sementara, histori
-                        pembayaran mengikuti transaksi sukses pada alur langganan.
+                        Riwayat invoice langganan belum dipublikasikan penuh. Untuk sementara,
+                        histori pembayaran mengikuti transaksi sukses pada alur langganan.
                       </p>
                     </div>
                     <div className="rounded-2xl border border-border/70 p-4">
@@ -624,13 +624,13 @@ export default function SettingsPage() {
                     <History className="h-5 w-5 text-primary" />
                     Riwayat Login
                   </CardTitle>
-                  <CardDescription>
-                    Placeholder untuk histori login dan manajemen sesi lintas perangkat.
+                <CardDescription>
+                    Ringkasan histori login dan manajemen sesi lintas perangkat.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-muted-foreground">
                   <p>Fitur login history dan logout semua perangkat belum tersedia di backend saat ini.</p>
-                  <p>Kalau diinginkan, ini bisa jadi batch berikutnya: tabel session, last login IP, dan revoke refresh token per device.</p>
+                  <p>Batch berikutnya bisa menambahkan tabel sesi, waktu login terakhir, IP login, dan revoke refresh token per perangkat.</p>
                 </CardContent>
               </Card>
             </div>

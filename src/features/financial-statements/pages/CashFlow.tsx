@@ -4,12 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Download, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useEffect, useMemo, useState } from 'react';
-import { useSales } from '@/features/sales/hooks/useSales';
 import { useCompanyProfile } from '@/features/onboarding';
-import { usePurchases } from '@/features/purchases/hooks/usePurchases';
 import jsPDF from 'jspdf';
 import { cn } from '@/lib/utils';
 import { useErrorToast } from '@/shared/hooks/useErrorToast';
@@ -23,6 +21,7 @@ type ReportData = {
   };
   accounts: Array<{
     id: string;
+    code: string;
     name: string;
     type: string;
     net: number;
@@ -36,6 +35,7 @@ type BalanceSnapshot = {
     receivable: number;
     inventory: number;
     prepaid: number;
+    prepaidTax: number;
     otherCurrentAssets: number;
     fixedAssetsGross: number;
     payables: number;
@@ -49,8 +49,6 @@ type BalanceSnapshot = {
 export default function CashFlow() {
   const [date, setDate] = useState<Date>(new Date());
   const { company, error: companyError } = useCompanyProfile();
-  const { sales, error: salesError } = useSales(company?.id);
-  const { purchases, error: purchasesError } = usePurchases(company?.id);
   const [report, setReport] = useState<ReportData | null>(null);
   const [prevReport, setPrevReport] = useState<ReportData | null>(null);
   const [startBalance, setStartBalance] = useState<BalanceSnapshot | null>(null);
@@ -60,8 +58,6 @@ export default function CashFlow() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { toast } = useToast();
   useErrorToast(companyError, 'Gagal memuat perusahaan');
-  useErrorToast(salesError, 'Gagal memuat penjualan');
-  useErrorToast(purchasesError, 'Gagal memuat pembelian');
   useErrorToast(loadError, 'Gagal memuat arus kas');
 
   const formatCurrency = (value: number) => {
@@ -79,6 +75,7 @@ export default function CashFlow() {
     receivable: 0,
     inventory: 0,
     prepaid: 0,
+    prepaidTax: 0,
     otherCurrentAssets: 0,
     fixedAssetsGross: 0,
     payables: 0,
@@ -152,16 +149,6 @@ export default function CashFlow() {
     load();
   }, [company?.id, monthStart, monthEnd, prevMonthStart, prevMonthEnd, toast]);
 
-  const monthlySales = sales.filter((s) => {
-    const saleDate = new Date(s.soldAt);
-    return isWithinInterval(saleDate, { start: monthStart, end: monthEnd });
-  });
-
-  const monthlyPurchases = purchases.filter((p) => {
-    const purchaseDate = new Date(p.date);
-    return isWithinInterval(purchaseDate, { start: monthStart, end: monthEnd });
-  });
-
   const currentStart = startBalance?.categories ?? emptyCategories;
   const currentEnd = endBalance?.categories ?? emptyCategories;
   const prevStart = prevStartBalance?.categories ?? emptyCategories;
@@ -179,16 +166,20 @@ export default function CashFlow() {
   const prevNetIncome = prevReport?.totals.netProfit ?? 0;
   const depreciation = sumByKeywords(report?.accounts, ['penyusutan']);
   const prevDepreciation = sumByKeywords(prevReport?.accounts, ['penyusutan']);
+  const taxExpense = sumByKeywords(report?.accounts, ['beban pajak', 'pph']);
+  const prevTaxExpense = sumByKeywords(prevReport?.accounts, ['beban pajak', 'pph']);
 
   const receivableEffect = -(currentEnd.receivable - currentStart.receivable);
   const inventoryEffect = -(currentEnd.inventory - currentStart.inventory);
   const prepaidEffect = -(currentEnd.prepaid - currentStart.prepaid);
+  const prepaidTaxEffect = -(currentEnd.prepaidTax - currentStart.prepaidTax);
   const otherAssetEffect = -(currentEnd.otherCurrentAssets - currentStart.otherCurrentAssets);
   const payableEffect = currentEnd.payables - currentStart.payables;
 
   const prevReceivableEffect = -(prevEnd.receivable - prevStart.receivable);
   const prevInventoryEffect = -(prevEnd.inventory - prevStart.inventory);
   const prevPrepaidEffect = -(prevEnd.prepaid - prevStart.prepaid);
+  const prevPrepaidTaxEffect = -(prevEnd.prepaidTax - prevStart.prepaidTax);
   const prevOtherAssetEffect = -(prevEnd.otherCurrentAssets - prevStart.otherCurrentAssets);
   const prevPayableEffect = prevEnd.payables - prevStart.payables;
 
@@ -198,6 +189,7 @@ export default function CashFlow() {
     receivableEffect +
     inventoryEffect +
     prepaidEffect +
+    prepaidTaxEffect +
     otherAssetEffect +
     payableEffect;
 
@@ -207,6 +199,7 @@ export default function CashFlow() {
     prevReceivableEffect +
     prevInventoryEffect +
     prevPrepaidEffect +
+    prevPrepaidTaxEffect +
     prevOtherAssetEffect +
     prevPayableEffect;
 
@@ -244,8 +237,20 @@ export default function CashFlow() {
   const prevEndingBalance = prevEnd.cash;
   const prevCashChange = prevEndingBalance - prevBeginningBalance;
 
-  const cashFromSales = report?.totals.revenue ?? 0;
-  const cashForPurchases = report?.totals.expense ?? 0;
+  const workingCapitalEffect =
+    receivableEffect +
+    inventoryEffect +
+    prepaidEffect +
+    prepaidTaxEffect +
+    otherAssetEffect +
+    payableEffect;
+  const prevWorkingCapitalEffect =
+    prevReceivableEffect +
+    prevInventoryEffect +
+    prevPrepaidEffect +
+    prevPrepaidTaxEffect +
+    prevOtherAssetEffect +
+    prevPayableEffect;
 
   const exportToPDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -352,7 +357,7 @@ export default function CashFlow() {
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('1+1', pageW / 2, 285, { align: 'center' });
+    doc.text('1/1', pageW / 2, 285, { align: 'center' });
 
     doc.save(`Arus_Kas_${format(date, 'yyyy-MM')}.pdf`);
   };
@@ -426,22 +431,35 @@ export default function CashFlow() {
               <div className="flex items-center gap-3">
                 <TrendingUp className="h-5 w-5 text-emerald-500" />
                 <div>
-                  <p className="font-medium">Penerimaan dari Penjualan</p>
-                  <p className="text-sm text-muted-foreground">{monthlySales.length} transaksi</p>
+                  <p className="font-medium">Laba Bersih</p>
+                  <p className="text-sm text-muted-foreground">Berdasarkan jurnal posted periode ini</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-emerald-500">{formatCurrency(cashFromSales)}</span>
+              <span className="text-lg font-bold text-emerald-500">{formatCurrency(netIncome)}</span>
             </div>
             
             <div className="flex items-center justify-between p-4 bg-destructive/10 rounded-lg">
               <div className="flex items-center gap-3">
                 <TrendingDown className="h-5 w-5 text-destructive" />
                 <div>
-                  <p className="font-medium">Pembayaran untuk Pembelian</p>
-                  <p className="text-sm text-muted-foreground">{monthlyPurchases.length} transaksi</p>
+                  <p className="font-medium">Modal Kerja Bersih</p>
+                  <p className="text-sm text-muted-foreground">Piutang, persediaan, prepaid, pajak dibayar dimuka, dan utang usaha</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-destructive">({formatCurrency(cashForPurchases)})</span>
+              <span className={cn('text-lg font-bold', workingCapitalEffect >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                {formatCurrency(workingCapitalEffect)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg">
+              <div className="flex items-center gap-3">
+                <ArrowRight className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium">Penyesuaian Nonkas</p>
+                  <p className="text-sm text-muted-foreground">Penyusutan dan beban pajak yang belum menjadi arus kas</p>
+                </div>
+              </div>
+              <span className="text-lg font-bold text-primary">{formatCurrency(depreciation + taxExpense)}</span>
             </div>
 
             <div className="border-t pt-4">

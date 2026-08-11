@@ -243,6 +243,22 @@ export function AddSaleModal({
             </div>
           </div>
 
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3">
+            <div className="mb-2 text-sm font-medium text-foreground">Rincian Perhitungan</div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                DPP = {formData.quantity.toLocaleString('id-ID')} x Rp
+                {formData.pricePerUnit.toLocaleString('id-ID')}
+              </p>
+              <p>
+                Pajak = Rp{subtotalAmount.toLocaleString('id-ID')} x {taxRate.toLocaleString('id-ID')}%
+              </p>
+              <p>
+                Grand Total = DPP + Pajak = Rp{totalPrice.toLocaleString('id-ID')}
+              </p>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Batal

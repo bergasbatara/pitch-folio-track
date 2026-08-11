@@ -93,6 +93,23 @@ const PERIOD_OPTIONS: { value: PeriodType; label: string }[] = [
   { value: 'yearly', label: 'Tahunan' },
 ];
 
+const lower = (value: string) => value.toLowerCase();
+
+const hasKeyword = (value: string, keywords: string[]) =>
+  keywords.some((keyword) => lower(value).includes(keyword));
+
+const isCogsAccount = (name: string) =>
+  hasKeyword(name, ['hpp', 'harga pokok', 'pembelian']);
+
+const isTaxExpenseAccount = (name: string) =>
+  hasKeyword(name, ['pajak']);
+
+const isOtherExpenseAccount = (name: string) =>
+  hasKeyword(name, ['lain', 'bunga', 'administrasi bank']);
+
+const isOtherRevenueAccount = (name: string) =>
+  hasKeyword(name, ['lain', 'bunga']);
+
 export default function FinancialStatements() {
   const [date, setDate] = useState<Date>(new Date());
   const [period, setPeriod] = useState<PeriodType>('daily');
@@ -161,12 +178,46 @@ export default function FinancialStatements() {
     .filter((acc) => acc.type === 'expense' && acc.net !== 0)
     .sort((a, b) => b.net - a.net) ?? [];
 
+  const cogsAccounts = expenseAccounts.filter((acc) => isCogsAccount(acc.name));
+  const prevCogsAccounts = prevExpenseAccounts.filter((acc) => isCogsAccount(acc.name));
+  const taxExpenseAccounts = expenseAccounts.filter((acc) => isTaxExpenseAccount(acc.name));
+  const prevTaxExpenseAccounts = prevExpenseAccounts.filter((acc) => isTaxExpenseAccount(acc.name));
+  const otherExpenseAccounts = expenseAccounts.filter((acc) => isOtherExpenseAccount(acc.name));
+  const prevOtherExpenseAccounts = prevExpenseAccounts.filter((acc) => isOtherExpenseAccount(acc.name));
+  const otherRevenueAccounts = revenueAccounts.filter((acc) => isOtherRevenueAccount(acc.name));
+  const prevRevenueAccounts = prevReport?.accounts
+    .filter((acc) => acc.type === 'revenue' && acc.net !== 0)
+    .sort((a, b) => b.net - a.net) ?? [];
+  const prevOtherRevenueAccounts = prevRevenueAccounts.filter((acc) => isOtherRevenueAccount(acc.name));
+  const operatingExpenseAccounts = expenseAccounts.filter(
+    (acc) => !isCogsAccount(acc.name) && !isTaxExpenseAccount(acc.name) && !isOtherExpenseAccount(acc.name),
+  );
+  const prevOperatingExpenseAccounts = prevExpenseAccounts.filter(
+    (acc) => !isCogsAccount(acc.name) && !isTaxExpenseAccount(acc.name) && !isOtherExpenseAccount(acc.name),
+  );
+
   const totalPendapatan = report?.totals.revenue ?? 0;
   const totalBeban = report?.totals.expense ?? 0;
   const labaRugi = report?.totals.netProfit ?? 0;
   const prevTotalPendapatan = prevReport?.totals.revenue ?? 0;
   const prevTotalBeban = prevReport?.totals.expense ?? 0;
   const prevLabaRugi = prevReport?.totals.netProfit ?? 0;
+  const totalHpp = cogsAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const prevTotalHpp = prevCogsAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const totalBebanUsaha = operatingExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const prevTotalBebanUsaha = prevOperatingExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const totalPendapatanLain = otherRevenueAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const prevTotalPendapatanLain = prevOtherRevenueAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const totalBebanLain = otherExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const prevTotalBebanLain = prevOtherExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const totalPajak = taxExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const prevTotalPajak = prevTaxExpenseAccounts.reduce((sum, acc) => sum + acc.net, 0);
+  const labaKotor = totalPendapatan - totalHpp;
+  const prevLabaKotor = prevTotalPendapatan - prevTotalHpp;
+  const labaUsaha = labaKotor - totalBebanUsaha;
+  const prevLabaUsaha = prevLabaKotor - prevTotalBebanUsaha;
+  const labaSebelumPajak = labaUsaha + (totalPendapatanLain - totalBebanLain);
+  const prevLabaSebelumPajak = prevLabaUsaha + (prevTotalPendapatanLain - prevTotalBebanLain);
 
   const periodLabel = getPeriodLabel(date, period);
   const { from: periodFrom, to: periodTo } = getDateRange(date, period);
@@ -231,28 +282,12 @@ export default function FinancialStatements() {
 
     const prevAccountMap = new Map(prevReport?.accounts.map((acc) => [acc.id, acc]) ?? []);
 
-    const sumByKeywords = (items: typeof revenueAccounts, keywords: string[]) => {
-      const lower = (value: string) => value.toLowerCase();
-      return items
-        .filter((acc) => keywords.some((kw) => lower(acc.name).includes(kw)))
-        .reduce((sum, acc) => sum + acc.net, 0);
-    };
-
-    const otherExpense = sumByKeywords(expenseAccounts, ['lain', 'bunga', 'administrasi bank']);
-    const prevOtherExpense = sumByKeywords(prevExpenseAccounts, ['lain', 'bunga', 'administrasi bank']);
-    const otherIncome = sumByKeywords(revenueAccounts, ['lain', 'bunga']);
-    const prevOtherIncome = sumByKeywords(prevReport?.accounts?.filter((acc) => acc.type === 'revenue') ?? [], ['lain', 'bunga']);
-    const taxEstimate = sumByKeywords(expenseAccounts, ['pajak']);
-    const prevTaxEstimate = sumByKeywords(prevExpenseAccounts, ['pajak']);
-
     // Pendapatan
     addRow('Pendapatan', '11', fmtNum(totalPendapatan), fmtNum(prevTotalPendapatan), false);
     // HPP
-    addRow('Harga Pokok Penjualan', '12', fmtNum(totalBeban), fmtNum(prevTotalBeban), false);
+    addRow('Harga Pokok Penjualan', '12', fmtNum(totalHpp), fmtNum(prevTotalHpp), false);
     y += 1;
-    const labaKotor = totalPendapatan - totalBeban;
-    const labaKotorPrev = prevTotalPendapatan - prevTotalBeban;
-    addRow('LABA KOTOR', '', fmtNum(labaKotor), fmtNum(labaKotorPrev), true);
+    addRow('LABA KOTOR', '', fmtNum(labaKotor), fmtNum(prevLabaKotor), true);
     y += 3;
 
     // Beban Usaha
@@ -260,15 +295,11 @@ export default function FinancialStatements() {
     doc.text('Beban Usaha', colPos, y);
     y += 5.5;
 
-    let totalBebanUsaha = 0;
-    let prevTotalBebanUsaha = 0;
-    expenseAccounts.forEach((acc) => {
+    operatingExpenseAccounts.forEach((acc) => {
       const prevNet = prevAccountMap.get(acc.id)?.net ?? 0;
       addRow(`${acc.name}`, '', fmtNum(acc.net), fmtNum(prevNet), false, 4);
-      totalBebanUsaha += acc.net;
-      prevTotalBebanUsaha += prevNet;
     });
-    if (expenseAccounts.length === 0) {
+    if (operatingExpenseAccounts.length === 0) {
       addRow('Beban Umum dan Administrasi', '15', fmtNum(0), fmtNum(0), false, 4);
       addRow('Beban Penjualan', '13', fmtNum(0), fmtNum(0), false, 4);
     }
@@ -276,17 +307,18 @@ export default function FinancialStatements() {
     y += 2;
 
     // Beban/Pendapatan lain-lain
-    const otherNet = otherIncome - otherExpense;
-    const prevOtherNet = prevOtherIncome - prevOtherExpense;
+    const otherNet = totalPendapatanLain - totalBebanLain;
+    const prevOtherNet = prevTotalPendapatanLain - prevTotalBebanLain;
     addRow('Beban/Pendapatan lain-lain', '14a.b.', fmtNum(otherNet), fmtNum(prevOtherNet), false);
     y += 1;
 
-    // Laba Rugi Operasi
-    addRow('LABA RUGI OPERASI', '', fmtNum(labaRugi), fmtNum(prevLabaRugi), true);
+    // Laba usaha dan laba sebelum pajak
+    addRow('LABA USAHA', '', fmtNum(labaUsaha), fmtNum(prevLabaUsaha), true);
+    addRow('LABA SEBELUM PAJAK', '', fmtNum(labaSebelumPajak), fmtNum(prevLabaSebelumPajak), true);
     y += 2;
 
     // Pajak
-    addRow('Taksiran Pajak Penghasilan', '', fmtNum(taxEstimate), fmtNum(prevTaxEstimate), false);
+    addRow('Taksiran Pajak Penghasilan', '', fmtNum(totalPajak), fmtNum(prevTotalPajak), false);
     y += 1;
 
     // Laba Bersih
@@ -306,10 +338,10 @@ export default function FinancialStatements() {
     // Page number
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('1+1', pageW / 2, 285, { align: 'center' });
+    doc.text('1/1', pageW / 2, 285, { align: 'center' });
 
     const { from, to } = getDateRange(date, period);
-    doc.save(`Laba_Rugi_${from}_${to}.pdf`);
+    doc.save(`Laporan_Laba_Rugi_${from}_${to}.pdf`);
   };
 
   return (
